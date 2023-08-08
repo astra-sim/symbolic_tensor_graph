@@ -233,7 +233,8 @@ class Tensor:
                            label=tensor.name, 
                            id=tensor.name,
                            shape="box",
-                           color=color)
+                           style="filled",
+                           fillcolor=color)
             for i, shaped_tensor_in in enumerate(tensor.shaped_tensor_in):
                 name = f"{tensor.name}_in_{i}"
                 shaped_tensor_in._name = name
@@ -241,7 +242,8 @@ class Tensor:
                                label=name,
                                id=name,
                                shape="invhouse",
-                               color=color)
+                               style="filled",
+                               fillcolor=color)
                 sub_graph.edge(name, tensor.name, style="dotted")
             for i, shaped_tensor_out in enumerate(tensor.shaped_tensor_out):
                 name = f"{tensor.name}_out_{i}"
@@ -250,7 +252,8 @@ class Tensor:
                                label=name,
                                id=name,
                                shape="house",
-                               color=color)
+                               style="filled",
+                               fillcolor=color)
                 sub_graph.edge(tensor.name, name, style="dotted")
             f.subgraph(sub_graph)
         for tensor in tensors:
@@ -273,5 +276,5 @@ class ShapedTensor:
         self._name = None
         
     def __del__(self):
-        if self in self.tensor.shaped_tensor:
-            self.tensor.shaped_tensor.remove(self)
+        if self in self.tensor.shaped_tensor_out:
+            self.tensor.shaped_tensor_out.remove(self)
