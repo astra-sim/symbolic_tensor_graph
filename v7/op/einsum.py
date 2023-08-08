@@ -74,32 +74,5 @@ class EinSum(OP):
         EinSum.apply(grad_y, x2, x1_einsum_str, grad_x1)
         EinSum.apply(grad_y, x1, x2_einsum_str, grad_x2)
         return grad_x1, grad_x2
-
-    def output_sharding(self):
-        x1 = self.context["x1"]
-        x2 = self.context["x2"]
-        y_shape = self.context["y_shape"]
-        reduced_shape = self.context["reduced_shape"]
-        
-        shape_sharding_table = dict()
-        for shape_symbol, sharding_symbol in zip(x1.shape, x1.sharding):
-            if shape_symbol in shape_sharding_table:
-                assert shape_sharding_table[shape_symbol] == sharding_symbol
-            else:
-                shape_sharding_table[shape_symbol] = sharding_symbol
-        for shape_symbol, sharding_symbol in zip(x2.shape, x2.sharding):
-            if shape_symbol in shape_sharding_table:
-                assert shape_sharding_table[shape_symbol] == sharding_symbol
-            else:
-                shape_sharding_table[shape_symbol] = sharding_symbol
-        sharding = list()
-        for shape in y_shape:
-            assert shape in shape_sharding_table.keys()
-            sharding.append(shape_sharding_table[shape])
-        assert len(reduced_shape) <= 1
-        for reduced in reduced_shape:
-            assert reduced in shape_sharding_table.keys()
-            sharding.append(reduced)
-        return sharding
         
         

@@ -20,4 +20,11 @@ class OP:
         return ret
     
     def output_sharding(self):
-        raise NotImplementedError()
+        new_sharding = dict()
+        for input in self.inputs:
+            for shape in input.shape:
+                if not shape in new_sharding:
+                    sharding = input.sharding[shape]
+                    new_sharding[shape] = sharding
+        return
+

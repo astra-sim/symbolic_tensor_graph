@@ -27,9 +27,3 @@ class ElementWise(OP):
         ElementWise.apply(x=grad_y, ret=grad_x)
         return grad_x
 
-    def output_sharding(self):
-        x = self.context["input"]
-        sharding = list()
-        for sharding_dimension in x.sharding:
-            sharding.append(sharding_dimension)
-        return sharding

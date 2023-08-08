@@ -39,11 +39,16 @@ class DetachDimension(OP):
         grad_x = x.grad
         DetachDimension.apply(tensor=grad_y, detach_dimension=detach_dimension_new, detach_dimension_new=detach_dimension_old, ret=grad_x)
         return grad_x
-
+    
     def output_sharding(self):
-        x = self.context["input"]
-        sharding = list()
-        for sharding_dimension in x.sharding:
-            sharding.append(sharding_dimension)
-        return sharding
+        detach_dimension_old = self.context["old_dimension"]
+        detach_dimension_new = self.context["new_dimension"]
         
+        new_sharding = super(DetachDimension, self).output_sharding()
+
+        assert detach_dimension_old in new_sharding
+        detached_sharding = new_sharding[detach_dimension_old]
+        del new_sharding[detach_dimension_old]
+        
+        new_sharding[detach_dimension_new] = detached_sharding
+        return new_sharding
