@@ -74,5 +74,18 @@ class EinSum(OP):
         EinSum.apply(grad_y, x2, x1_einsum_str, grad_x1)
         EinSum.apply(grad_y, x1, x2_einsum_str, grad_x2)
         return grad_x1, grad_x2
+    
+    def get_ops(self):
+        y_shape = self.context["new_shape"]
+        r_shape = self.context["reduced_shape"]
+        sharding_map = self.output_sharding()
         
+        ops = 1
+        for shape in y_shape:
+            for symbol in shape.free_symbols:
+                ops = ops * symbol / sharding_map[symbol]
+        for shape in r_shape:
+            for symbol in shape.free_symbols:
+                ops = ops * symbol / sharding_map[symbol]
+        return ops
         

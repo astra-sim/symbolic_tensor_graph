@@ -52,3 +52,6 @@ class DetachDimension(OP):
         
         new_sharding[detach_dimension_new] = detached_sharding
         return new_sharding
+    
+    def get_ops(self):
+        return 0

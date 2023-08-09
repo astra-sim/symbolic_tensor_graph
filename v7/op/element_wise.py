@@ -27,3 +27,12 @@ class ElementWise(OP):
         ElementWise.apply(x=grad_y, ret=grad_x)
         return grad_x
 
+    def get_ops(self):
+        x = self.context["input"]
+        sharding_map = self.output_sharding()
+        
+        ops = 1
+        for shape in x.shape:
+            for symbol in shape.free_symbols:
+                ops = ops * symbol / sharding_map[symbol]
+        return ops

@@ -40,6 +40,7 @@ class Tensor:
             parent.backward()
         return
 
+    ## TODO: please only use in for fwd graphs, then build bwd, finally gather all gradients
     @staticmethod
     def get_all_tensors(y, tensors=None):
         if tensors is None:

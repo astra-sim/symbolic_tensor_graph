@@ -23,8 +23,12 @@ class OP:
         new_sharding = dict()
         for input in self.inputs:
             for shape in input.shape:
+                sharding = input.sharding[shape]
                 if not shape in new_sharding:
-                    sharding = input.sharding[shape]
                     new_sharding[shape] = sharding
+                else:
+                    assert new_sharding[shape] == sharding
         return
 
+    def get_ops(self):
+        raise NotImplementedError()
