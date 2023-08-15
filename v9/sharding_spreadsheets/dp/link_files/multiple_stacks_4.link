@@ -1,0 +1,31 @@
+load ../processed_graphs/stackFwd.csv stackFwd1;
+load ../processed_graphs/stackFwd.csv stackFwd2;
+load ../processed_graphs/stackFwd.csv stackFwd3;
+load ../processed_graphs/stackFwd.csv stackFwd4;
+load ../processed_graphs/stackBwd.csv stackBwd1;
+load ../processed_graphs/stackBwd.csv stackBwd2;
+load ../processed_graphs/stackBwd.csv stackBwd3;
+load ../processed_graphs/stackBwd.csv stackBwd4;
+
+prefix stackFwd1 stack1;
+prefix stackBwd1 stack1;
+prefix stackFwd2 stack2;
+prefix stackBwd2 stack2;
+prefix stackFwd3 stack3;
+prefix stackBwd3 stack3;
+prefix stackFwd4 stack4;
+prefix stackBwd4 stack4;
+
+link [stackFwd1, stackFwd2, stackFwd3, stackFwd4] {
+	stack1_ffn_norm -> stack2_mha_x,
+	stack2_ffn_norm -> stack3_mha_x,
+	stack3_ffn_norm -> stack4_mha_x
+} fwd;
+save fwd ../processed_graphs/4stackFwd.csv;
+
+link [stackBwd1, stackBwd2, stackBwd3, stackBwd4] {
+	stack4_ffn_d_x -> stack3_ffn_d_norm,
+	stack3_ffn_d_x -> stack2_ffn_d_norm,
+	stack2_ffn_d_x -> stack1_ffn_d_norm
+} bwd;
+save bwd ../processed_graphs/4stackBwd.csv;

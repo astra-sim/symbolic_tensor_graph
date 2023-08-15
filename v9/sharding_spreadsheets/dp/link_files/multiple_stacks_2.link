@@ -1,0 +1,19 @@
+load ../processed_graphs/stackFwd.csv stackFwd1;
+load ../processed_graphs/stackFwd.csv stackFwd2;
+load ../processed_graphs/stackBwd.csv stackBwd1;
+load ../processed_graphs/stackBwd.csv stackBwd2;
+
+prefix stackFwd1 stack1;
+prefix stackBwd1 stack1;
+prefix stackFwd2 stack2;
+prefix stackBwd2 stack2;
+
+link [stackFwd1, stackFwd2] {
+	stack1_ffn_norm -> stack2_mha_x
+} fwd;
+save fwd ../processed_graphs/2stackFwd.csv;
+
+link [stackBwd1, stackBwd2] {
+	stack2_ffn_d_x -> stack1_ffn_d_norm
+} bwd;
+save bwd ../processed_graphs/2stackBwd.csv;

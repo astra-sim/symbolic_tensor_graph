@@ -1,0 +1,7 @@
+﻿x0,N,"B/bp, Seq, H*D",1,,,T,,,,,,"B/bp, Seq, H*D",1,,
+w1,Y,"H*D, H*DF",1,,,T,,,,,,"H*D, H*DF",1,,
+x1,N,"B/bp, Seq, H*DF",1,x0,w1,M,"bsd,de->bse","B/bp, Seq, H*D",1,"H*D, H*DF",1,"B/bp, Seq, H*DF",H*D,,B/bp*Seq*H*DF*H*D
+w2,Y,"H*DF, H*D",1,,,T,,,,,,"H*DF, H*D",1,,
+x2,N,"B/bp, Seq, H*D",1,x1,w2,M,"bsd,de->bse","B/bp, Seq, H*DF",1,"H*DF, H*D",1,"B/bp, Seq, H*D",H*DF,,B/bp*Seq*H*D*H*DF
+res,N,"B/bp, Seq, H*D",1,x2,x0,A,,"B/bp, Seq, H*D",1,"B/bp, Seq, H*D",1,"B/bp, Seq, H*D",1,,B/bp*Seq*H*D
+norm,N,"B/bp, Seq, H*D",1,res,,E,10,"B/bp, Seq, H*D",1,,,"B/bp, Seq, H*D",1,,B/bp*Seq*H*D*10

@@ -1,0 +1,19 @@
+load ../graphs/multiHeadAttentionFwd.csv mhaFwd;
+load ../graphs/feedForwardNetworkFwd.csv ffnFwd;
+load ../graphs/multiHeadAttentionBwd.csv mhaBwd;
+load ../graphs/feedForwardNetworkBwd.csv ffnBwd;
+
+prefix mhaFwd mha;
+prefix mhaBwd mha;
+prefix ffnFwd ffn;
+prefix ffnBwd ffn;
+
+link [mhaFwd, ffnFwd] {
+	mha_norm -> ffn_x0
+} fwd;
+save fwd ../processed_graphs/stackFwd.csv;
+
+link [mhaBwd, ffnBwd] {
+	ffn_d_x0 -> mha_d_norm
+} bwd;
+save bwd ../processed_graphs/stackBwd.csv;
