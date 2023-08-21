@@ -46,7 +46,7 @@ class Tensor:
     
     @staticmethod
     def parse_expr(expr):
-        print(expr.strip())
+        # print(expr.strip())
         return sp.parse_expr(expr.strip())
     
     @staticmethod

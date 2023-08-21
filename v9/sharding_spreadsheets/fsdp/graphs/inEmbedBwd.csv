@@ -1,0 +1,4 @@
+﻿d_inEmbY,N,"B/bp, Seq, H*D",1,,,T,,,,,,"B/bp, Seq, H*D",1,,
+d_inEmbX,N,"B/bp, Seq, H*DI",1,d_inEmbY,inEmbW,M,"bse,de->bsd","B/bp, Seq, H*D",1,"H*DI, H*D",1,"B/bp, Seq, H*DI",H*D,,B/bp*Seq*H*DI*H*D
+d_inEmbW,N,"H*DI, H*D",1,d_inEmbY,inEmbX,M,"bse,bsd->de","B/bp, Seq, H*D",1,"B/bp, Seq, H*DI",1,"H*DI, H*D","B/bp, Seq",AllReduce@H*DI*H*D,H*DI*H*D*B/bp*Seq
+d_inEmbWSharded,N,"H*DI, H*D/bp",1,d_inEmbW,,C,Scatter@H*DI*H*D/bp,"H*DI, H*D",1,,,H*DI*H*D/bp,1,,

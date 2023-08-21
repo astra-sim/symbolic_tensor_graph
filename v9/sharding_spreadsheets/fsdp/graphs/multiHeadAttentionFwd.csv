@@ -1,10 +1,10 @@
 ﻿x,N,"B/bp, Seq, H, D",1,,,T,,,,,,"B/bp, Seq, H, D",1,,
-wq_sharded,Y,"H, D, D/bp",1,,,T,,,,,,"H, D, D/bp",1,,
-wk_sharded,Y,"H, D, D/bp",1,,,T,,,,,,"H, D, D/bp",1,,
-wv_sharded,Y,"H, D, D/bp",1,,,T,,,,,,"H, D, D/bp",1,,
-wq,N,"H, D, D",1,wq_sharded,,C,AllGather@H*D*D/bp,"H, D, D/bp",1,,,"H, D, D",1,,
-wk,N,"H, D, D",1,wk_sharded,,C,AllGather@H*D*D/bp,"H, D, D/bp",1,,,"H, D, D",1,,
-wv,N,"H, D, D",1,wv_sharded,,C,AllGather@H*D*D/bp,"H, D, D/bp",1,,,"H, D, D",1,,
+wqsharded,Y,"H, D, D/bp",1,,,T,,,,,,"H, D, D/bp",1,,
+wksharded,Y,"H, D, D/bp",1,,,T,,,,,,"H, D, D/bp",1,,
+wvsharded,Y,"H, D, D/bp",1,,,T,,,,,,"H, D, D/bp",1,,
+wq,N,"H, D, D",1,wqsharded,,C,AllGather@H*D*D/bp,"H, D, D/bp",1,,,"H, D, D",1,,
+wk,N,"H, D, D",1,wksharded,,C,AllGather@H*D*D/bp,"H, D, D/bp",1,,,"H, D, D",1,,
+wv,N,"H, D, D",1,wvsharded,,C,AllGather@H*D*D/bp,"H, D, D/bp",1,,,"H, D, D",1,,
 q,N,"B/bp, Seq, H, D",1,x,wq,M,"bshd,hde->bshe","B/bp, Seq, H, D",1,"H, D, D",1,"B/bp, Seq, H, D",D,,B/bp*Seq*H*D*D
 k,N,"B/bp, Seq, H, D",1,x,wk,M,"bshd,hde->bshe","B/bp, Seq, H, D",1,"H, D, D",1,"B/bp, Seq, H, D",D,,B/bp*Seq*H*D*D
 v,N,"B/bp, Seq, H, D",1,x,wv,M,"bshd,hde->bshe","B/bp, Seq, H, D",1,"H, D, D",1,"B/bp, Seq, H, D",D,,B/bp*Seq*H*D*D

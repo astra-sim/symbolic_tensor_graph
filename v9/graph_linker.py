@@ -1,5 +1,5 @@
 from tensor import Tensor
-import re
+import re, os
 
 
 class GraphLinker:
@@ -109,11 +109,11 @@ class GraphLinker:
                 assert tensor.id not in named_graph
                 named_graph[tensor.id] = tensor
         for from_, to_ in link_node.items():
-            print(from_)
+            # print(from_)
             assert from_ in named_graph
             assert to_ in named_graph
             from_, to_ = named_graph[from_], named_graph[to_]
-            assert to_.op_type == 'T'
+            # assert to_.op_type == 'T'
             for tensor in named_graph.values():
                 # do not allow non-leaf node to be from-ed, otherwise might referenced multiple times, 
                 # each time will have a component of gradient, multiple components need to sumed,
@@ -123,9 +123,18 @@ class GraphLinker:
                 if tensor.x2 == from_.id:
                     assert False
             assert from_.require_grads == to_.require_grads
-            # print(from_.shape, to_.shape)
-            # assert from_.shape == to_.shape
-            # assert from_.hidden == to_.hidden
+            from_product, to_product = 1, 1
+            for f in from_.shape:
+                from_product = from_product*f
+            for t in to_.shape:
+                to_product = to_product*t
+            assert from_product == to_product
+            from_product, to_product = 1, 1
+            for f in from_.hidden:
+                from_product = from_product*f
+            for t in to_.hidden:
+                to_product = to_product*t
+            assert from_product == to_product
 
             to_.x1, to_.x2 = from_.x1, from_.x2
             to_.op_type, to_.op_attr = from_.op_type, from_.op_attr
@@ -139,51 +148,4 @@ class GraphLinker:
             del named_graph[from_.id]
         return named_graph.values()
 
-
-def transformer(num_stacks):
-    fwd_graphs = list()
-    bwd_graphs = list()
-    for i in range(num_stacks):
-        mha_fwd = Tensor.parse_records('sharding_spreadsheets/dp/graphs/multiHeadAttentionFwd.csv')
-        mha_bwd = Tensor.parse_records('sharding_spreadsheets/dp/graphs/multiHeadAttentionBwd.csv')
-        ffn_fwd = Tensor.parse_records('sharding_spreadsheets/dp/graphs/feedForwardNetworkFwd.csv')
-        ffn_bwd = Tensor.parse_records('sharding_spreadsheets/dp/graphs/feedForwardNetworkBwd.csv')
-        
-        mha_fwd = GraphLinker.prefix_graph_impl(mha_fwd, "mha")
-        mha_bwd = GraphLinker.prefix_graph_impl(mha_bwd, "mha")
-        ffn_fwd = GraphLinker.prefix_graph_impl(ffn_fwd, "ffn")
-        ffn_bwd = GraphLinker.prefix_graph_impl(ffn_bwd, "ffn")
-        
-        Tensor.visualize(mha_fwd, "mha_fwd")
-        Tensor.visualize(mha_bwd, "mha_bwd")
-        Tensor.visualize(ffn_fwd, "ffn_fwd")
-        Tensor.visualize(ffn_bwd, "ffn_bwd")
-        
-        fwd = GraphLinker.link_graph_impl([mha_fwd, ffn_fwd], {"mha_norm": "ffn_x0"})
-        bwd = GraphLinker.link_graph_impl([mha_bwd, ffn_bwd], {"ffn_d_x0": "mha_d_norm"})
-        
-        fwd = GraphLinker.prefix_graph_impl(fwd, f"stack{i}")
-        bwd = GraphLinker.prefix_graph_impl(bwd, f"stack{i}")
-        fwd_graphs.append(fwd)
-        bwd_graphs.append(bwd)
-    
-    Tensor.visualize(fwd_graphs[0], f'sharding_spreadsheets/dp/processed_graphs/fwd_stack')
-    Tensor.visualize(bwd_graphs[0], f'sharding_spreadsheets/dp/processed_graphs/bwd_stack')
-        
-    fwd_links = dict()
-    bwd_links = dict()
-    for i in range(num_stacks-1):
-        fwd_links[f"stack{i}_ffn_norm"] = f"stack{i+1}_mha_x"
-        bwd_links[f"stack{i+1}_mha_d_x"] = f"stack{i}_ffn_d_norm"
-    fwd = GraphLinker.link_graph_impl(fwd_graphs, fwd_links)
-    bwd = GraphLinker.link_graph_impl(bwd_graphs, bwd_links)
-    Tensor.visualize(fwd, f'sharding_spreadsheets/dp/processed_graphs/stack_{num_stacks}_fwd_stacks')
-    Tensor.visualize(bwd, f'sharding_spreadsheets/dp/processed_graphs/stack_{num_stacks}_bwd_stacks')
-    Tensor.to_records(fwd, f'sharding_spreadsheets/dp/processed_graphs/stack{num_stacks}Fwd.csv')
-    Tensor.to_records(bwd, f'sharding_spreadsheets/dp/processed_graphs/stack{num_stacks}Bwd.csv')
-
-
-if __name__ == '__main__':
-    transformer(2)
-    transformer(32)
         

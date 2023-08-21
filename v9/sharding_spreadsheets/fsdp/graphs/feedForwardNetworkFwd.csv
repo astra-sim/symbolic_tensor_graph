@@ -1,9 +1,9 @@
 ﻿x0,N,"B/bp, Seq, H*D",1,,,T,,,,,,"B/bp, Seq, H*D",1,,
-w1_sharded,Y,"H*D, H*DF/bp",1,,,T,,,,,,"H*D, H*DF/bp",1,,
-w1,N,"H*D, H*DF",1,w1_sharded,,C,AllGather@H*D*H*DF/bp,"H*D, H*DF/bp",1,,,"H*D, H*DF",1,,
+w1sharded,Y,"H*D, H*DF/bp",1,,,T,,,,,,"H*D, H*DF/bp",1,,
+w1,N,"H*D, H*DF",1,w1sharded,,C,AllGather@H*D*H*DF/bp,"H*D, H*DF/bp",1,,,"H*D, H*DF",1,,
 x1,N,"B/bp, Seq, H*DF",1,x0,w1,M,"bsd,de->bse","B/bp, Seq, H*D",1,"H*D, H*DF",1,"B/bp, Seq, H*DF",H*D,,B/bp*Seq*H*DF*H*D
-w2_sharded,Y,"H*DF, H*D/bp",1,,,T,,,,,,"H*DF, H*D/bp",1,,
-w2,N,"H*DF, H*D",1,w2_sharded,,C,AllGather@H*DF*H*D/bp,"H*DF, H*D/bp",1,,,"H*DF, H*D",1,,
+w2sharded,Y,"H*DF, H*D/bp",1,,,T,,,,,,"H*DF, H*D/bp",1,,
+w2,N,"H*DF, H*D",1,w2sharded,,C,AllGather@H*DF*H*D/bp,"H*DF, H*D/bp",1,,,"H*DF, H*D",1,,
 x2,N,"B/bp, Seq, H*D",1,x1,w2,M,"bsd,de->bse","B/bp, Seq, H*DF",1,"H*DF, H*D",1,"B/bp, Seq, H*D",H*DF,,B/bp*Seq*H*D*H*DF
 res,N,"B/bp, Seq, H*D",1,x2,x0,A,,"B/bp, Seq, H*D",1,"B/bp, Seq, H*D",1,"B/bp, Seq, H*D",1,,B/bp*Seq*H*D
 norm,N,"B/bp, Seq, H*D",1,res,,E,10,"B/bp, Seq, H*D",1,,,"B/bp, Seq, H*D",1,,B/bp*Seq*H*D*10

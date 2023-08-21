@@ -1,4 +1,0 @@
-﻿outEmbedX,N,"B/bp, Seq, H*D",1,,,T,,,,,,"B/bp, Seq, H*D",1,,
-outEmbedWSharded,Y,"H*D, H*DO/bp",1,,,T,,,,,,"H*D, H*DO/bp",1,,
-outEmbedW,N,"H*D, H*DO",1,outEmbedWSharded,,C,AllGather@H*D*H*DO/bp,"H*D, H*DO/bp",1,,,"H*D, H*DO",1,,
-outEmbedY,N,"B/bp, Seq, H*DO",1,outEmbedX,outEmbedW,M,"bsd,de->bse","B/bp, Seq, H*D",1,"H*D, H*DO",1,"B/bp, Seq, H*DO",1,,B/bp*Seq*H*DO*H*D

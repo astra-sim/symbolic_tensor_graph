@@ -1,4 +1,0 @@
-﻿d_outEmbedY,N,"B/bp, Seq, H*DO",1,,,,,,,,,"B/bp, Seq, H*DO",1,,
-d_outEmbedX,N,"B/bp, Seq, H*D",1,d_outEmbedY,outEmbedW,M,"bse,de->bsd","B/bp, Seq, H*DO",1,"H*D, H*DO",1,"B/bp, Seq, H*D",H*DO,,B/bp*Seq*H*D*H*DO
-d_outEmbedWSharded,N,"H*D, H*DO/bp",1,d_outEmbedW,,C,Scatter@H*D*H*DP/bp,"H*D, H*DO",1,,,"H*D, H*DO/bp",1,,
-d_outEmbedW,N,"H*D, H*DO",1,d_outEmbedY,outEmbedX,M,"bse,bsd->de","B/bp, Seq, H*DO",1,"B/bp, Seq, H*D",1,"H*D, H*DO","B/bp, Seq",AllReduce@H*D*H*DO,H*D*H*DO*B/bp*Seq

@@ -1,0 +1,4 @@
+﻿inEmbX,N,"B/bp, Seq, H*DI",1,,,T,,,,,,"B/bp, Seq, H*DI",1,,
+inEmbWSharded,Y,"H*DI, H*D/bp",1,,,T,,,,,,"Seq, H*DI, H*D/bp",1,,
+inEmbW,N,"H*DI, H*D",1,inEmbWSharded,,C,AllGather@H*DI*H*D/bp,"H*DI, H*D/bp",1,,,"H*DI, H*D",1,,
+inEmbY,N,"B/bp, Seq, H*D",1,inEmbX,inEmbW,M,"bsd,de->bse","B/bp, Seq, H*DI",1,"H*DI, H*D",1,"B/bp, Seq, H*D",H*DI,,B/bp*Seq*H*D*H*DI

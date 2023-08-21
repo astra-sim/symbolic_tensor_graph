@@ -8,9 +8,9 @@ d_q,N,"B/bp, Seq, H, D",1,d_qk,k,M,"bswh,bwhd->bshd","B/bp, Seq, Seq, H",1,"B/bp
 d_wv,N,"H, D, D",1,d_v,x,M,"bshe,bshd->hde","B/bp, Seq, H, D",1,"B/bp, Seq, H, D",1,"H, D, D","B/bp, Seq",AllReduce@H*D*D,H*D*D*B/bp*Seq
 d_wk,N,"H, D, D",1,d_k,x,M,"bshe,bshd->hde","B/bp, Seq, H, D",1,"B/bp, Seq, H, D",1,"H, D, D","B/bp, Seq",AllReduce@H*D*D,H*D*D*B/bp*Seq
 d_wq,N,"H, D, D",1,d_q,x,M,"bshe,bshd->hde","B/bp, Seq, H, D",1,"B/bp, Seq, H, D",1,"H, D, D","B/bp, Seq",AllReduce@H*D*D,H*D*D*B/bp*Seq
-d_wv_sharded,N,"H, D, D/bp",1,d_wv,,C,Scatter@H*D*D/bp,"H, D, D",1,,,"H, D, D/bp",1,,H*D*D/bp
-d_wk_sharded,N,"H, D, D/bp",1,d_wk,,C,Scatter@H*D*D/bp,"H, D, D",1,,,"H, D, D/bp",1,,H*D*D/bp
-d_wq_sharded,N,"H, D, D/bp",1,d_wq,,C,Scatter@H*D*D/bp,"H, D, D",1,,,"H, D, D/bp",1,,H*D*D/bp
+d_wvsharded,N,"H, D, D/bp",1,d_wv,,C,Scatter@H*D*D/bp,"H, D, D",1,,,"H, D, D/bp",1,,H*D*D/bp
+d_wksharded,N,"H, D, D/bp",1,d_wk,,C,Scatter@H*D*D/bp,"H, D, D",1,,,"H, D, D/bp",1,,H*D*D/bp
+d_wqsharded,N,"H, D, D/bp",1,d_wq,,C,Scatter@H*D*D/bp,"H, D, D",1,,,"H, D, D/bp",1,,H*D*D/bp
 d_x0,N,"B/bp, Seq, H, D",1,d_v,wv,M,"bshe,hde->bshd","B/bp, Seq, H, D",1,"H, D, D",1,"B/bp, Seq, H, D",D,,B/bp*Seq*H*D*D
 d_x1,N,"B/bp, Seq, H, D",1,d_k,wk,M,"bshe,hde->bshd","B/bp, Seq, H, D",1,"H, D, D",1,"B/bp, Seq, H, D",D,,B/bp*Seq*H*D*D
 d_x2,N,"B/bp, Seq, H, D",1,d_q,wq,M,"bshe,hde->bshd","B/bp, Seq, H, D",1,"H, D, D",1,"B/bp, Seq, H, D",D,,B/bp*Seq*H*D*D
