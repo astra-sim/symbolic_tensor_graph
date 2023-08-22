@@ -3,3 +3,4 @@
 **/*.pdf
 **/processed_graphs
 **/visualization
+**/*.et

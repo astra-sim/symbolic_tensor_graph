@@ -141,8 +141,8 @@ class Symbolic2ChakraConverter:
     
 if __name__ == '__main__':
     converter = Symbolic2ChakraConverter(
-                    'sharding_spreadsheets/dp/processed_graphs/transformer_2.csv', 
-                    'sharding_spreadsheets/dp/ets/transformer_2', 
+                    'sharding_spreadsheets/dp/processed_graphs/transformer_8.csv', 
+                    'sharding_spreadsheets/dp/ets/transformer_8', 
                     256)
     symbol_value_map = {
         'bp': 2, 'B': 8, 'Seq': 1024, 'H': 32, 'D': 32, 'DF': 128, 'DI': 1024, 'DO': 32
@@ -150,5 +150,4 @@ if __name__ == '__main__':
     converter.symbol_value_map = symbol_value_map
     symbols = converter.convert()
     hook = 0
-    
     
