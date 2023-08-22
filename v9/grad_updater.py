@@ -19,7 +19,7 @@ class GradUpdater:
             grad_id = id_[:id_.rfind('_')] + '_d_' + id_[id_.rfind('_')+1:]
         else:
             grad_id = 'd_' + id_
-        print(grad_id)
+        # print(grad_id)
         for tensor in self.bwd_graph:
             if tensor.id == grad_id:
                 return tensor

@@ -107,20 +107,21 @@ class Symbolic2ChakraConverter:
     
     def connect_nodes(self):
         for tensor in self.tensors:
-            if not tensor in self.tensor_node_maps:
+            if not tensor.id in self.tensor_node_maps:
                 # tensor type
                 continue
             node_head = self.tensor_node_maps[tensor.id][0]
             if tensor.x1 is not None:
                 if tensor.x1 in self.tensor_node_maps:
                     x1_tail = self.tensor_node_maps[tensor.x1][-1]
-                    node_head.parent.append(x1_tail)
+                    node_head.parent.append(x1_tail.id)
                 # else: tensor type
             if tensor.x2 is not None:
                 if tensor.x2 in self.tensor_node_maps:
                     x2_tail = self.tensor_node_maps[tensor.x2][-1]
-                    node_head.parent.append(x2_tail)
+                    node_head.parent.append(x2_tail.id)
                 # else tensor type
+            # self.tensor_node_maps[tensor.id][0] = node_head
         return
     
     def readout(self):
