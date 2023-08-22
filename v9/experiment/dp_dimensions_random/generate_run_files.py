@@ -9,7 +9,7 @@ import design_space
 from models.transformer import transformer
 from symbolic2chakra_converter import Symbolic2ChakraConverter
 
-num_samples = 65536
+num_samples = 2048
 et_dir = './run_file/ets'
 symbolic_dir = '../../sharding_spreadsheets/dp'
 os.makedirs(et_dir, exist_ok=True)
@@ -40,7 +40,7 @@ def convert_task(i):
     num_layers = random.choice(design_space.num_layers)
     converter = Symbolic2ChakraConverter(
         os.path.join(symbolic_dir, "processed_graphs", f"transformer_{num_layers}.csv"),
-        os.path.join(et_dir, f"transformer_{et_dir}"),
+        os.path.join(et_dir, f"transformer_{i}"),
         256
     )
     symbol_value_map = sample_symbol_value_map()
