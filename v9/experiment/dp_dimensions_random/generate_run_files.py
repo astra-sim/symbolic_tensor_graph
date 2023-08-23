@@ -16,9 +16,9 @@ os.makedirs(et_dir, exist_ok=True)
 pool = Pool(int(cpu_count()*1))
 
 
-def prepare_templates():
+def prepare_templates(design_space_):
     handler = list()
-    for num_layers in design_space.num_layers:
+    for num_layers in design_space_.num_layers:
         handler.append(pool.apply_async(transformer, (num_layers, symbolic_dir)))
     for h in handler:
         h.get()
@@ -26,24 +26,25 @@ def prepare_templates():
     return
 
 
-def sample_symbol_value_map():
+def sample_symbol_value_map(design_space_):
     symbol_value_map = dict()
-    for key in design_space.symbol_value_map:
-        value = random.choice(design_space.symbol_value_map[key])
+    for key in design_space_.symbol_value_map:
+        value = random.choice(design_space_.symbol_value_map[key])
         symbol_value_map[key] = value
     return symbol_value_map
     
 
-def convert_task(i):
+def convert_task(i_, design_space_):
+    os.makedirs(os.path.join(et_dir, f"{i_}"), exist_ok=True)
     random.seed(time.time_ns())
-    print(i)
-    num_layers = random.choice(design_space.num_layers)
+    print(i_)
+    num_layers = random.choice(design_space_.num_layers)
     converter = Symbolic2ChakraConverter(
         os.path.join(symbolic_dir, "processed_graphs", f"transformer_{num_layers}.csv"),
-        os.path.join(et_dir, f"transformer_{i}"),
+        os.path.join(et_dir, f"{i_}", f"transformer_{i_}"),
         256
     )
-    symbol_value_map = sample_symbol_value_map()
+    symbol_value_map = sample_symbol_value_map(design_space_)
     print(symbol_value_map)
     converter.symbol_value_map = symbol_value_map
     converter.convert()
@@ -51,18 +52,18 @@ def convert_task(i):
     return symbol_value_map
 
 
-def convert():
+def convert(design_space_):
     cfgs = dict()
     for i in range(num_samples):
-        cfgs[i] = pool.apply_async(convert_task, (i,))
+        cfgs[i] = pool.apply_async(convert_task, (i, design_space_))
     for i in cfgs.keys():
         cfgs[i] = cfgs[i].get()
     return cfgs
 
 
 if __name__ == '__main__':
-    # prepare_templates()
-    cfgs = convert()
+    prepare_templates(design_space_=design_space)
+    cfgs = convert(design_space_=design_space)
     
     pool.close()
     pool.join()

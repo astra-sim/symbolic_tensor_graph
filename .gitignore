@@ -5,3 +5,5 @@
 **/visualization
 **/*.et
 **/*.eg
+**/run_file
+**/run_file*
