@@ -1,0 +1,15 @@
+﻿id_,require_grads,shape,hidden,x1,x2,op_type,op_attr,gradient_of,num_iter,offloading,x1_shape,x1_hidden,x2_shape,x2_hidden,direct_output_shape,direct_output_hidden,post_communications,ops
+x,N,"B/bp, Seq, H, D",1,,,T,,,0,0,,,,,"B/bp, Seq, H, D",1,,
+wq_sharded,Y,"H, D, D/bp",1,,,T,,,0,0,,,,,"H, D, D/bp",1,,
+wk_sharded,Y,"H, D, D/bp",1,,,T,,,0,0,,,,,"H, D, D/bp",1,,
+wv_sharded,Y,"H, D, D/bp",1,,,T,,,0,0,,,,,"H, D, D/bp",1,,
+wq,N,"H, D, D",1,wq_sharded,,C,Gather@bp:H*D*D/bp,,0,0,"H, D, D/bp",1,,,"H, D, D",1,,
+wk,N,"H, D, D",1,wk_sharded,,C,Gather@bp:H*D*D/bp,,0,0,"H, D, D/bp",1,,,"H, D, D",1,,
+wv,N,"H, D, D",1,wv_sharded,,C,Gather@bp:H*D*D/bp,,0,0,"H, D, D/bp",1,,,"H, D, D",1,,
+q,N,"B/bp, Seq, H, D",1,x,wq,M,"bshd,hde->bshe",,0,0,"B/bp, Seq, H, D",1,"H, D, D",1,"B/bp, Seq, H, D",D,,B/bp*Seq*H*D*D
+k,N,"B/bp, Seq, H, D",1,x,wk,M,"bshd,hde->bshe",,0,0,"B/bp, Seq, H, D",1,"H, D, D",1,"B/bp, Seq, H, D",D,,B/bp*Seq*H*D*D
+v,N,"B/bp, Seq, H, D",1,x,wv,M,"bshd,hde->bshe",,0,0,"B/bp, Seq, H, D",1,"H, D, D",1,"B/bp, Seq, H, D",D,,B/bp*Seq*H*D*D
+qk,N,"B/bp, Seq, Seq, H",1,q,k,M,"bshd,bwhd->bswh",,0,0,"B/bp, Seq, H, D",1,"B/bp, Seq, H, D",1,"B/bp, Seq, Seq, H",D,,B/bp*Seq*Seq*H*D
+qkv,N,"B/bp, Seq, H, D",1,qk,v,M,"bswh,bwhd->bshd",,0,0,"B/bp, Seq, Seq, H",1,"B/bp, Seq, H, D",1,"B/bp, Seq, H, D",Seq,,B/bp*Seq*H*D*Seq
+res,N,"B/bp, Seq, H, D",1,qkv,x,A,,,0,0,"B/bp, Seq, H, D",1,"B/bp, Seq, H, D",1,"B/bp, Seq, H, D",1,,B/bp*Seq*H*D
+norm,N,"B/bp, Seq, H, D",1,res,,E,10,,0,0,"B/bp, Seq, H, D",1,,,"B/bp, Seq, H, D",1,,B/bp*Seq*H*D
