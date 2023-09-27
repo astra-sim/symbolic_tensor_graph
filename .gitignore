@@ -7,3 +7,5 @@
 **/*.eg
 **/run_file
 **/run_file*
+**/offload_strategy
+.gitignore

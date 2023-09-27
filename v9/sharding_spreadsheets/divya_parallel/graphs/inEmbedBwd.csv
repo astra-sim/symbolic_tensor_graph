@@ -1,0 +1,4 @@
+﻿d_inEmbY,N,"B/bp, Seq, H*D/mp",1,,,T,,,,,,,,,
+d_inEmbX,N,"B/bp, Seq, H*DI/mp",1,d_inEmbY,inEmbW,M,"bse,de->bsd","B/bp, Seq, H*D/mp",1,"H*DI/mp, H*D",1,"B/bp, Seq, H*D",H*DI/mp,AllReduce@B/bp*Seq*H*D,B/bp*Seq*H*D*H*DI/mp
+d_inEmbYComm,N,"B/bp, Seq, H*D",1,d_inEmbY,,C,AllGather@B/bp*Seq*H*D/mp,"B/bp, Seq, H*D/mp",1,,,"B/bp, Seq, H*D",1,,
+d_inEmbW,N,"H*DI/mp, H*D",1,d_inEmbYComm,inEmbX,M,"bse,bsd->de","B/bp, Seq, H*D",1,"B/bp, Seq, H*DI/mp",1,"H*DI/mp, H*D","B/bp, Seq",AllReduce@H*DI/mp*H*D,H*DI/mp*H*D*B/bp*Seq

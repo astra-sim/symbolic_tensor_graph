@@ -3,6 +3,7 @@ import os
 from tensor import Tensor
 from graph_linker import GraphLinker
 from grad_updater import GradUpdater
+from offload_strategy import OffloadStrategy
 
 
 def transformer_stack(root="sharding_spreadsheets/dp", visualize=False):
@@ -81,6 +82,7 @@ def transformer_stacks(num_stacks, root="sharding_spreadsheets/dp", visualize=Fa
 
 
 def transformer(num_stacks, root="sharding_spreadsheets/dp", visualize=False):
+    print(f"transformer {num_stacks} {root} {visualize}")
     if not os.path.exists(
         os.path.join(root, f"processed_graphs/stack{num_stacks}Fwd.csv")
     ):
@@ -138,7 +140,43 @@ def transformer(num_stacks, root="sharding_spreadsheets/dp", visualize=False):
     Tensor.to_records(
         loop, os.path.join(root, f"processed_graphs/transformer_{num_stacks}.csv")
     )
+    print(f"transformer done {num_stacks} {root} {visualize}")
+    return
 
+
+def transformer_offload_strategy(
+    num_stacks,
+    root="sharding_spreadsheets/dp",
+    weight_offload=1,
+    leaf_offload=1,
+    input_offload=0,
+):
+    print(
+        f"transformer_offload_strategy {num_stacks} {root} {weight_offload} {leaf_offload} {input_offload}"
+    )
+    transformer_csv = os.path.join(
+        root, "processed_graphs", f"transformer_{num_stacks}.csv"
+    )
+    if not os.path.exists(transformer_csv):
+        transformer(num_stacks, root=root)
+    os.makedirs(os.path.join(root, "offload_strategy"), exist_ok=True)
+    offload_csv = os.path.join(
+        root,
+        "offload_strategy",
+        f"transformer_{num_stacks}_w{weight_offload}_l{leaf_offload}_i{input_offload}.csv",
+    )
+    tensors = Tensor.parse_records(transformer_csv)
+    offload_strategy = OffloadStrategy.create_blank(tensors)
+    if weight_offload > 0:
+        offload_strategy.set_all_weight_offload(tensors, weight_offload)
+    if leaf_offload > 0:
+        offload_strategy.set_all_leaf_offload(tensors, leaf_offload)
+    if input_offload > 0:
+        offload_strategy.set_all_intermediate_offload(tensors, input_offload)
+    offload_strategy.to_records(offload_csv)
+    print(
+        f"transformer_offload_strategy done {num_stacks} {root} {weight_offload} {leaf_offload} {input_offload}"
+    )
     return
 
 

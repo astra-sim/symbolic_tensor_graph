@@ -50,6 +50,7 @@ class Symbolic2ChakraConverter:
             assert False
             # type_ = CollectiveCommType.INVALID_COMM
         size_ = sp.parse_expr(size_)
+        print(size_)
         size_value = size_.evalf(subs=self.symbol_value_map)
         print(size_, self.symbol_value_map, size_value)
         return type_, int(size_value)
@@ -63,6 +64,11 @@ class Symbolic2ChakraConverter:
             node.id = self.next_node_id
             node.node_type = NodeType.COMP_NODE
             node.num_ops = int(tensor.ops.evalf(subs=self.symbol_value_map))
+            tensor_size = 1
+            for dim in tensor.shape:
+                tensor_size *= dim
+            node.tensor_size = int(tensor_size.evalf(subs=self.symbol_value_map))
+            print(tensor_size, node.tensor_size)
             nodes.append(node)
         elif tensor.op_type == "C":
             # create comm node
@@ -70,6 +76,7 @@ class Symbolic2ChakraConverter:
             node.name = tensor.id
             node.id = self.next_node_id
             node.node_type = NodeType.COMM_COLL_NODE
+            print(node.name)
             comm_type, comm_size = self.parse_comm_attr(tensor.op_attr)
             node.comm_type = comm_type
             node.comm_size = comm_size
@@ -92,6 +99,7 @@ class Symbolic2ChakraConverter:
             node.name = tensor.id + "post_comm"
             node.id = self.next_node_id
             node.node_type = NodeType.COMM_COLL_NODE
+            print(node.name)
             comm_type, comm_size = self.parse_comm_attr(tensor.post_communications)
             node.comm_type = comm_type
             node.comm_size = comm_size
@@ -185,7 +193,7 @@ class Symbolic2ChakraConverterWithOffload:
         if type_ == "Scatter":
             type_ = CollectiveCommType.REDUCE_SCATTER
         elif type_ == "AllGather":
-            type_ = CollectiveCommType.All_GATHER
+            type_ = CollectiveCommType.ALL_GATHER
         elif type_ == "AllReduce":
             type_ = CollectiveCommType.ALL_REDUCE
         else:
@@ -203,6 +211,11 @@ class Symbolic2ChakraConverterWithOffload:
             node.id = self.next_node_id
             node.node_type = NodeType.COMP_NODE
             node.num_ops = int(tensor.ops.evalf(subs=self.symbol_value_map))
+            tensor_size = 1
+            for dim in tensor.shape:
+                tensor_size *= dim
+            node.tensor_size = int(tensor_size.evalf(subs=self.symbol_value_map))
+            print(tensor_size, node.tensor_size)
             nodes.append(node)
         elif tensor.op_type == "C":
             # create comm node
@@ -210,6 +223,7 @@ class Symbolic2ChakraConverterWithOffload:
             node.name = tensor.id
             node.id = self.next_node_id
             node.node_type = NodeType.COMM_COLL_NODE
+            print(node.name)
             comm_type, comm_size = self.parse_comm_attr(tensor.op_attr)
             node.comm_type = comm_type
             node.comm_size = comm_size
@@ -230,6 +244,7 @@ class Symbolic2ChakraConverterWithOffload:
             node.name = tensor.id + "post_comm"
             node.id = self.next_node_id
             node.node_type = NodeType.COMM_COLL_NODE
+            print(node.name)
             comm_type, comm_size = self.parse_comm_attr(tensor.post_communications)
             node.comm_type = comm_type
             node.comm_size = comm_size
@@ -248,9 +263,11 @@ class Symbolic2ChakraConverterWithOffload:
                 size = 1
                 for s in tensor.shape:
                     size *= s
+                parallel = self.num_npu
                 size = int(
                     size.evalf(subs=self.symbol_value_map)
                     * self.offload_strategy.get_offload(tensor)
+                    / parallel
                 )
                 node.tensor_size = size
                 node.tensor_loc = MemoryType.REMOTE_MEMORY
@@ -292,27 +309,39 @@ class Symbolic2ChakraConverterWithOffload:
             if tensor.x1 is not None:
                 x1 = self.tensors[tensor.x1]
                 if self.offload_strategy.get_offload(x1):
-                    load_node = Node()
-                    load_node.name = tensor.id + "_x1_pre_load"
-                    load_node.id = self.next_node_id
-                    load_node.node_type = NodeType.MEM_LOAD_NODE
+                    load_node_comm = Node()
+                    load_node_comm.name = tensor.id + "_x1_pre_load_comm"
+                    load_node_comm.id = self.next_node_id
+                    load_node_comm.node_type = NodeType.COMM_COLL_NODE
+                    load_node_comm.comm_type = CollectiveCommType.ALL_GATHER
+                    load_node_comm.involved_dim.append(True)
+                    load_node_mem = Node()
+                    load_node_mem.name = tensor.id + "_x1_pre_load_mem"
+                    load_node_mem.id = self.next_node_id
+                    load_node_mem.node_type = NodeType.MEM_LOAD_NODE
                     size = 1
                     for s in x1.shape:
                         size *= s
                     size = int(
                         size.evalf(subs=self.symbol_value_map)
                         * self.offload_strategy.get_offload(x1)
+                        / self.num_npu
                     )
-                    load_node.tensor_size = size
-                    load_node.tensor_loc = MemoryType.REMOTE_MEMORY
+                    load_node_mem.tensor_size = size
+                    load_node_mem.tensor_loc = MemoryType.REMOTE_MEMORY
+                    load_node_comm.comm_size = size
                     if tensor.x1 in self.tensor_node_maps:
                         assert (
                             self.tensor_node_maps[tensor.x1][-1].node_type
                             == NodeType.MEM_STORE_NODE
                         )
-                        load_node.parent.append(self.tensor_node_maps[tensor.x1][-1].id)
-                    node_head.parent.append(load_node.id)
-                    self.offload_nodes.append(load_node)
+                        load_node_mem.parent.append(
+                            self.tensor_node_maps[tensor.x1][-1].id
+                        )
+                    load_node_comm.parent.append(load_node_mem.id)
+                    node_head.parent.append(load_node_comm.id)
+                    self.offload_nodes.append(load_node_mem)
+                    self.offload_nodes.append(load_node_comm)
                 else:
                     if tensor.x1 in self.tensor_node_maps:
                         x1_tail = self.tensor_node_maps[tensor.x1][-1]
@@ -321,33 +350,44 @@ class Symbolic2ChakraConverterWithOffload:
             if tensor.x2 is not None:
                 x2 = self.tensors[tensor.x2]
                 if self.offload_strategy.get_offload(x2):
-                    load_node = Node()
-                    load_node.name = tensor.id + "_x2_pre_load"
-                    load_node.id = self.next_node_id
-                    load_node.node_type = NodeType.MEM_LOAD_NODE
+                    load_node_comm = Node()
+                    load_node_comm.name = tensor.id + "_x2_pre_load_comm"
+                    load_node_comm.id = self.next_node_id
+                    load_node_comm.node_type = NodeType.COMM_COLL_NODE
+                    load_node_comm.comm_type = CollectiveCommType.ALL_GATHER
+                    load_node_comm.involved_dim.append(True)
+                    load_node_mem = Node()
+                    load_node_mem.name = tensor.id + "_x2_pre_load_mem"
+                    load_node_mem.id = self.next_node_id
+                    load_node_mem.node_type = NodeType.MEM_LOAD_NODE
                     size = 1
                     for s in x2.shape:
                         size *= s
                     size = int(
                         size.evalf(subs=self.symbol_value_map)
                         * self.offload_strategy.get_offload(x2)
+                        / self.num_npu
                     )
-                    load_node.tensor_size = size
-                    load_node.tensor_loc = MemoryType.REMOTE_MEMORY
+                    load_node_mem.tensor_size = size
+                    load_node_mem.tensor_loc = MemoryType.REMOTE_MEMORY
+                    load_node_comm.comm_size = size
                     if tensor.x2 in self.tensor_node_maps:
                         assert (
                             self.tensor_node_maps[tensor.x2][-1].node_type
                             == NodeType.MEM_STORE_NODE
                         )
-                        load_node.parent.append(self.tensor_node_maps[tensor.x2][-1].id)
-                    node_head.parent.append(load_node.id)
-                    self.offload_nodes.append(load_node)
+                        load_node_mem.parent.append(
+                            self.tensor_node_maps[tensor.x2][-1].id
+                        )
+                    load_node_comm.parent.append(load_node_mem.id)
+                    node_head.parent.append(load_node_comm.id)
+                    self.offload_nodes.append(load_node_mem)
+                    self.offload_nodes.append(load_node_comm)
                 else:
                     if tensor.x2 in self.tensor_node_maps:
                         x2_tail = self.tensor_node_maps[tensor.x2][-1]
                         node_head.parent.append(x2_tail.id)
-                    # else tensor type and no offload
-            # self.tensor_node_maps[tensor.id][0] = node_head
+                    # else: tensor type and no offload
         return
 
     def readout(self):
@@ -366,68 +406,3 @@ class Symbolic2ChakraConverterWithOffload:
         self.get_tensor_node_maps()
         self.connect_nodes()
         self.readout()
-
-
-if __name__ == "__main__":
-    # converter = Symbolic2ChakraConverter(
-    #                 'sharding_spreadsheets/dp/processed_graphs/transformer_2.csv',
-    #                 'sharding_spreadsheets/dp/ets/transformer_2',
-    #                 256)
-    # symbol_value_map = {
-    #     'bp': 2, 'B': 8, 'Seq': 1024, 'H': 32, 'D': 32, 'DF': 128, 'DI': 1024, 'DO': 32
-    # }
-    # converter.symbol_value_map = symbol_value_map
-    # symbols = converter.convert()
-    # hook = 0
-
-    # converter = Symbolic2ChakraConverterWithOffload(
-    #                 'sharding_spreadsheets/dp/processed_graphs/transformer_2.csv',
-    #                 'sharding_spreadsheets/dp/offload_strategy/weight_1_leaf_1/transformer_2.csv',
-    #                 'sharding_spreadsheets/dp/ets/transformer_2_offload_w1l1',
-    #                 256)
-    # symbol_value_map = {
-    #     'bp': 2, 'B': 8, 'Seq': 1024, 'H': 32, 'D': 32, 'DF': 128, 'DI': 1024, 'DO': 32
-    # }
-    # converter.symbol_value_map = symbol_value_map
-    # symbols = converter.convert()
-    # hook = 0
-
-    from models.transformer import transformer
-
-    symbol_value_map = {
-        "bp": 256,
-        "B": 256,
-        "Seq": 1024,
-        "H": 256,
-        "D": 100,
-        "DF": 400,
-        "DI": 200,
-        "DO": 100,
-    }
-    os.makedirs("sharding_spreadsheets/divya", exist_ok=True)
-    transformer(24, "sharding_spreadsheets/dp")
-    converter = Symbolic2ChakraConverter(
-        "sharding_spreadsheets/dp/processed_graphs/transformer_24.csv",
-        "sharding_spreadsheets/divya/transformer1T.dp",
-        256,
-    )
-    converter.symbol_value_map = symbol_value_map
-    converter.convert()
-
-    transformer(24, "sharding_spreadsheets/fsdp")
-    converter = Symbolic2ChakraConverter(
-        "sharding_spreadsheets/fsdp/processed_graphs/transformer_24.csv",
-        "sharding_spreadsheets/divya/transformer1T.fsdp",
-        256,
-    )
-    converter.symbol_value_map = symbol_value_map
-    converter.convert()
-
-    transformer(2, "sharding_spreadsheets/dp")
-    converter = Symbolic2ChakraConverter(
-        "sharding_spreadsheets/dp/processed_graphs/transformer_2.csv",
-        "sharding_spreadsheets/divya/transformer2.dp",
-        256,
-    )
-    converter.symbol_value_map = symbol_value_map
-    converter.convert()

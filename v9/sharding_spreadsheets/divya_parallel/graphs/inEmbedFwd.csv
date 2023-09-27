@@ -1,0 +1,3 @@
+﻿inEmbX,N,"B/bp, Seq, H*DI/mp",1,,,T,,,,,,,,,
+inEmbW,Y,"H*DI/mp, H*D",1,,,T,,,,,,,,,
+inEmbY,N,"B/bp, Seq, H*D/mp",1,inEmbX,inEmbW,M,"bsd,de->bse","B/bp, Seq, H*DI/mp",1,"H*DI/mp, H*D",1,"B/bp, Seq, H*D",H*DI/mp,AllReduce@B/bp*Seq*H*D,B/bp*Seq*H*D*H*DI/mp
