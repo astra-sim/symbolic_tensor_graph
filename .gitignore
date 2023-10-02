@@ -9,3 +9,4 @@
 **/run_file*
 **/offload_strategy
 .gitignore
+**/*.log
