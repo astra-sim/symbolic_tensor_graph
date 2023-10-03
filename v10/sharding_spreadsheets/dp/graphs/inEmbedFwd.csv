@@ -1,4 +1,0 @@
-﻿id_,require_grads,shape,hidden,x1,x2,op_type,op_attr,gradient_of,num_iter,offloading,x1_shape,x1_hidden,x2_shape,x2_hidden,direct_output_shape,direct_output_hidden,post_communications,ops
-inEmbX,N,"B/bp, Seq, H*DI",1,,,T,,,0,0,,,,,"B/bp, Seq, H*DI",1,,
-inEmbW,Y,"H*DI, H*D",1,,,T,,,0,0,,,,,"H*DI, H*D",1,,
-inEmbY,N,"B/bp, Seq, H*D",1,inEmbX,inEmbW,M,"bsd,de->bse",,0,0,"B/bp, Seq, H*DI",1,"H*DI, H*D",1,"B/bp, Seq, H*D",H*DI,,B/bp*Seq*H*D*H*DI
