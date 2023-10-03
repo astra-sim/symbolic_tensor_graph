@@ -65,6 +65,8 @@ class OffloadStrategy:
         assert tensor.id in self._y_offload
         return self._y_offload[tensor.id]
 
+    # def set_output_offload()  # output offload statues should be inferred from input, and cannot be "set"
+
     def get_id_tensor_map(self):
         self._id_tensor_map = dict()
         for tensor in self.tensors:
@@ -111,18 +113,19 @@ class OffloadStrategy:
     def set_all_leaf_offload(self, offload=1.0):
         for tensor in self.tensors:
             parent1_offload, parent2_offload = self.get_input_offload(tensor)
+            if tensor.x1 is not None:
+                parent1_tensor = self.id_tensor_map[tensor.x1]
+                grandparent11, grandparent12 = parent1_tensor.x1, parent1_tensor.x2
+                if (grandparent11 is None) and (grandparent12 is None):
+                    parent1_offload = offload
 
-            parent1_tensor = self.id_tensor_map[tensor.x1]
-            grandparent11, grandparent12 = parent1_tensor.x1, parent1_tensor.x2
-            if (grandparent11 is None) and (grandparent12 is None):
-                parent1_offload = offload
+            if tensor.x2 is not None:
+                parent2_tensor = self.id_tensor_map[tensor.x2]
+                grandparent21, grandparent22 = parent2_tensor.x1, parent2_tensor.x2
+                if (grandparent21 is None) and (grandparent22 is None):
+                    parent2_offload = offload
 
-            parent2_tensor = self.id_tensor_map[tensor.x2]
-            grandparent21, grandparent22 = parent2_tensor.x1, parent2_tensor.x2
-            if (grandparent21 is None) and (grandparent22 is None):
-                parent2_offload = offload
-
-            self.set_input_offload(parent1_offload, parent2_offload)
+            self.set_input_offload(tensor, parent1_offload, parent2_offload)
 
     @staticmethod
     def parse_records(csv_filename, tensors):
@@ -130,7 +133,7 @@ class OffloadStrategy:
         df = pd.read_csv(csv_filename, encoding="utf-8", header=None)
         df = df.replace({np.nan: None})
         for i in range(df.shape[0]):
-            data = np.array(df[i : i + 1]).replace(-1)
+            data = np.array(df[i : i + 1]).reshape(-1)
             id_ = data[0]
             x1_offload = data[1]
             x2_offload = data[2]
@@ -158,5 +161,5 @@ class OffloadStrategy:
         offload_strategy = OffloadStrategy(True)
         for tensor in tensors:
             offload_strategy.tensors.append(tensor)
-            offload_strategy.set_offload(tensor, 0)
+            offload_strategy.set_input_offload(tensor, 0, 0)
         return offload_strategy
