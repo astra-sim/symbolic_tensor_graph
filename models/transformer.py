@@ -1,12 +1,12 @@
-import os
+import os, sys
 
-from tensor import Tensor
-from graph_linker import GraphLinker
-from grad_updater import GradUpdater
-from offload_strategy import OffloadStrategy
+from symbolic_tensor_graph.tensor import Tensor
+from symbolic_tensor_graph.graph_linker import GraphLinker
+from symbolic_tensor_graph.grad_updater import GradUpdater
+from symbolic_tensor_graph.offload_strategy import OffloadStrategy
 
 
-def transformer_stack(root="sharding_spreadsheets/dp", visualize=False):
+def transformer_stack(root="transformer/sharding_spreadsheets/dp", visualize=False):
     mha_fwd = Tensor.parse_records(
         os.path.join(root, "graphs/multiHeadAttentionFwd.csv")
     )
@@ -82,6 +82,7 @@ def transformer_stacks(num_stacks, root="sharding_spreadsheets/dp", visualize=Fa
 
 
 def transformer(num_stacks, root="sharding_spreadsheets/dp", visualize=False):
+    os.makedirs(os.path.join(root, f"processed_graphs"), exist_ok=True)
     print(f"transformer {num_stacks} {root} {visualize}")
     if not os.path.exists(
         os.path.join(root, f"processed_graphs/stack{num_stacks}Fwd.csv")

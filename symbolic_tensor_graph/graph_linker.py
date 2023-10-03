@@ -1,5 +1,4 @@
-from tensor import Tensor
-import re, os
+import re
 
 
 class GraphLinker:

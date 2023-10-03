@@ -1,5 +1,5 @@
 import copy
-from tensor import Tensor
+from .tensor import Tensor
 
 class GradUpdater:
     def __init__(self, fwd_graph, bwd_graph):

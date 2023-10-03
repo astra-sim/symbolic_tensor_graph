@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-from tensor import Tensor
 
 class OffloadStrategy:
     def __init__(self, create_empty=False):

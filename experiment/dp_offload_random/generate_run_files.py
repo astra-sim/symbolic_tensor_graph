@@ -1,8 +1,8 @@
 import sys, os, random, json, time
 
-sys.path.append("../../")
-sys.path.append("../../../../chakra/et_def/")
-sys.path.append("../../../../chakra/third_party/utils/")
+sys.path.append("../../symbolic_tensor_graph")
+sys.path.append("../../chakra/et_def/")
+sys.path.append("../../chakra/third_party/utils/")
 
 from multiprocessing import Pool, cpu_count
 
