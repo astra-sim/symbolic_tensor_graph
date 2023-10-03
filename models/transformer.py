@@ -133,8 +133,8 @@ def transformer(num_stacks, root="sharding_spreadsheets/dp", visualize=False):
     update_tensors = grad_updater.update_tensors()
     loop_links = dict()
     loop_links["outEmbedY"] = "d_outEmbedY"
-    # loop = GraphLinker.link_graph_impl([fwd, bwd, update_tensors], loop_links)
-    loop = GraphLinker.link_graph_impl([fwd, bwd], loop_links)
+    loop = GraphLinker.link_graph_impl([fwd, bwd, update_tensors], loop_links)
+    # loop = GraphLinker.link_graph_impl([fwd, bwd], loop_links)
     if visualize:
         # Tensor.visualize(loop, os.path.join(root, f"visualization/transformer_{num_stacks}"))
         pass

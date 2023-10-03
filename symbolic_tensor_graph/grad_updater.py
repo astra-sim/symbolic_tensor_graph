@@ -36,7 +36,7 @@ class GradUpdater:
         y.hidden = copy.deepcopy(x.hidden)
         y.x1 = x.id
         y.x2 = dx.id
-        y.op_attr = 'A'
+        y.op_type = 'A'
         y.op_attr = ''
         y.x1_shape = copy.deepcopy(x.shape)
         y.x1_hidden = copy.deepcopy(x.hidden)
