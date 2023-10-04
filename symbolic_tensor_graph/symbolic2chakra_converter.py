@@ -190,6 +190,27 @@ class Symbolic2ChakraConverter:
         self.convert()
         self.readout()
 
+    def get_nodes(self):
+        nodes = list()
+        for tensor in self.tensor_node_maps:
+            for node in self.tensor_node_maps[tensor]:
+                nodes.append(node)
+        return nodes
+
+    def replace_nodes(self, new_nodes, strict=True):
+        id_new_nodes_map = dict()
+        for new_node in new_nodes:
+            id_new_nodes_map[new_node.id] = new_node
+        for tensor in self.tensor_node_maps:
+            for i, node in enumerate(self.tensor_node_maps[tensor]):
+                if not node.id in id_new_nodes_map:
+                    if strict:
+                        assert False
+                    else:
+                        continue
+                new_node = id_new_nodes_map[node.id]
+                self.tensor_node_maps[tensor][i] = new_node
+
 
 if __name__ == "__main__":
     sys.path.append("../")

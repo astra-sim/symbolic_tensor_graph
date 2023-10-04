@@ -1,5 +1,4 @@
 import copy
-from .tensor import Tensor
 from .symbolic2chakra_converter import Symbolic2ChakraConverter
 from et_def_pb2 import *
 from protolib import *
@@ -102,17 +101,17 @@ class ChakraShortcutRemover:
 
 class Symbolic2ChakraConverterWithShortcutRemoval(Symbolic2ChakraConverter):
     def __init__(self, symbolic_file, eg_file, symbol_value_map, num_npu):
+        raise DeprecationWarning()
         super(Symbolic2ChakraConverterWithShortcutRemoval, self).__init__(
             symbolic_file, eg_file, symbol_value_map, num_npu
         )
+        self.data_dependancy = None
 
     def simplify_chakra_graph(self):
-        nodes = list()
-        for tensor in self.tensor_node_maps:
-            for node in self.tensor_node_maps[tensor]:
-                nodes.append(node)
+        nodes = self.get_nodes()
         remover = ChakraShortcutRemover(nodes, inplace=True)
         remover.apply()
+        self.data_dependancy = remover.parent_to_child
 
     def convert(self):
         super(Symbolic2ChakraConverterWithShortcutRemoval, self).convert()
