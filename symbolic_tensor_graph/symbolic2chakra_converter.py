@@ -1,7 +1,8 @@
-import sys
+import sys, os
 
-sys.path.append("../chakra/et_def/")
-sys.path.append("../chakra/third_party/utils/")
+file_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.join(file_dir, "../chakra/et_def/"))
+sys.path.append(os.path.join(file_dir, "../chakra/third_party/utils/"))
 
 import sympy as sp
 from .tensor import Tensor

@@ -71,19 +71,22 @@ class GreedyScheduler(Scheduler):
 
     def issue_node(self, node):
         if self.node_runtime == None:
-            tick = 1
+            delta_tick = 1
         else:
             assert node.id in self.node_runtime
-            tick = self.node_runtime[node.id]
+            delta_tick = self.node_runtime[node.id]
 
         min_tick = 1e90
         min_queue = None
+        min_queue_index = -1
         for i, (queue, tick) in enumerate(zip(self.queues, self.queues_tick)):
             if tick < min_tick:
                 min_queue = queue
+                min_queue_index = i
+                min_tick = min(min_tick, tick)
 
         min_queue.append(node)
-        self.queues_tick[i] += tick
+        self.queues_tick[min_queue_index] += delta_tick
 
         self.issuable_nodes.remove(node)
         self.finished_nodes.append(node)
