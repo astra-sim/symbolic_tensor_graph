@@ -10,3 +10,4 @@
 **/offload_strategy
 .gitignore
 **/*.log
+**/offload/*.csv

@@ -1,15 +1,19 @@
 import os
 from models.transformer import transformer
 from multiprocessing import Pool, cpu_count
-from symbolic_tensor_graph.symbolic2chakra_converter import (
-    Symbolic2ChakraConverter
+from symbolic_tensor_graph.symbolic2chakra_converter import Symbolic2ChakraConverter
+from symbolic_tensor_graph.chakra_remove_shortcuts import (
+    Symbolic2ChakraConverterWithShortcutRemoval,
 )
 
 
 def _convert(_symbolic_value_map, symbolic, eg, offload=None):
     if offload is None:
         converter = Symbolic2ChakraConverter(
-            symbolic, eg, _symbolic_value_map, _symbolic_value_map["bp"] * _symbolic_value_map["mp"]
+            symbolic,
+            eg,
+            _symbolic_value_map,
+            _symbolic_value_map["bp"] * _symbolic_value_map["mp"],
         )
     else:
         pass
@@ -19,7 +23,24 @@ def _convert(_symbolic_value_map, symbolic, eg, offload=None):
         #     eg,
         #     _symbolic_value_map["bp"] * _symbolic_value_map["mp"],
         # )
-    converter.convert()
+    converter.convert_and_readout()
+
+    if offload is None:
+        converter = Symbolic2ChakraConverterWithShortcutRemoval(
+            symbolic,
+            eg + ".simplified",
+            _symbolic_value_map,
+            _symbolic_value_map["bp"] * _symbolic_value_map["mp"],
+        )
+    else:
+        pass
+        # converter = Symbolic2ChakraConverterWithOffload(
+        #     symbolic,
+        #     offload,
+        #     eg,
+        #     _symbolic_value_map["bp"] * _symbolic_value_map["mp"],
+        # )
+    converter.convert_and_readout()
 
     return True
 
@@ -45,10 +66,16 @@ if __name__ == "__main__":
     # rets.append(
     #     pool.apply_async(transformer, (128, "sharding_spreadsheets/transformer/divya_parallel"))
     # )
-    rets.append(pool.apply_async(transformer, (2, "sharding_spreadsheets/transformer/dp")))
-    rets.append(pool.apply_async(transformer, (2, "sharding_spreadsheets/transformer/fsdp")))
     rets.append(
-        pool.apply_async(transformer, (2, "sharding_spreadsheets/transformer/divya_parallel"))
+        pool.apply_async(transformer, (2, "sharding_spreadsheets/transformer/dp"))
+    )
+    rets.append(
+        pool.apply_async(transformer, (2, "sharding_spreadsheets/transformer/fsdp"))
+    )
+    rets.append(
+        pool.apply_async(
+            transformer, (2, "sharding_spreadsheets/transformer/divya_parallel")
+        )
     )
     for ret in rets:
         ret.get()
@@ -110,7 +137,9 @@ if __name__ == "__main__":
     #     )
     # )
 
-    rets.append(pool.apply_async(transformer, (2, "sharding_spreadsheets/transformer/dp")))
+    rets.append(
+        pool.apply_async(transformer, (2, "sharding_spreadsheets/transformer/dp"))
+    )
     # rets.append(
     #     pool.apply_async(
     #         transformer_offload_strategy, (2, "sharding_spreadsheets/transformer/dp", 1, 0, 0)
@@ -127,7 +156,9 @@ if __name__ == "__main__":
     #     )
     # )
 
-    rets.append(pool.apply_async(transformer, (2, "sharding_spreadsheets/transformer/fsdp")))
+    rets.append(
+        pool.apply_async(transformer, (2, "sharding_spreadsheets/transformer/fsdp"))
+    )
     # rets.append(
     #     pool.apply_async(
     #         transformer_offload_strategy, (2, "sharding_spreadsheets/transformer/fsdp", 1, 0, 0)
@@ -145,7 +176,9 @@ if __name__ == "__main__":
     # )
 
     rets.append(
-        pool.apply_async(transformer, (2, "sharding_spreadsheets/transformer/divya_parallel"))
+        pool.apply_async(
+            transformer, (2, "sharding_spreadsheets/transformer/divya_parallel")
+        )
     )
     # rets.append(
     #     pool.apply_async(

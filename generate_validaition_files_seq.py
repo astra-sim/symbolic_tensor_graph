@@ -1,7 +1,9 @@
 import os
 from models.transformer import transformer
-from multiprocessing import Pool, cpu_count
 from symbolic_tensor_graph.symbolic2chakra_converter import Symbolic2ChakraConverter
+from symbolic_tensor_graph.chakra_remove_shortcuts import (
+    Symbolic2ChakraConverterWithShortcutRemoval,
+)
 
 
 def _convert(_symbolic_value_map, symbolic, eg, offload=None):
@@ -20,7 +22,24 @@ def _convert(_symbolic_value_map, symbolic, eg, offload=None):
         #     eg,
         #     _symbolic_value_map["bp"] * _symbolic_value_map["mp"],
         # )
-    converter.convert()
+    converter.convert_and_readout()
+
+    if offload is None:
+        converter = Symbolic2ChakraConverterWithShortcutRemoval(
+            symbolic,
+            eg + ".simplified",
+            _symbolic_value_map,
+            _symbolic_value_map["bp"] * _symbolic_value_map["mp"],
+        )
+    else:
+        pass
+        # converter = Symbolic2ChakraConverterWithOffload(
+        #     symbolic,
+        #     offload,
+        #     eg,
+        #     _symbolic_value_map["bp"] * _symbolic_value_map["mp"],
+        # )
+    converter.convert_and_readout()
 
     return True
 

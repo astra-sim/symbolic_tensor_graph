@@ -185,6 +185,9 @@ class Symbolic2ChakraConverter:
     def convert(self):
         self.get_tensor_node_maps()
         self.connect_nodes()
+
+    def convert_and_readout(self):
+        self.convert()
         self.readout()
 
 
