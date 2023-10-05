@@ -211,6 +211,11 @@ class Symbolic2ChakraConverter:
                         continue
                 new_node = id_new_nodes_map[node.id]
                 self.tensor_node_maps[tensor][i] = new_node
+                if strict:
+                    del id_new_nodes_map[node.id]
+        if strict:
+            # verify if the number of nodes and num of nodes in dict is exactly the same
+            assert len(id_new_nodes_map) == 0
 
 
 if __name__ == "__main__":

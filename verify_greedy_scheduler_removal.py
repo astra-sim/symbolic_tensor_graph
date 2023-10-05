@@ -60,3 +60,27 @@ if __name__ == "__main__":
     converter.replace_nodes(scg2s_nodes)
     converter.eg_file = "sharding_spreadsheets/transformer/validation/symbolic_transformer2.w0l0i0.dp.sg2s"
     converter.readout()
+
+    greedy_scheduler = GreedyScheduler(copy.deepcopy(ori_nodes))
+    g1_nodes = greedy_scheduler.apply()
+    converter.replace_nodes(g1_nodes)
+    converter.eg_file = "sharding_spreadsheets/transformer/validation/symbolic_transformer2.w0l0i0.dp.g1"
+    converter.readout()
+
+    greedy_scheduler = GreedyScheduler(copy.deepcopy(ori_nodes), num_queue=2)
+    g2_nodes = greedy_scheduler.apply()
+    converter.replace_nodes(g2_nodes)
+    converter.eg_file = "sharding_spreadsheets/transformer/validation/symbolic_transformer2.w0l0i0.dp.g2"
+    converter.readout()
+
+    shortcut_remover = ChakraShortcutRemover(copy.deepcopy(g1_nodes))
+    g1s_nodes = shortcut_remover.apply()
+    converter.replace_nodes(g1s_nodes)
+    converter.eg_file = "sharding_spreadsheets/transformer/validation/symbolic_transformer2.w0l0i0.dp.g1s"
+    converter.readout()
+
+    shortcut_remover = ChakraShortcutRemover(copy.deepcopy(g2_nodes))
+    g2s_nodes = shortcut_remover.apply()
+    converter.replace_nodes(g2s_nodes)
+    converter.eg_file = "sharding_spreadsheets/transformer/validation/symbolic_transformer2.w0l0i0.dp.g2s"
+    converter.readout()

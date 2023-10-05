@@ -19,6 +19,25 @@ class Scheduler:
         self._id_node_map = None
         self._parent_child_map = None
 
+    def issue_node(self, node):
+        if self.node_runtime == None:
+            delta_tick = 1
+        else:
+            assert node.id in self.node_runtime
+            delta_tick = self.node_runtime[node.id]
+
+        min_queue_tick = 1e90
+        min_queue = None
+        min_queue_index = -1
+        for i, (queue, queue_tick) in enumerate(zip(self.queues, self.queues_tick)):
+            if queue_tick < min_queue_tick:
+                min_queue = queue
+                min_queue_index = i
+                min_queue_tick = min(min_queue_tick, queue_tick)
+
+        min_queue.append(node)
+        self.queues_tick[min_queue_index] += delta_tick
+
     @property
     def id_node_map(self):
         if self._id_node_map is not None:
@@ -63,36 +82,20 @@ class GreedyScheduler(Scheduler):
         super(GreedyScheduler, self).__init__(
             eg_nodes, node_runtime, num_queue, inplace
         )
-        self.issuable_nodes = list()
+        self.pending_nodes = list()
         self.finished_nodes = list()
 
         for node in self.nodes:
-            self.issuable_nodes.append(node)
+            self.pending_nodes.append(node)
 
     def issue_node(self, node):
-        if self.node_runtime == None:
-            delta_tick = 1
-        else:
-            assert node.id in self.node_runtime
-            delta_tick = self.node_runtime[node.id]
+        super(GreedyScheduler, self).issue_node(node)
 
-        min_tick = 1e90
-        min_queue = None
-        min_queue_index = -1
-        for i, (queue, tick) in enumerate(zip(self.queues, self.queues_tick)):
-            if tick < min_tick:
-                min_queue = queue
-                min_queue_index = i
-                min_tick = min(min_tick, tick)
-
-        min_queue.append(node)
-        self.queues_tick[min_queue_index] += delta_tick
-
-        self.issuable_nodes.remove(node)
+        self.pending_nodes.remove(node)
         self.finished_nodes.append(node)
 
     def try_issue_node(self, node):
-        assert node in self.issuable_nodes
+        assert node in self.pending_nodes
         for parent_id in node.parent:
             parent_node = self.id_node_map[parent_id]
             if not parent_node in self.finished_nodes:
@@ -103,12 +106,13 @@ class GreedyScheduler(Scheduler):
         return True
 
     def resolve_queue(self):
-        while len(self.issuable_nodes) > 0:
+        while len(self.pending_nodes) > 0:
             success = False
-            issuable_nodes = copy.copy(self.issuable_nodes)
-            for node in issuable_nodes:
+            pending_nodes = copy.copy(self.pending_nodes)
+            for node in pending_nodes:
                 success = success or self.try_issue_node(node)
             if not success:
-                # should be issuable nodes anyway, if not, trap in infinite loop
+                # should be issuable nodes anyway, if not, the state do not change,
+                # next iter is the same, and trap in infinite loop
                 assert False
         assert len(self.finished_nodes) == len(self.nodes)
