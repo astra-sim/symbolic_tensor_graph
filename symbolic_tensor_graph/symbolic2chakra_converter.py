@@ -50,9 +50,11 @@ class Symbolic2ChakraConverter:
         else:
             assert False
             # type_ = CollectiveCommType.INVALID_COMM
-        size_ = sp.parse_expr(size_)
+        # size_ = sp.parse_expr(size_)
+        size_ = Tensor.parse_expr(size_)
         # print(size_)
-        size_value = size_.evalf(subs=self.symbol_value_map)
+        size_value = Tensor.eval_expr(size_, self.symbol_value_map)
+        # size_value = size_.evalf(subs=self.symbol_value_map)
         # print(size_, self.symbol_value_map, size_value)
         return type_, int(size_value)
 
@@ -91,11 +93,13 @@ class Symbolic2ChakraConverter:
         nodes = list()
 
         if tensor.op_type in {"M", "E", "A"}:
-            num_ops = int(tensor.ops.evalf(subs=self.symbol_value_map))
+            num_ops = int(Tensor.eval_expr(tensor.ops, self.symbol_value_map))
+            # num_ops = int(tensor.ops.evalf(subs=self.symbol_value_map))
             tensor_size = 1
             for dim in tensor.shape:
                 tensor_size *= dim
-            tensor_size = int(tensor_size.evalf(subs=self.symbol_value_map))
+            tensor_size = int(Tensor.eval_expr(tensor_size, self.symbol_value_map))
+            # tensor_size = int(tensor_size.evalf(subs=self.symbol_value_map))
             node = self.get_comp_node(
                 name=tensor.id, num_ops=num_ops, tensor_size=tensor_size
             )
