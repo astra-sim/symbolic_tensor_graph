@@ -3,6 +3,8 @@ import numpy as np
 
 
 class OffloadStrategy:
+    raise PendingDeprecationWarning()
+
     def __init__(self, create_empty=False):
         if not create_empty:
             assert False
