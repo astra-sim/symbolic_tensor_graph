@@ -1,4 +1,6 @@
-import copy
+import copy, sys
+
+sys.setrecursionlimit(1000000)
 from .symbolic2chakra_converter import Symbolic2ChakraConverter
 from et_def_pb2 import *
 from protolib import *
@@ -39,7 +41,13 @@ class ChakraShortcutRemover:
                     simplified_parent_to_child[parent].append(child)
         self.simplified_parent_to_child = simplified_parent_to_child
 
-    def reachable(self, from_, to_, graph, memorize=True):
+    def reachable(self, from_, to_, graph, memorize=True, recursive=True):
+        if recursive:
+            return self.reachable_recursive(from_, to_, graph, memorize)
+        else:
+            return self.reachable_flatten(from_, to_, graph, memorize)
+
+    def reachable_recursive(self, from_, to_, graph, memorize=True):
         if memorize:
             if (from_, to_) in self.reachable_memory:
                 return self.reachable_memory[(from_, to_)]
@@ -49,9 +57,33 @@ class ChakraShortcutRemover:
             reachable_ = True
         else:
             for child in graph[from_]:
-                if self.reachable(child, to_, graph):
+                if self.reachable_recursive(child, to_, graph, memorize):
                     reachable_ = True
                     break
+
+        if memorize:
+            self.reachable_memory[(from_, to_)] = reachable_
+        return reachable_
+
+    def reachable_flatten(self, from_, to_, graph, memorize=True):
+        assert False
+        reachable_ = False
+        stack = [from_]
+
+        while stack:
+            current = stack.pop()
+            if memorize:
+                if (current, to_) in self.reachable_memory:
+                    return self.reachable_memory[(current, to_)]
+
+            if current == to_:
+                reachable_ = True
+                if memorize:
+                    self.reachable_memory[(current, to_)] = reachable_
+                break
+            else:
+                for child in graph[current]:
+                    stack.insert(0, child)
 
         if memorize:
             self.reachable_memory[(from_, to_)] = reachable_
@@ -60,6 +92,10 @@ class ChakraShortcutRemover:
     def verify(self):
         for parent in self.parent_to_child:
             for child in self.parent_to_child[parent]:
+                if not self.reachable(
+                    parent, child, self.simplified_parent_to_child, memorize=False
+                ):
+                    hook = 0
                 assert self.reachable(
                     parent, child, self.simplified_parent_to_child, memorize=False
                 )
