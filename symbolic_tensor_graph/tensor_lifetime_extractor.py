@@ -2,6 +2,15 @@ from collections import OrderedDict
 import json
 
 
+class MemoryOperationType:
+    load = "load"
+    alloc = "alloc"
+    store = "store"
+    dealloc = "dealloc"
+    read = "read"
+    write = "write"
+
+
 class TensorLifetimeExtractor:
     def __init__(self, tensors, tensor_name_map_node, node_in_queue):
         self.tensors = tensors
@@ -33,8 +42,9 @@ class TensorLifetimeExtractor:
                     # tensor used before generated from calc, should be leaf tensor which will load from remote mem
                     x1_tensor = self.tensor_name_map_tensor[x1_tensor_name]
                     assert (x1_tensor.x1 == None) and (x1_tensor.x2 == None)
-                    self.memory_operations[node.id].append(("load", x1_tensor_name))
-                    print(f"alloc_add x1 {x1_tensor_name} during node {node.id}")
+                    self.memory_operations[node.id].append(
+                        (MemoryOperationType.load, x1_tensor_name)
+                    )
                     self._alloced_memory.add(x1_tensor_name)
                 # else: from calc
 
@@ -44,13 +54,15 @@ class TensorLifetimeExtractor:
                     # tensor used before generated from calc, should be leaf tensor which will load from remote mem
                     x2_tensor = self.tensor_name_map_tensor[x2_tensor_name]
                     assert (x2_tensor.x1 == None) and (x2_tensor.x2 == None)
-                    self.memory_operations[node.id].append(("load", x2_tensor_name))
-                    print(f"alloc_add x2 {x2_tensor_name} during node {node.id}")
+                    self.memory_operations[node.id].append(
+                        (MemoryOperationType.load, x2_tensor_name)
+                    )
                     self._alloced_memory.add(x2_tensor_name)
                 # else: from calc
 
-            self.memory_operations[node.id].append(("alloc", y_tensor_name))
-            print(f"alloc_add y {y_tensor_name} during node {node.id}")
+            self.memory_operations[node.id].append(
+                (MemoryOperationType.alloc, y_tensor_name)
+            )
             assert not y_tensor_name in self._alloced_memory
             self._alloced_memory.add(y_tensor_name)
 
@@ -66,19 +78,25 @@ class TensorLifetimeExtractor:
             if x1_tensor_name is not None:
                 if not x1_tensor_name in self._dealloced_memory:
                     # last time used (first time seen in reverse)
-                    self.memory_operations[node.id].append(("dealloc", x1_tensor_name))
+                    self.memory_operations[node.id].append(
+                        (MemoryOperationType.dealloc, x1_tensor_name)
+                    )
                     self._dealloced_memory.add(x1_tensor_name)
             x2_tensor_name = y_tensor.x2
             if x2_tensor_name is not None:
                 if not x2_tensor_name in self._dealloced_memory:
                     # last time user (first time seen in reverse)
-                    self.memory_operations[node.id].append(("dealloc", x2_tensor_name))
+                    self.memory_operations[node.id].append(
+                        (MemoryOperationType.dealloc, x2_tensor_name)
+                    )
                     self._dealloced_memory.add(x2_tensor_name)
 
             if not y_tensor_name in self._dealloced_memory:
                 # from generation, the tensor is never used, should of stored
                 # (assuming it is meaningful, if not used as intermediate then it must be result)
-                self.memory_operations[node.id].append(("store", y_tensor_name))
+                self.memory_operations[node.id].append(
+                    (MemoryOperationType.store, y_tensor_name)
+                )
                 self._dealloced_memory.add(y_tensor_name)
 
     def analysis_memory_access(self):
@@ -87,14 +105,20 @@ class TensorLifetimeExtractor:
             y_tensor_name = self.node_id_map_tensor_name[node.id]
             y_tensor = self.tensor_name_map_tensor[y_tensor_name]
 
-            self.memory_operations[node.id].append(("write", y_tensor_name))
+            self.memory_operations[node.id].append(
+                (MemoryOperationType.write, y_tensor_name)
+            )
 
             x1_tensor_name = y_tensor.x1
             if x1_tensor_name is not None:
-                self.memory_operations[node.id].append(("read", x1_tensor_name))
+                self.memory_operations[node.id].append(
+                    (MemoryOperationType.read, x1_tensor_name)
+                )
             x2_tensor_name = y_tensor.x2
             if x2_tensor_name is not None:
-                self.memory_operations[node.id].append(("read", x2_tensor_name))
+                self.memory_operations[node.id].append(
+                    (MemoryOperationType.read, x2_tensor_name)
+                )
 
     def analysis_memory_operations(self):
         self._alloced_memory.clear()
@@ -136,19 +160,27 @@ class TensorLifetimeExtractor:
             tensor_dealloc_time = dict()
             for i, node_id in enumerate(self.memory_operations.keys()):
                 for op_type, tensor_name in self.memory_operations[node_id]:
-                    if op_type == "load" or op_type == "alloc":
+                    if (
+                        op_type == MemoryOperationType.load
+                        or op_type == MemoryOperationType.alloc
+                    ):
                         assert not tensor_name in tensor_alloc_time
                         tensor_alloc_time[tensor_name] = i
-                    elif op_type == "store" or op_type == "dealloc":
+                    elif (
+                        op_type == MemoryOperationType.store
+                        or op_type == MemoryOperationType.dealloc
+                    ):
                         assert not tensor_name in tensor_dealloc_time
                         tensor_dealloc_time[tensor_name] = i
-                    elif op_type == "read" or op_type == "write":
+                    elif (
+                        op_type == MemoryOperationType.read
+                        or op_type == MemoryOperationType.write
+                    ):
                         pass
                     else:
                         # invalid op type
                         assert False
             assert len(tensor_alloc_time) == len(tensor_dealloc_time)
-            # assert len(tensor_alloc_time) == len(self.tensors)
             duration_appear_count = (
                 dict()
             )  # used to avoid two tensor have same duration
@@ -230,8 +262,10 @@ class TensorLifetimeExtractor:
             memory_operations = self.memory_operations[node_id]
             for operation_type, tensor_name in memory_operations:
                 tid = self.tensor_name_map_tid[tensor_name]
-                # tid = hash(tensor_name)
-                if operation_type == "load" or operation_type == "alloc":
+                if (
+                    operation_type == MemoryOperationType.load
+                    or operation_type == MemoryOperationType.alloc
+                ):
                     event = {
                         "name": tensor_name,
                         "cat": "tensor",
@@ -241,7 +275,10 @@ class TensorLifetimeExtractor:
                         "tid": tid,
                     }
                     trace_events.append(event)
-                elif operation_type == "store" or operation_type == "dealloc":
+                elif (
+                    operation_type == MemoryOperationType.store
+                    or operation_type == MemoryOperationType.dealloc
+                ):
                     event = {
                         "name": tensor_name,
                         "cat": "tensor",
@@ -251,7 +288,10 @@ class TensorLifetimeExtractor:
                         "tid": tid,
                     }
                     trace_events.append(event)
-                elif operation_type == "read" or operation_type == "write":
+                elif (
+                    operation_type == MemoryOperationType.read
+                    or operation_type == MemoryOperationType.write
+                ):
                     event = {
                         "name": f"{tensor_name}_{operation_type}",
                         "cat": "tensor",

@@ -1,6 +1,6 @@
 import copy
 from symbolic_tensor_graph.chakra_remove_shortcuts import ChakraShortcutRemover
-from symbolic_tensor_graph.scheduler import GreedyScheduler
+from symbolic_tensor_graph.scheduler.greedy_scheduler import GreedyScheduler
 from symbolic_tensor_graph.symbolic2chakra_converter import Symbolic2ChakraConverter
 from symbolic_tensor_graph.tensor_lifetime_extractor import TensorLifetimeExtractor
 from models.transformer import transformer

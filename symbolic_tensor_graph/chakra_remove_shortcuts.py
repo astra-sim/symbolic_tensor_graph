@@ -1,9 +1,6 @@
 import copy, sys
 
 sys.setrecursionlimit(1000000)
-from .symbolic2chakra_converter import Symbolic2ChakraConverter
-from et_def_pb2 import *
-from protolib import *
 
 
 class ChakraShortcutRemover:
@@ -92,10 +89,6 @@ class ChakraShortcutRemover:
     def verify(self):
         for parent in self.parent_to_child:
             for child in self.parent_to_child[parent]:
-                if not self.reachable(
-                    parent, child, self.simplified_parent_to_child, memorize=False
-                ):
-                    hook = 0
                 assert self.reachable(
                     parent, child, self.simplified_parent_to_child, memorize=False
                 )
@@ -133,22 +126,3 @@ class ChakraShortcutRemover:
         self.parent_to_child = None
         self.simplified_parent_to_child = None
         self.reachable_memory = dict()
-
-
-class Symbolic2ChakraConverterWithShortcutRemoval(Symbolic2ChakraConverter):
-    def __init__(self, symbolic_file, eg_file, symbol_value_map, num_npu):
-        raise DeprecationWarning()
-        super(Symbolic2ChakraConverterWithShortcutRemoval, self).__init__(
-            symbolic_file, eg_file, symbol_value_map, num_npu
-        )
-        self.data_dependancy = None
-
-    def simplify_chakra_graph(self):
-        nodes = self.get_nodes()
-        remover = ChakraShortcutRemover(nodes, inplace=True)
-        remover.apply()
-        self.data_dependancy = remover.parent_to_child
-
-    def convert(self):
-        super(Symbolic2ChakraConverterWithShortcutRemoval, self).convert()
-        self.simplify_chakra_graph()

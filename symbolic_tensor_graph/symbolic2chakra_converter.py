@@ -4,10 +4,8 @@ file_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(file_dir, "../chakra/et_def/"))
 sys.path.append(os.path.join(file_dir, "../chakra/third_party/utils/"))
 
-import sympy as sp
 from .tensor import Tensor
 
-from .offload_strategy import OffloadStrategy
 from et_def_pb2 import *
 from protolib import *
 
