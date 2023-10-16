@@ -1,17 +1,27 @@
-import os, copy
+import os, copy, json
 
 
 class AstrasimNodeRuntimeDatabase:
     def __init__(self, system, network, memory, astrasim_bin):
         self.runtime_dict = dict()
-        self.system = system
-        self.network = network
-        self.memory = memory
+        self.system = self.load_json(system)
+        self.network = self.load_json(network)
+        self.memory = self.load_json(memory)
+        self.astrasim_bin = self.hash_file(astrasim_bin)
 
-        assert os.path.exists(astrasim_bin)
-        pipe_out = os.popen(f"md5sum {os.path.abspath(astrasim_bin)}")
-        self.astrasim_bin_hash = pipe_out.readlines()[0].split(" ")[0]
+    def hash_file(self, path):
+        assert os.path.exists(path)
+        pipe_out = os.popen(f"md5sum {os.path.abspath(path)}")
+        hash = pipe_out.readlines()[0].split(" ")[0]
         pipe_out.close()
+        return hash
+
+    def load_json(self, path):
+        assert os.path.exists(path)
+        f = open(path, "r")
+        json_dict = json.load(f)
+        f.close()
+        return json_dict
 
     def node_remove_extra_attr(self, node):
         # node contains some graph-specified attr, should remove these extra attrs
@@ -28,16 +38,13 @@ class AstrasimNodeRuntimeDatabase:
 
     def sanity_check(self, system=None, network=None, memory=None, astrasim_bin=None):
         if not system == None:
-            assert system == self.system
+            assert self.load_json(system) == self.system
         if not network == None:
-            assert network == self.network
+            assert self.load_json(network) == self.network
         if not memory == None:
-            assert memory == self.memory
+            assert self.load_json(memory) == self.memory
         if not astrasim_bin == None:
-            assert os.path.exists(astrasim_bin)
-            pipe_out = os.popen(f"md5sum {os.path.abspath(astrasim_bin)}")
-            astrasim_bin_hash = pipe_out[0].split(" ")[0]
-            assert astrasim_bin_hash == self.astrasim_bin_hash
+            assert self.hash_file(astrasim_bin) == self.astrasim_bin
 
     def lookup(self, node, system=None, network=None, memory=None, astrasim_bin=None):
         self.sanity_check(system, network, memory, astrasim_bin)

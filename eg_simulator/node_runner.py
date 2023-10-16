@@ -1,11 +1,17 @@
 import multiprocessing
-import copy, tempfile
+import copy
 
 
 class NodeRunner:
     def __init__(self, node_executor, database, num_workers=-1):
         self.node_executor = node_executor
         self.database = database
+        self.database.sanity_check(
+            node_executor.system,
+            node_executor.network,
+            node_executor.memory,
+            node_executor.astrasim_bin,
+        )
         if num_workers == -1:
             num_workers = int(multiprocessing.cpu_count() * 0.5)
         self.num_workers = num_workers
@@ -46,13 +52,22 @@ class NodeRunner:
         nodes_runtime = list()
         for _ in range(len(rets)):
             rets[_] = rets[_].get()
-            nodes_worker, nodes_runtime_worker, new_records_worker = rets[_]
-            nodes_runtime.extend(nodes_runtime_worker)
-            for key in new_records_worker.keys():
-                value = new_records_worker[key]
+            (
+                nodes_this_worker,
+                nodes_runtime_this_worker,
+                new_records_this_worker,
+            ) = rets[_]
+            nodes_runtime.extend(nodes_runtime_this_worker)
+            for key in new_records_this_worker.keys():
+                value = new_records_this_worker[key]
                 self.database.runtime_dict[key] = value
         assert len(nodes_runtime) == len(nodes)
         return nodes_runtime
 
     def run_node(self, node):
         return self.run_nodes([node])
+
+    def __del__(self):
+        self.pool.close()
+        self.pool.join()
+        del self.pool
