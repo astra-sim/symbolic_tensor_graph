@@ -28,39 +28,6 @@ if __name__ == "__main__":
     ori_nodes = copy.deepcopy(ori_nodes)
     converter.readout()
 
-    shortcut_remover = ChakraShortcutRemover(ori_nodes)
-    sc_nodes = shortcut_remover.apply()
-    converter.replace_nodes(sc_nodes)
-    converter.eg_file = (
-        "sharding_spreadsheets/transformer/validation/symbolic_transformer2.w0l0i0.dp.s"
-    )
-
-    converter.readout()
-
-    greedy_scheduler = GreedyScheduler(copy.deepcopy(sc_nodes))
-    scg1_nodes = greedy_scheduler.apply()
-    converter.replace_nodes(scg1_nodes)
-    converter.eg_file = "sharding_spreadsheets/transformer/validation/symbolic_transformer2.w0l0i0.dp.sg1"
-    converter.readout()
-
-    greedy_scheduler = GreedyScheduler(copy.deepcopy(sc_nodes), num_queue=2)
-    scg2_nodes = greedy_scheduler.apply()
-    converter.replace_nodes(scg2_nodes)
-    converter.eg_file = "sharding_spreadsheets/transformer/validation/symbolic_transformer2.w0l0i0.dp.sg2"
-    converter.readout()
-
-    shortcut_remover = ChakraShortcutRemover(copy.deepcopy(scg1_nodes))
-    scg1s_nodes = shortcut_remover.apply()
-    converter.replace_nodes(scg1s_nodes)
-    converter.eg_file = "sharding_spreadsheets/transformer/validation/symbolic_transformer2.w0l0i0.dp.sg1s"
-    converter.readout()
-
-    shortcut_remover = ChakraShortcutRemover(copy.deepcopy(scg2_nodes))
-    scg2s_nodes = shortcut_remover.apply()
-    converter.replace_nodes(scg2s_nodes)
-    converter.eg_file = "sharding_spreadsheets/transformer/validation/symbolic_transformer2.w0l0i0.dp.sg2s"
-    converter.readout()
-
     greedy_scheduler = GreedyScheduler(copy.deepcopy(ori_nodes))
     g1_nodes = greedy_scheduler.apply()
     converter.replace_nodes(g1_nodes)
@@ -73,6 +40,24 @@ if __name__ == "__main__":
     converter.eg_file = "sharding_spreadsheets/transformer/validation/symbolic_transformer2.w0l0i0.dp.g2"
     converter.readout()
 
+    greedy_scheduler = GreedyScheduler(copy.deepcopy(ori_nodes), num_queue=3)
+    g3_nodes = greedy_scheduler.apply()
+    converter.replace_nodes(g3_nodes)
+    converter.eg_file = "sharding_spreadsheets/transformer/validation/symbolic_transformer2.w0l0i0.dp.g3"
+    converter.readout()
+
+    greedy_scheduler = GreedyScheduler(copy.deepcopy(ori_nodes), num_queue=5)
+    g5_nodes = greedy_scheduler.apply()
+    converter.replace_nodes(g5_nodes)
+    converter.eg_file = "sharding_spreadsheets/transformer/validation/symbolic_transformer2.w0l0i0.dp.g5"
+    converter.readout()
+
+    greedy_scheduler = GreedyScheduler(copy.deepcopy(ori_nodes), num_queue=10)
+    g10_nodes = greedy_scheduler.apply()
+    converter.replace_nodes(g10_nodes)
+    converter.eg_file = "sharding_spreadsheets/transformer/validation/symbolic_transformer2.w0l0i0.dp.g10"
+    converter.readout()
+
     shortcut_remover = ChakraShortcutRemover(copy.deepcopy(g1_nodes))
     g1s_nodes = shortcut_remover.apply()
     converter.replace_nodes(g1s_nodes)
@@ -83,4 +68,22 @@ if __name__ == "__main__":
     g2s_nodes = shortcut_remover.apply()
     converter.replace_nodes(g2s_nodes)
     converter.eg_file = "sharding_spreadsheets/transformer/validation/symbolic_transformer2.w0l0i0.dp.g2s"
+    converter.readout()
+
+    shortcut_remover = ChakraShortcutRemover(copy.deepcopy(g3_nodes))
+    g3s_nodes = shortcut_remover.apply()
+    converter.replace_nodes(g3s_nodes)
+    converter.eg_file = "sharding_spreadsheets/transformer/validation/symbolic_transformer2.w0l0i0.dp.g3s"
+    converter.readout()
+
+    shortcut_remover = ChakraShortcutRemover(copy.deepcopy(g5_nodes))
+    g5s_nodes = shortcut_remover.apply()
+    converter.replace_nodes(g5s_nodes)
+    converter.eg_file = "sharding_spreadsheets/transformer/validation/symbolic_transformer2.w0l0i0.dp.g5s"
+    converter.readout()
+
+    shortcut_remover = ChakraShortcutRemover(copy.deepcopy(g10_nodes))
+    g10s_nodes = shortcut_remover.apply()
+    converter.replace_nodes(g10s_nodes)
+    converter.eg_file = "sharding_spreadsheets/transformer/validation/symbolic_transformer2.w0l0i0.dp.g10s"
     converter.readout()
