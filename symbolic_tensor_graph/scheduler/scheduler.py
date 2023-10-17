@@ -34,7 +34,9 @@ class SchedulerBase:
                 min_queue = queue
                 min_queue_index = i
                 min_queue_tick = min(min_queue_tick, queue_tick)
-
+        # print(
+        #     f"issue node={node.name} queue={min_queue_index} begin_queue_tick={min_queue_tick} after_queue_tick={min_queue_tick+delta_tick}"
+        # )
         min_queue.append(node)
         self.queues_tick[min_queue_index] += delta_tick
 

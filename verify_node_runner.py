@@ -5,13 +5,12 @@ from eg_simulator.runtime_database.astrasim_runtime_database import (
 )
 from eg_simulator.node_runner import NodeRunner
 from symbolic_tensor_graph.symbolic2chakra_converter import Symbolic2ChakraConverter
+from models.transformer import transformer
 
 
 if __name__ == "__main__":
-    workloads = [
-        f"./sharding_spreadsheets/transformer/validation/symbolic_transformer32.w0l0i0.dp.{npu_id}.eg"
-        for npu_id in range(64)
-    ]
+    # transformer(1024, "sharding_spreadsheets/transformer/dp")
+    workloads = None
     system = "../astra-sim/inputs/system/sample_fully_connected_sys_roofline.txt"
     network = "../astra-sim/inputs/network/analytical/fully_connected.json"
     memory = "../astra-sim/inputs/remote_memory/analytical/no_memory_expansion.json"
@@ -36,8 +35,8 @@ if __name__ == "__main__":
     }
 
     converter = Symbolic2ChakraConverter(
-        "sharding_spreadsheets/transformer/dp/processed_graphs/transformer_32.csv",
-        "sharding_spreadsheets/transformer/validation/symbolic_transformer32.w0l0i0.dp",
+        "sharding_spreadsheets/transformer/dp/processed_graphs/transformer_1024.csv",
+        "sharding_spreadsheets/transformer/validation/symbolic_transformer1024.w0l0i0.dp",
         symbol_value_map,
         symbol_value_map["bp"] * symbol_value_map["mp"],
     )

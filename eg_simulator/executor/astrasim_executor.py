@@ -29,6 +29,10 @@ class AstraSIMExecutor:
             "", "astrasim_runner", self.tmp_dir_root
         )
         self.workloads = list()
+        if workloads is None:
+            self.workloads = None
+            self.workload = None
+            return
 
         for i, workload in enumerate(workloads):
             if isinstance(workload, str):
@@ -84,6 +88,7 @@ class AstraSIMExecutor:
         self.workload = os.path.abspath(os.path.join(self.tmp_dir.name, f"workload"))
 
     def run(self):
+        assert not self.workload is None
         cmd = f"{self.astrasim_bin} \
                 --workload-configuration={self.workload} \
                 --system-configuration={self.system} \
