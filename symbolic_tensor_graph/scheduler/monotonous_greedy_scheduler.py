@@ -6,7 +6,6 @@ class MonotonousGreedyScheduler(Scheduler):
     def __init__(
         self, eg_nodes, node_runtime=None, queues_function=None, inplace=False
     ):
-        raise NotImplementedError()
         super(MonotonousGreedyScheduler, self).__init__(
             eg_nodes, node_runtime, queues_function, inplace
         )
@@ -31,35 +30,29 @@ class MonotonousGreedyScheduler(Scheduler):
                 duration_time = self.get_node_runtime(node)
                 begin_time = latest_parent_end_time
                 # select a queue, here just find the one with shortest latest tick
-                shortest_queue_tick = float("inf")
-                shortest_queue = None
-                issuable = False
+                target_queue = None
+                issuable_queues = list()
                 for queue in self.queues:
                     if queue.issuable(node):
-                        issuable = True
-                        break
-                assert issuable
+                        issuable_queues.append(queue)
+                assert len(issuable_queues) > 0
 
-                for queue in self.queues:
-                    if queue.latest_task_tick == begin_time:
-                        shortest_queue = queue
-                        break
+                # if there is any queue has earlier time before begin, use the latest one of them
+                queues_early = list()
+                for queue in issuable_queues:
+                    if queue.latest_task_tick <= begin_time:
+                        queues_early.append(queue)
+                if len(queues_early) > 0:
+                    target_queue = random.choice(queues_early)
+                else:
+                    # if no queue is earlier than begin, use the most earlist one
+                    queues_after = issuable_queues
+                    queues_after = sorted(
+                        queues_after, key=lambda q: q.latest_task_tick
+                    )
+                    target_queue = queues_after[0]
 
-                for queue in self.queues:
-                    if queue.latest_task_tick < begin_time:
-                        continue
-                    if queue.latest_task_tick < shortest_queue_tick:
-                        shortest_queue_tick = queue.latest_task_tick
-                        shortest_queue = queue
-                if shortest_queue is None:
-                    # all queue has latest task tick before the begin time
-                    issuable_queues = list()
-                    for queue in self.queues:
-                        if queue.issuable(node):
-                            issuable_queues.append(queue)
-                    shortest_queue = random.choice(issuable_queues)
-
-                begin_time, end_time = shortest_queue.insert_task(
+                begin_time, end_time = target_queue.insert_task(
                     node, begin_time, duration_time
                 )
                 print(

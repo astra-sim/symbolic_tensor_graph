@@ -28,22 +28,22 @@ class BaselineGreedyScheduler(Scheduler):
                     )
                 duration_time = self.get_node_runtime(node)
                 begin_time = latest_parent_end_time
+
                 # select a queue, here just find the one with shortest latest tick
-                shortest_queue_tick = float("inf")
-                shortest_queue = None
+                target_queue = None
+                issuable_queue = list()
                 for queue in self.queues:
-                    if not queue.issuable(node):
-                        continue
-                    if queue.latest_task_tick < shortest_queue_tick:
-                        shortest_queue_tick = queue.latest_task_tick
-                        shortest_queue = queue
-                # if the shortest queue is none, then means no queue in system can handle this node type
-                assert shortest_queue is not None
-                begin_time, end_time = shortest_queue.insert_task(
-                    node, begin_time, duration_time
+                    if queue.issuable(node):
+                        issuable_queue.append(queue)
+                assert len(issuable_queue) > 0
+
+                issuable_queue = sorted(
+                    issuable_queue, key=lambda q: q.latest_task_tick
                 )
-                print(
-                    f"insert {node.name} in queue {id(queue)} and with {begin_time}:{end_time}"
+                target_queue = issuable_queue[0]
+
+                begin_time, end_time = target_queue.insert_task(
+                    node, begin_time, duration_time
                 )
                 self._node_id_map_end_time[node.id] = end_time
                 for child in self.parent_map_child[node.id]:

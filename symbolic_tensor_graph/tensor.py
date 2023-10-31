@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import graphviz
 import copy
+from .ops.op_handler import OPHandler
 
 OPTIMIZE = True
 
@@ -16,10 +17,8 @@ class Tensor:
         if not create_empty:
             assert False  # not allow create empty tensor, need to parse from file,
             # here we impl something like private constructor
-        self.id = None
+        self.name = None
         self.require_grads = None
-        self.shape = None
-        self.hidden = None
         self.x1 = None
         self.x2 = None
         self.op_type = None
@@ -27,11 +26,13 @@ class Tensor:
         self.x1_shape = None
         self.x1_hidden = None
         self.x2_shape = None
-        self.x2_hidden = None
-        self.direct_output_shape = None
-        self.direct_output_hidden = None
-        self.post_communications = None
-        self.ops = None
+        self.x2_hiden = None
+        self.grad_of = None
+
+        self.revision = None
+
+        self._op_token = None
+        self._op_results = None
 
     @staticmethod
     def parse_shape(shape):
@@ -91,57 +92,98 @@ class Tensor:
         return target_eval_expr_cache[expr]
 
     @staticmethod
-    def parse_record(terms):
-        assert len(terms) == 16
+    def eval_size(shape):
+        size = 1
+        for dim in shape:
+            size *= dim
+        return size
+
+    @staticmethod
+    def parse_id(id_):
+        terms = id_.split("@")
+        if len(terms) == 1:
+            tensor_name = terms[0]
+            tensor_revision = 0
+        elif len(terms) == 2:
+            tensor_name = terms[0]
+            tensor_revision = int(terms[1])
+        else:
+            assert False
+        return tensor_name, tensor_revision
+
+    @staticmethod
+    def stringfy_id(tensor_name, tensor_revision):
+        return f"{tensor_name}@{tensor_revision}"
+
+    @property
+    def id(self):
+        return Tensor.stringfy_id(self.name, self.revision)
+
+    @property
+    def y_shape(self):
+        token = OPHandler.tokenrize(self)
+        if not token == self._op_token:
+            self._op_token = token
+            self._op_results = OPHandler.handle(self)
+        return self._op_results[0]
+
+    @property
+    def y_hidden(self):
+        token = OPHandler.tokenrize(self)
+        if not token == self._op_token:
+            self._op_token = token
+            self._op_results = OPHandler.handle(self)
+        return self._op_results[1]
+
+    @property
+    def ops(self):
+        token = OPHandler.tokenrize(self)
+        if not token == self._op_token:
+            self._op_token = token
+            self._op_results = OPHandler.handle(self)
+        return self._op_results[2]
+
+    @staticmethod
+    def _parse_record(terms):
+        assert len(terms) == 11
         tensor = Tensor(create_empty=True)
-        tensor.id = terms[0]
+        tensor_name, tensor_revision = Tensor.parse_id(terms[0])
+
+        tensor.name = tensor_name
+        tensor.revision = tensor_revision
         tensor.require_grads = terms[1].strip() == "Y"
-        tensor.shape = Tensor.parse_shape(terms[2])
-        tensor.hidden = Tensor.parse_shape(terms[3])
-        tensor.x1 = terms[4]
-        tensor.x2 = terms[5]
-        tensor.op_type = terms[6]
-        tensor.op_attr = terms[7] if not terms[8] is None else ""
-        if tensor.x1 is not None:
-            tensor.x1_shape = Tensor.parse_shape(terms[8])
-            tensor.x1_hidden = Tensor.parse_shape(terms[9])
-        if tensor.x2 is not None:
-            tensor.x2_shape = Tensor.parse_shape(terms[10])
-            tensor.x2_hidden = Tensor.parse_shape(terms[11])
-        tensor.direct_output_shape = Tensor.parse_shape(terms[12])
-        tensor.direct_output_hidden = Tensor.parse_shape(terms[13])
-        tensor.post_communications = terms[14]
-        tensor.ops = Tensor.parse_expr(terms[15]) if not terms[15] is None else 0
+        tensor.x1 = terms[2]
+        tensor.x2 = terms[3]
+        tensor.op_type = terms[4]
+        tensor.op_attr = terms[5]
+        tensor.x1_shape = terms[6]
+        tensor.x1_hidden = terms[7]
+        tensor.x2_shape = terms[8]
+        tensor.x2_hidden = terms[9]
+        tensor.grad_of = terms[10]
         return tensor
 
-    def to_record(tensor):
+    def _to_record(tensor):
         terms = list()
         terms.append(tensor.id)
         terms.append("Y" if tensor.require_grads else "N")
-        terms.append(Tensor.stringfy_shape(tensor.shape))
-        terms.append(Tensor.stringfy_shape(tensor.hidden))
-        terms.append(tensor.x1 if not tensor.x1 is None else "")
-        terms.append(tensor.x2 if not tensor.x2 is None else "")
+        terms.append(tensor.x1.id if not tensor.x1 is None else "")
+        terms.append(tensor.x2.id if not tensor.x2 is None else "")
         terms.append(tensor.op_type)
         terms.append(tensor.op_attr)
-        if tensor.x1 is not None:
-            terms.append(Tensor.stringfy_shape(tensor.x1_shape))
-            terms.append(Tensor.stringfy_shape(tensor.x1_hidden))
-        else:
-            terms.append("")
-            terms.append("")
-        if tensor.x2 is not None:
-            terms.append(Tensor.stringfy_shape(tensor.x2_shape))
-            terms.append(Tensor.stringfy_shape(tensor.x2_hidden))
-        else:
-            terms.append("")
-            terms.append("")
-        terms.append(Tensor.stringfy_shape(tensor.direct_output_shape))
-        terms.append(Tensor.stringfy_shape(tensor.direct_output_hidden))
         terms.append(
-            tensor.post_communications if not tensor.post_communications is None else ""
+            Tensor.stringfy_shape(tensor.x1_shape) if not tensor.x1 is None else ""
         )
-        terms.append(tensor.ops if not tensor.ops == 0 else "")
+        terms.append(
+            Tensor.stringfy_shape(tensor.x1_hidden) if not tensor.x1 is None else ""
+        )
+        terms.append(
+            Tensor.stringfy_shape(tensor.x2_shape) if not tensor.x2 is None else ""
+        )
+        terms.append(
+            Tensor.stringfy_shape(tensor.x2_hidden) if not tensor.x2 is None else ""
+        )
+        terms.append(tensor.grad_of.id if not tensor.grad_of is None else "")
         return terms
 
     @staticmethod
@@ -151,7 +193,21 @@ class Tensor:
         tensors = list()
         for i in range(df.shape[0]):
             data = np.array(df[i : i + 1]).reshape(-1)
-            tensors.append(Tensor.parse_record(data))
+            tensors.append(Tensor._parse_record(data))
+
+        tensor_id_map_tensor = dict()
+        for tensor in tensors:
+            key = tensor.id
+            assert not key in tensor_id_map_tensor
+            tensor_id_map_tensor[key] = tensor
+
+        for tensor in tensors:
+            if tensor.x1 is not None:
+                tensor.x1 = tensor_id_map_tensor[tensor.x1]
+            if tensor.x2 is not None:
+                tensor.x2 = tensor_id_map_tensor[tensor.x2]
+            if tensor.grad_of is not None:
+                tensor.grad_of = tensor_id_map_tensor[tensor.grad_of]
         return tensors
 
     @staticmethod
@@ -168,7 +224,7 @@ class Tensor:
         for tensor in tensors:
             f.node(name=tensor.id, lable=tensor.id, id=tensor.id, shape="box")
             if tensor.x1 is not None:
-                f.edge(tensor.x1, tensor.id)
+                f.edge(tensor.x1.id, tensor.id)
             if tensor.x2 is not None:
-                f.edge(tensor.x2, tensor.id)
+                f.edge(tensor.x2.id, tensor.id)
         f.render(filename, format=format, cleanup=True)

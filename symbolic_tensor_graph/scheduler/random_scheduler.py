@@ -35,8 +35,8 @@ class RandomScheduler(Scheduler):
                         issuable_queues.append(queue)
 
                 assert len(issuable_queues) > 0
-                shortest_queue = random.choice(issuable_queues)
-                begin_time, end_time = shortest_queue.insert_task(
+                target_queue = random.choice(issuable_queues)
+                begin_time, end_time = target_queue.insert_task(
                     node, begin_time, duration_time
                 )
                 print(
