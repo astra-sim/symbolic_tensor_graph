@@ -1,5 +1,3 @@
-from ..tensor import Tensor
-
 OPTIMIZE = True
 
 
@@ -9,6 +7,8 @@ class OPBase:
 
     @classmethod
     def tokenrize(cls, tensor):
+        from ..tensor import Tensor
+
         op_attr = tensor.op_attr
         x1_shape = tensor.x1_shape
         x2_shape = tensor.x2_shape
@@ -27,13 +27,14 @@ class OPBase:
         x2_hidden_str = (
             Tensor.stringfy_shape(x2_hidden) if x2_hidden is not None else "None"
         )
+        op_attr_str = op_attr if not op_attr is None else "None"
         token = (
             cls.type_name
             + x1_shape_str
             + x2_shape_str
             + x1_hidden_str
             + x2_hidden_str
-            + op_attr
+            + op_attr_str
         )
         return token
 

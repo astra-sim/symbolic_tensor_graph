@@ -13,9 +13,9 @@ class PlaceHolder(OPBase):
         x2_shape = tensor.x2_shape
         x1_hidden = tensor.x1_hidden
         x2_hidden = tensor.x2_hidden
-        assert x1_shape is None
-        assert x1_hidden is None
+        # assert x1_shape is None
+        # assert x1_hidden is None
         assert x2_shape is None
         assert x2_hidden is None
 
-        return tensor.shape, tensor.hidden, 0
+        return x1_shape, x1_hidden, 0

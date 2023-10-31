@@ -1,12 +1,32 @@
 import copy
+from .tensor import Tensor
 
 
-class Graph:
-    def __init__(self, create_empty=False):
-        if not create_empty:
-            assert False
-        self.tensors = list()
-        self.tensor_map_node = dict()
+class TensorGraph:
+    def __init__(self, tensors):
+        self.tensors = tensors
+
+    def reverse_links(links):
+        reversed_links = dict()
+        for old_from in links.keys():
+            for old_to in links[old_from]:
+                new_from, new_to = old_to, old_from
+                if not new_from in reversed_links:
+                    reversed_links[new_from] = list()
+                reversed_links[new_from].append(new_to)
+        return reversed_links
+
+
+class HybridGraph(TensorGraph):
+    def __init__(self, tensors, tensor_map_nodes=None):
+        super(HybridGraph, self).__init__(tensors)
+        if tensor_map_nodes is None:
+            tensor_map_nodes = dict()
+            for tensor in self.tensors:
+                tensor_map_nodes[tensor] = list()
+        self.tensor_map_nodes = tensor_map_nodes
+        for tensor in tensors:
+            assert tensor in self.tensor_map_nodes
 
     def get_nodes(self):
         nodes = list()
@@ -42,7 +62,7 @@ class Graph:
             ret[node.id] = node
         return ret
 
-    def get_child_to_parent_link(self, nodes=None):
+    def get_node_child_to_parent_link(self, nodes=None):
         if nodes is None:
             nodes = self.get_nodes()
         child_to_parent = dict()
@@ -52,7 +72,7 @@ class Graph:
                 child_to_parent[node.id].append(parent)
         return child_to_parent
 
-    def apply_child_to_parent_link(self, links, nodes=None):
+    def apply_node_child_to_parent_link(self, links, nodes=None):
         if nodes is None:
             nodes = self.get_nodes()
         for child_node in nodes:
@@ -62,21 +82,11 @@ class Graph:
             for parent_id in links[child_id]:
                 child_node.append(parent_id)
 
-    def reverse_links(links):
-        reversed_links = dict()
-        for old_from in links.keys():
-            for old_to in links[old_from]:
-                new_from, new_to = old_to, old_from
-                if not new_from in reversed_links:
-                    reversed_links[new_from] = list()
-                reversed_links[new_from].append(new_to)
-        return reversed_links
-
-    def get_parent_to_child_link(self, nodes=None):
-        child_to_parent = self.get_child_to_parent_link(nodes)
+    def get_node_parent_to_child_link(self, nodes=None):
+        child_to_parent = self.get_node_child_to_parent_link(nodes)
         parent_to_child = self.reverse_links(child_to_parent)
         return parent_to_child
 
-    def apply_parent_to_child_link(self, parent_to_child, nodes=None):
+    def apply_node_parent_to_child_link(self, parent_to_child, nodes=None):
         child_to_parent = self.reverse_links(parent_to_child)
-        self.apply_child_to_parent_link(child_to_parent, nodes)
+        self.apply_node_child_to_parent_link(child_to_parent, nodes)

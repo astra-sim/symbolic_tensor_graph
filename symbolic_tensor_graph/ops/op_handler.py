@@ -10,7 +10,7 @@ class OPHandler:
     @classmethod
     def handle(cls, tensor):
         matched_op = cls.match_op(tensor)
-        return matched_op.eval(tensor, tensor)
+        return matched_op.eval(tensor)
 
     @classmethod
     def match_op(cls, tensor):

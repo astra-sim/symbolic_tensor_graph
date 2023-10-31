@@ -1,4 +1,3 @@
-from ..tensor import Tensor
 from .op_base import OPBase
 
 
@@ -7,6 +6,8 @@ class Element(OPBase):
 
     @classmethod
     def _eval_impl(cls, tensor):
+        from ..tensor import Tensor
+
         op_attr = tensor.op_attr
 
         x1_shape = tensor.x1_shape

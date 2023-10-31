@@ -36,6 +36,8 @@ class Tensor:
 
     @staticmethod
     def parse_shape(shape):
+        if shape == None:
+            return None
         shape = str(shape)
         ret = list()
         terms = shape.strip().split(",")
@@ -148,19 +150,36 @@ class Tensor:
         assert len(terms) == 11
         tensor = Tensor(create_empty=True)
         tensor_name, tensor_revision = Tensor.parse_id(terms[0])
-
         tensor.name = tensor_name
         tensor.revision = tensor_revision
+
         tensor.require_grads = terms[1].strip() == "Y"
-        tensor.x1 = terms[2]
-        tensor.x2 = terms[3]
+
+        if not terms[2] == None:
+            x1_name, x1_revision = Tensor.parse_id(terms[2])
+            tensor.x1 = Tensor.stringfy_id(x1_name, x1_revision)
+        else:
+            tensor.x1 = None
+
+        if not terms[3] == None:
+            x2_name, x2_revision = Tensor.parse_id(terms[3])
+            tensor.x2 = Tensor.stringfy_id(x2_name, x2_revision)
+        else:
+            tensor.x2 = None
+
         tensor.op_type = terms[4]
         tensor.op_attr = terms[5]
-        tensor.x1_shape = terms[6]
-        tensor.x1_hidden = terms[7]
-        tensor.x2_shape = terms[8]
-        tensor.x2_hidden = terms[9]
-        tensor.grad_of = terms[10]
+        tensor.x1_shape = Tensor.parse_shape(terms[6])
+        tensor.x1_hidden = Tensor.parse_shape(terms[7])
+        tensor.x2_shape = Tensor.parse_shape(terms[8])
+        tensor.x2_hidden = Tensor.parse_shape(terms[9])
+
+        if not terms[10] == None:
+            grad_of_name, grad_of_revision = Tensor.parse_id(terms[10])
+            tensor.grad_of = Tensor.stringfy_id(grad_of_name, grad_of_revision)
+        else:
+            tensor.grad_of = None
+
         return tensor
 
     def _to_record(tensor):
@@ -172,16 +191,24 @@ class Tensor:
         terms.append(tensor.op_type)
         terms.append(tensor.op_attr)
         terms.append(
-            Tensor.stringfy_shape(tensor.x1_shape) if not tensor.x1 is None else ""
+            Tensor.stringfy_shape(tensor.x1_shape)
+            if not tensor.x1_shape is None
+            else ""
         )
         terms.append(
-            Tensor.stringfy_shape(tensor.x1_hidden) if not tensor.x1 is None else ""
+            Tensor.stringfy_shape(tensor.x1_hidden)
+            if not tensor.x1_hidden is None
+            else ""
         )
         terms.append(
-            Tensor.stringfy_shape(tensor.x2_shape) if not tensor.x2 is None else ""
+            Tensor.stringfy_shape(tensor.x2_shape)
+            if not tensor.x2_shape is None
+            else ""
         )
         terms.append(
-            Tensor.stringfy_shape(tensor.x2_hidden) if not tensor.x2 is None else ""
+            Tensor.stringfy_shape(tensor.x2_hidden)
+            if not tensor.x2_hidden is None
+            else ""
         )
         terms.append(tensor.grad_of.id if not tensor.grad_of is None else "")
         return terms
@@ -214,7 +241,7 @@ class Tensor:
     def to_records(tensors, csv_filename):
         data = list()
         for tensor in tensors:
-            data.append(tensor.to_record())
+            data.append(tensor._to_record())
         df = pd.DataFrame(data)
         df.to_csv(csv_filename, encoding="utf-8", header=None, index=None)
 
@@ -228,3 +255,6 @@ class Tensor:
             if tensor.x2 is not None:
                 f.edge(tensor.x2.id, tensor.id)
         f.render(filename, format=format, cleanup=True)
+
+    def __eq__(one, another):
+        return one._to_record() == another._to_record()
