@@ -46,6 +46,16 @@ class TestTensor(unittest.TestCase):
                 f"{tensor.name} shape={tensor.y_shape} hidden={tensor.y_hidden} ops={tensor.ops}"
             )
 
+    def test_op_handler3(self):
+        validation_file = "./sharding_spreadsheets/module/test_ops.csv"
+        from symbolic_tensor_graph.tensor import Tensor
+
+        tensors = Tensor.parse_records(validation_file)
+        for tensor in tensors:
+            print(
+                f"{tensor.name} shape={tensor.y_shape} hidden={tensor.y_hidden} ops={tensor.ops}"
+            )
+
     def test_visualize1(self):
         validation_file = "./sharding_spreadsheets/module/linear_layer.csv"
         visualize_file = "/tmp/TestTensor_test_visualize1.pdf"

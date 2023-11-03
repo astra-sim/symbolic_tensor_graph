@@ -12,6 +12,19 @@ class Tensor:
     _parsed_expr_cache = dict()
     _eval_expr_cache = list()
     _stringfy_expr_cache = dict()
+    CSV_HEADER = [
+        "id",
+        "require_grads",
+        "x1",
+        "x2",
+        "op_type",
+        "op_attr",
+        "x1_shape",
+        "x1_hidden",
+        "x2_shape",
+        "x2_hidden",
+        "grad_of",
+    ]
 
     def __init__(self, create_empty=False):
         if not create_empty:
@@ -36,7 +49,7 @@ class Tensor:
 
     @staticmethod
     def parse_shape(shape):
-        if shape == None:
+        if shape is None:
             return None
         shape = str(shape)
         ret = list()
@@ -83,7 +96,7 @@ class Tensor:
         ) in Tensor._eval_expr_cache:
             if target_symbol_value_dict == target_symbol_value_dict_:
                 target_eval_expr_cache = target_eval_expr_cache_
-        if target_eval_expr_cache == None:
+        if target_eval_expr_cache is None:
             target_eval_expr_cache = dict()
             Tensor._eval_expr_cache.append(
                 (copy.deepcopy(target_symbol_value_dict), target_eval_expr_cache)
@@ -147,7 +160,7 @@ class Tensor:
 
     @staticmethod
     def _parse_record(terms):
-        assert len(terms) == 11
+        assert len(terms) == len(Tensor.CSV_HEADER)
         tensor = Tensor(create_empty=True)
         tensor_name, tensor_revision = Tensor.parse_id(terms[0])
         tensor.name = tensor_name
@@ -155,13 +168,13 @@ class Tensor:
 
         tensor.require_grads = terms[1].strip() == "Y"
 
-        if not terms[2] == None:
+        if not terms[2] is None:
             x1_name, x1_revision = Tensor.parse_id(terms[2])
             tensor.x1 = Tensor.stringfy_id(x1_name, x1_revision)
         else:
             tensor.x1 = None
 
-        if not terms[3] == None:
+        if not terms[3] is None:
             x2_name, x2_revision = Tensor.parse_id(terms[3])
             tensor.x2 = Tensor.stringfy_id(x2_name, x2_revision)
         else:
@@ -174,7 +187,7 @@ class Tensor:
         tensor.x2_shape = Tensor.parse_shape(terms[8])
         tensor.x2_hidden = Tensor.parse_shape(terms[9])
 
-        if not terms[10] == None:
+        if not terms[10] is None:
             grad_of_name, grad_of_revision = Tensor.parse_id(terms[10])
             tensor.grad_of = Tensor.stringfy_id(grad_of_name, grad_of_revision)
         else:
@@ -215,8 +228,9 @@ class Tensor:
 
     @staticmethod
     def parse_records(csv_filename):
-        df = pd.read_csv(csv_filename, encoding="utf-8", header=None)
+        df = pd.read_csv(csv_filename, encoding="utf-8")
         df = df.replace({np.nan: None})
+        assert list(df.columns) == Tensor.CSV_HEADER
         tensors = list()
         for i in range(df.shape[0]):
             data = np.array(df[i : i + 1]).reshape(-1)
@@ -243,7 +257,7 @@ class Tensor:
         for tensor in tensors:
             data.append(tensor._to_record())
         df = pd.DataFrame(data)
-        df.to_csv(csv_filename, encoding="utf-8", header=None, index=None)
+        df.to_csv(csv_filename, encoding="utf-8", header=Tensor.CSV_HEADER, index=None)
 
     @staticmethod
     def visualize(tensors, filename, format="pdf"):

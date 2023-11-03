@@ -24,7 +24,7 @@ class NodeRunner:
         for node in nodes:
             node = database.node_remove_extra_attr(node)
             runtime = database.lookup(node)
-            if runtime == None:
+            if runtime is None:
                 node_executor.update_workload([node])
                 runtime = node_executor.run()
                 database.update(node, runtime)

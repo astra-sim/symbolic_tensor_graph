@@ -1,4 +1,5 @@
-﻿x0,N,,,T,,"B, N0",1,,,
+﻿id,require_grads,x1,x2,op_type,op_attr,x1_shape,x1_hidden,x2_shape,x2_hidden,grad_of
+x0,N,,,T,,"B, N0",1,,,
 w1,Y,,,T,,"N0, N1",1,,,
 x1,N,x0,w1,M,"bm,mn->bn","B, N0",1,"N0, N1",1,
 w2,Y,,,T,,"N1, N2",1,,,

@@ -1,12 +1,12 @@
 import copy
-from .tensor import Tensor
+from ..tensor import Tensor
 
 
 class TensorGraph:
     def __init__(self, tensors):
         self.tensors = tensors
 
-    def reverse_links(links):
+    def reverse_links(self, links):
         reversed_links = dict()
         for old_from in links.keys():
             for old_to in links[old_from]:
@@ -15,6 +15,23 @@ class TensorGraph:
                     reversed_links[new_from] = list()
                 reversed_links[new_from].append(new_to)
         return reversed_links
+
+    def get_tensor_child_to_parent_link(self, tensors=None):
+        if tensors is None:
+            tensors = self.tensors
+        child_to_parent = dict()
+        for tensor in tensors:
+            child_to_parent[tensor.id] = list()
+            if tensor.x1 is not None:
+                child_to_parent[tensor.id].append(tensor.x1.id)
+            if tensor.x2 is not None:
+                child_to_parent[tensor.id].append(tensor.x2.id)
+        return child_to_parent
+
+    def get_tensor_parent_to_child_link(self, tensors=None):
+        child_to_parent = self.get_tensor_child_to_parent_link(tensors)
+        parent_to_child = self.reverse_links(child_to_parent)
+        return parent_to_child
 
 
 class HybridGraph(TensorGraph):

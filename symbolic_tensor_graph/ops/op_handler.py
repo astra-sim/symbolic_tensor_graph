@@ -1,11 +1,13 @@
 from .add import Add
 from .einsum import Einsum
 from .element import Element
+from .identical import Identical
 from .place_holder import PlaceHolder
+from .reshape import Reshape
 
 
 class OPHandler:
-    ops = [Add, Einsum, Element, PlaceHolder]
+    ops = [Add, Einsum, Element, Identical, PlaceHolder, Reshape]
 
     @classmethod
     def handle(cls, tensor):

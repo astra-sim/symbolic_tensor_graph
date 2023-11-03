@@ -37,13 +37,13 @@ class AstrasimNodeRuntimeDatabase:
         return node.SerializeToString()
 
     def sanity_check(self, system=None, network=None, memory=None, astrasim_bin=None):
-        if not system == None:
+        if not system is None:
             assert self.load_json(system) == self.system
-        if not network == None:
+        if not network is None:
             assert self.load_json(network) == self.network
-        if not memory == None:
+        if not memory is None:
             assert self.load_json(memory) == self.memory
-        if not astrasim_bin == None:
+        if not astrasim_bin is None:
             assert self.hash_file(astrasim_bin) == self.astrasim_bin
 
     def lookup(self, node, system=None, network=None, memory=None, astrasim_bin=None):

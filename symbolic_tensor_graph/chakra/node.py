@@ -58,6 +58,6 @@ class Node:
             assert False
 
     def readout(node, backend=None):
-        if backend == None:
+        if backend is None:
             backend = Node.backend
         return backend.readout(node)
