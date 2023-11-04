@@ -17,12 +17,23 @@ class TestTensor(unittest.TestCase):
     def test_op_handler1(self):
         validation_file = "./sharding_spreadsheets/module/linear_layer.csv"
         from symbolic_tensor_graph.tensor import Tensor
+        import sympy as sp
 
+        B, M, NN = sp.symbols("B M NN")
+        ground_truth = {
+            "x": ([B, M], [1], 0),
+            "w": ([M, NN], [1], 0),
+            "y": ([B, NN], [M], B * M * NN),
+            "dy": ([B, NN], [1], 0),
+            "dw": ([M, NN], [B], B * M * NN),
+            "dx": ([B, M], [NN], B * M * NN),
+        }
         tensors = Tensor.parse_records(validation_file)
         for tensor in tensors:
-            print(
-                f"{tensor.name} shape={tensor.y_shape} hidden={tensor.y_hidden} ops={tensor.ops}"
-            )
+            gt_y_shape, gt_y_hidden, gt_ops = ground_truth[tensor.name]
+            self.assertEqual(tensor.y_shape, gt_y_shape)
+            self.assertEqual(tensor.y_hidden, gt_y_hidden)
+            self.assertEqual(tensor.ops, gt_ops)
 
     def test_parse_to_records2(self):
         validation_file = "./sharding_spreadsheets/module/mlp2.csv"
@@ -39,22 +50,50 @@ class TestTensor(unittest.TestCase):
     def test_op_handler2(self):
         validation_file = "./sharding_spreadsheets/module/mlp2.csv"
         from symbolic_tensor_graph.tensor import Tensor
+        import sympy as sp
+
+        B, N0, N1, N2 = sp.symbols("B N0 N1 N2")
+        ground_truth = {
+            "x0": ([B, N0], [1], 0),
+            "w1": ([N0, N1], [1], 0),
+            "x1": ([B, N1], [N0], B * N1 * N0),
+            "w2": ([N1, N2], [1], 0),
+            "x2": ([B, N2], [N1], B * N2 * N1),
+            "dx0": ([B, N0], [N1], B * N0 * N1),
+            "dw1": ([N0, N1], [B], B * N0 * N1),
+            "dx1": ([B, N1], [N2], B * N2 * N1),
+            "dw2": ([N1, N2], [B], B * N2 * N1),
+            "dx2": ([B, N2], [1], 0),
+        }
 
         tensors = Tensor.parse_records(validation_file)
         for tensor in tensors:
-            print(
-                f"{tensor.name} shape={tensor.y_shape} hidden={tensor.y_hidden} ops={tensor.ops}"
-            )
+            gt_y_shape, gt_y_hidden, gt_ops = ground_truth[tensor.name]
+            self.assertEqual(tensor.y_shape, gt_y_shape)
+            self.assertEqual(tensor.y_hidden, gt_y_hidden)
+            self.assertEqual(tensor.ops, gt_ops)
 
     def test_op_handler3(self):
         validation_file = "./sharding_spreadsheets/module/test_ops.csv"
         from symbolic_tensor_graph.tensor import Tensor
+        import sympy as sp
 
+        B, S, M = sp.symbols("Batch Seq Model")
+        ground_truth = {
+            "x": ([B, S, M], [1], 0),
+            "w": ([M, M], [1], 0),
+            "y": ([B, S, M], [M], B * S * M * M),
+            "res": ([B, S, M], [1], B * S * M),
+            "norm": ([B, S, M], [1], 5.0 * B * S * M),
+            "reshape": ([M * M], [1], M * M),
+            "x2": ([B, S, M], [1], 0),
+        }
         tensors = Tensor.parse_records(validation_file)
         for tensor in tensors:
-            print(
-                f"{tensor.name} shape={tensor.y_shape} hidden={tensor.y_hidden} ops={tensor.ops}"
-            )
+            gt_y_shape, gt_y_hidden, gt_ops = ground_truth[tensor.name]
+            self.assertEqual(tensor.y_shape, gt_y_shape)
+            self.assertEqual(tensor.y_hidden, gt_y_hidden)
+            self.assertEqual(tensor.ops, gt_ops)
 
     def test_visualize1(self):
         validation_file = "./sharding_spreadsheets/module/linear_layer.csv"

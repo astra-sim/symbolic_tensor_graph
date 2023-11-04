@@ -41,6 +41,7 @@ class Tensor:
         self.x2_shape = None
         self.x2_hiden = None
         self.grad_of = None
+        self._grad = None
 
         self.revision = None
 
@@ -249,6 +250,7 @@ class Tensor:
                 tensor.x2 = tensor_id_map_tensor[tensor.x2]
             if tensor.grad_of is not None:
                 tensor.grad_of = tensor_id_map_tensor[tensor.grad_of]
+                tensor.grad_of.grad = tensor
         return tensors
 
     @staticmethod

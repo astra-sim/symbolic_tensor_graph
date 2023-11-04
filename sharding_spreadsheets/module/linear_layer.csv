@@ -2,6 +2,6 @@
 x,N,,,T,,"B, M",1,,,
 w,N,,,T,,"M, NN",1,,,
 y,N,w,x,M,"mn,bm->bn","M, NN",1,"B, M",1,
-dy,N,,,T,,"M, NN",1,,,y
+dy,N,,,T,,"B, NN",1,,,y
 dw,Y,dy,x,M,"bn,bm->mn","B, NN",1,"B, M",1,w
 dx,N,dy,w,M,"bn,mn->bm","B, NN",1,"M, NN",1,x

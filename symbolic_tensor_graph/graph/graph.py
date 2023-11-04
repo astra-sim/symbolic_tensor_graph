@@ -3,7 +3,11 @@ from ..tensor import Tensor
 
 
 class TensorGraph:
-    def __init__(self, tensors):
+    def __init__(self, tensors, in_nodes=None, out_nodes=None):
+        if in_nodes is None:
+            in_nodes = list()
+        if out_nodes is None:
+            out_nodes = list()
         self.tensors = tensors
 
     def reverse_links(self, links):
@@ -32,6 +36,19 @@ class TensorGraph:
         child_to_parent = self.get_tensor_child_to_parent_link(tensors)
         parent_to_child = self.reverse_links(child_to_parent)
         return parent_to_child
+
+    @classmethod
+    def load_tensor_graph(cls, csv_filename):
+        tensors = Tensor.parse_records(csv_filename)
+        return cls(tensors)
+
+    def save_tensor_graph(self, csv_filename):
+        Tensor.to_records(self.tensors, csv_filename)
+
+    def __eq__(one, another):
+        if not one.tensors == another.tensors:
+            return False
+        return True
 
 
 class HybridGraph(TensorGraph):
