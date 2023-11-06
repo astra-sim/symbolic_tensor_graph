@@ -1,14 +1,19 @@
 import copy
+import json
 from ..tensor import Tensor
+from ..ops import PlaceHolder
+import sympy as sp
 
 
 class TensorGraph:
-    def __init__(self, tensors, in_nodes=None, out_nodes=None):
-        if in_nodes is None:
-            in_nodes = list()
-        if out_nodes is None:
-            out_nodes = list()
+    def __init__(self, tensors, in_tensors=None, out_tensors=None):
+        if in_tensors is None:
+            in_tensors = list()
+        if out_tensors is None:
+            out_tensors = list()
         self.tensors = tensors
+        self.in_tensors = in_tensors
+        self.out_tensors = out_tensors
 
     def reverse_links(self, links):
         reversed_links = dict()
@@ -37,18 +42,107 @@ class TensorGraph:
         parent_to_child = self.reverse_links(child_to_parent)
         return parent_to_child
 
-    @classmethod
-    def load_tensor_graph(cls, csv_filename):
-        tensors = Tensor.parse_records(csv_filename)
-        return cls(tensors)
+    def get_tensor_id_map_tensor(self, tensors=None):
+        if tensors is None:
+            tensors = self.tensors
+        tensor_id_map_tensor = dict()
+        for tensor in tensors:
+            tensor_id_map_tensor[tensor.id] = tensor
+        return tensor_id_map_tensor
 
-    def save_tensor_graph(self, csv_filename):
+    def get_dimensions(self, tensors=None):
+        if tensors is None:
+            tensors = self.tensors
+        dims = set()
+        for tensor in tensors:
+            if tensor.x1_shape is not None:
+                for dim in tensor.x1_shape:
+                    dims.add(dim)
+            if tensor.x1_hidden is not None:
+                for dim in tensor.x1_hidden:
+                    dims.add(dim)
+            if tensor.x2_shape is not None:
+                for dim in tensor.x2_shape:
+                    dims.add(dim)
+            if tensor.x2_hidden is not None:
+                for dim in tensor.x2_hidden:
+                    dims.add(dim)
+        return dims
+
+    def get_symbols(self, tensors=None):
+        dims = self.get_dimensions(tensors=tensors)
+        symbols = set()
+        for dim in dims:
+            for sym in dim.free_symbols:
+                symbols.add(sym)
+        return symbols
+
+    @classmethod
+    def load_tensor_graph(cls, csv_filename, json_filename=None):
+        tensors = Tensor.parse_records(csv_filename)
+        graph = cls(tensors)
+        if json_filename is None:
+            assert csv_filename.endswith("csv")
+            json_filename = csv_filename[:-3] + "json"
+            # return graph
+
+        tensor_id_map_tensor = graph.get_tensor_id_map_tensor()
+        f = open(json_filename, "r")
+        meta_data = json.load(f)
+        f.close()
+        for tensor_id in meta_data["in_tensors"]:
+            if not "@" in tensor_id:
+                tensor_id += "@0"
+            assert tensor_id in tensor_id_map_tensor
+            graph.in_tensors.append(tensor_id_map_tensor[tensor_id])
+        for tensor_id in meta_data["out_tensors"]:
+            if not "@" in tensor_id:
+                tensor_id += "@0"
+            assert tensor_id in tensor_id_map_tensor
+            graph.out_tensors.append(tensor_id_map_tensor[tensor_id])
+        symbols = set()
+        for symbol in meta_data["symbols"]:
+            symbols.add(sp.parse_expr(symbol))
+        assert symbols == graph.get_symbols()
+        return graph
+
+    def save_tensor_graph(self, csv_filename, json_filename=None):
         Tensor.to_records(self.tensors, csv_filename)
+        if json_filename is None:
+            assert csv_filename.endswith("csv")
+            json_filename = csv_filename[:-3] + "json"
+            # return
+
+        meta_data = dict()
+        meta_data["symbols"] = list()
+        for symbol in self.get_symbols():
+            meta_data["symbols"].append(str(symbol))
+        meta_data["in_tensors"] = list()
+        meta_data["out_tensors"] = list()
+        for tensor in self.in_tensors:
+            meta_data["in_tensors"].append(tensor.id)
+        for tensor in self.out_tensors:
+            meta_data["out_tensors"].append(tensor.id)
+        f = open(json_filename, "w")
+        json.dump(meta_data, f)
+        f.close()
 
     def __eq__(one, another):
         if not one.tensors == another.tensors:
             return False
         return True
+
+    def sanity_check(self):
+        for tensor in self.in_tensors:
+            assert tensor in self.tensors
+            assert tensor.op_type == PlaceHolder.type_name
+        for tensor in self.out_tensors:
+            assert tensor in self.tensors
+
+    def visualize(self, filename, format="pdf", tensors=None):
+        if tensors is None:
+            tensors = self.tensors
+        Tensor.visualize(tensors, filename, format)
 
 
 class HybridGraph(TensorGraph):

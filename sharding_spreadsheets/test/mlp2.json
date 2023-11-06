@@ -1,0 +1,20 @@
+{
+    "symbols": [
+        "Batch",
+        "Feat0",
+        "Feat1",
+        "Feat2"
+    ],
+    "in_tensors": [
+        "x0",
+        "w1",
+        "w2",
+        "dx2"
+    ],
+    "out_tensors": [
+        "x2",
+        "dw2",
+        "dw1",
+        "dx0"
+    ]
+}

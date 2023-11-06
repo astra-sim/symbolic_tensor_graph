@@ -1,0 +1,16 @@
+{
+    "symbols": [
+        "Batch",
+        "Seq",
+        "Model"
+    ],
+    "in_tensors": [
+        "x",
+        "w"
+    ],
+    "out_tensors": [
+        "norm",
+        "reshape",
+        "x2"
+    ]
+}

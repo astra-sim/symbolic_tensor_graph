@@ -2,7 +2,7 @@
 x,N,,,T,,"Batch, Seq, Model",1,,,
 w,Y,,,T,,"Model, Model",1,,,
 y,N,x,w,M,"bsm,mn->bsn","Batch, Seq, Model",1,"Model, Model",1,
-res,N,x,res,A,,"Batch, Seq, Model",1,"Batch, Seq, Model",1,
+res,N,x,y,A,,"Batch, Seq, Model",1,"Batch, Seq, Model",1,
 norm,N,res,,E,5,"Batch, Seq, Model",1,,,
 reshape,N,w,,R,,"Model, Model",1,Model*Model,1,
 x2,N,x,,I,,"Batch, Seq, Model",1,,,

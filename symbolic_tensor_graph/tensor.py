@@ -259,6 +259,7 @@ class Tensor:
         for tensor in tensors:
             data.append(tensor._to_record())
         df = pd.DataFrame(data)
+        assert len(df[0]) == len(df[0].unique())
         df.to_csv(csv_filename, encoding="utf-8", header=Tensor.CSV_HEADER, index=None)
 
     @staticmethod
