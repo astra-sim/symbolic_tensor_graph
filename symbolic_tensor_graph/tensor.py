@@ -140,7 +140,7 @@ class Tensor:
         token = OPHandler.tokenrize(self)
         if not token == self._op_token:
             self._op_token = token
-            self._op_results = OPHandler.handle(self)
+            self._op_results = OPHandler.eval(self)
         return self._op_results[0]
 
     @property
@@ -148,7 +148,7 @@ class Tensor:
         token = OPHandler.tokenrize(self)
         if not token == self._op_token:
             self._op_token = token
-            self._op_results = OPHandler.handle(self)
+            self._op_results = OPHandler.eval(self)
         return self._op_results[1]
 
     @property
@@ -156,7 +156,7 @@ class Tensor:
         token = OPHandler.tokenrize(self)
         if not token == self._op_token:
             self._op_token = token
-            self._op_results = OPHandler.handle(self)
+            self._op_results = OPHandler.eval(self)
         return self._op_results[2]
 
     @staticmethod

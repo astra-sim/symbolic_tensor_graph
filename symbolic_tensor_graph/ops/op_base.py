@@ -2,7 +2,8 @@ OPTIMIZE = True
 
 
 class OPBase:
-    _cache = dict()
+    _eval_cache = dict()
+    _shardable_options_cache = dict()
     type_name = ""
 
     @classmethod
@@ -41,12 +42,31 @@ class OPBase:
     @classmethod
     def eval(cls, tensor):
         token = cls.tokenrize(tensor)
-        if token in cls._cache:
-            return cls._cache[token]
+        if token in cls._eval_cache:
+            return cls._eval_cache[token]
+        cls._sanity_check(tensor)
         direct_output_shape, direct_output_hidden, num_ops = cls._eval_impl(tensor)
-        cls._cache[token] = direct_output_shape, direct_output_hidden, num_ops
+        cls._eval_cache[token] = direct_output_shape, direct_output_hidden, num_ops
         return direct_output_shape, direct_output_hidden, num_ops
 
     @classmethod
+    def shardable_options(cls, tensor):
+        token = cls.tokenrize(tensor)
+        if token in cls._shardable_cache:
+            return cls._shardable_cache[token]
+        cls._sanity_check(tensor)
+        shardable_options = cls._shardable_options_impl(tensor)
+        cls._eval_cache[token] = shardable_options
+        return shardable_options
+
+    @classmethod
+    def _sanity_check(cls, tensor):
+        raise NotImplementedError()
+
+    @classmethod
     def _eval_impl(cls, tensor):
+        raise NotImplementedError()
+
+    @classmethod
+    def _shardable_options_impl(cls, tensor):
         raise NotImplementedError()

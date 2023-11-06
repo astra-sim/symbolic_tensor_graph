@@ -10,7 +10,12 @@ class OPHandler:
     ops = [Add, Einsum, Element, Identical, PlaceHolder, Reshape]
 
     @classmethod
-    def handle(cls, tensor):
+    def eval(cls, tensor):
+        matched_op = cls.match_op(tensor)
+        return matched_op.eval(tensor)
+
+    @classmethod
+    def get_shardable_dims(cls, tensor):
         matched_op = cls.match_op(tensor)
         return matched_op.eval(tensor)
 

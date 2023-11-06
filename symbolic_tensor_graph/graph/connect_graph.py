@@ -22,13 +22,20 @@ class ConnectGraph:
         assert connected_graph is not None
         connected_graph_id_map_graph = connected_graph.get_tensor_id_map_tensor()
         connected_parent_map_child = connected_graph.get_tensor_parent_to_child_link()
-        for from_, to_ in links:
+        for from_, to_ in links.items():
             if isinstance(from_, str):
                 assert isinstance(to_, str)
+                if not "@" in from_:
+                    from_ += "@0"
+                if not "@" in to_:
+                    to_ += "@0"
                 from_ = connected_graph_id_map_graph[from_]
                 to_ = connected_graph_id_map_graph[to_]
             assert to_.op_type == PlaceHolder.type_name
-            for child in connected_parent_map_child[to_]:
+            assert from_.y_shape == to_.x1_shape
+            # assert from_.y_hidden == to_.x1_hidden
+            for child_id in connected_parent_map_child[to_.id]:
+                child = connected_graph_id_map_graph[child_id]
                 if child.x1 == to_:
                     child.x1 = from_
                 elif child.x2 == to_:

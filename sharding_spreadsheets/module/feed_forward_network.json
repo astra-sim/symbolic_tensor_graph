@@ -1,0 +1,1 @@
+{"symbols": ["DFF", "Batch", "DModel"], "in_tensors": ["x1@0", "w1@0", "w2@0", "dy2@0"], "out_tensors": ["dw1@0", "dx1@0", "y2@0", "dw2@0"]}
