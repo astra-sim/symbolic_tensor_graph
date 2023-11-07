@@ -1,7 +1,7 @@
 ﻿id,require_grads,x1,x2,op_type,op_attr,x1_shape,x1_hidden,x2_shape,x2_hidden,grad_of
 x,N,,,T,,"Batch, InFeat",1,,,
-w,N,,,T,,"InFeat, OutFeat",1,,,
+w,Y,,,T,,"InFeat, OutFeat",1,,,
 y,N,w,x,M,"mn,bm->bn","InFeat, OutFeat",1,"Batch, InFeat",1,
 dy,N,,,T,,"Batch, OutFeat",1,,,y
-dw,Y,dy,x,M,"bn,bm->mn","Batch, OutFeat",1,"Batch, InFeat",1,w
+dw,N,dy,x,M,"bn,bm->mn","Batch, OutFeat",1,"Batch, InFeat",1,w
 dx,N,dy,w,M,"bn,mn->bm","Batch, OutFeat",1,"InFeat, OutFeat",1,x

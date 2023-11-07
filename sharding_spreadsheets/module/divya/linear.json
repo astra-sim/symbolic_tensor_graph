@@ -1,0 +1,19 @@
+{
+    "symbols": [
+        "Batch",
+        "InFeat",
+        "OutFeat",
+        "dp",
+        "mp"
+    ],
+    "in_tensors": [
+        "x",
+        "w",
+        "dy"
+    ],
+    "out_tensors": [
+        "y",
+        "dw",
+        "dx"
+    ]
+}

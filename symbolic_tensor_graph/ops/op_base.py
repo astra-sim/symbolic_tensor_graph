@@ -52,11 +52,11 @@ class OPBase:
     @classmethod
     def shardable_options(cls, tensor):
         token = cls.tokenrize(tensor)
-        if token in cls._shardable_cache:
-            return cls._shardable_cache[token]
+        if token in cls._shardable_options_cache:
+            return cls._shardable_options_cache[token]
         cls._sanity_check(tensor)
         shardable_options = cls._shardable_options_impl(tensor)
-        cls._eval_cache[token] = shardable_options
+        cls._shardable_options_cache[token] = shardable_options
         return shardable_options
 
     @classmethod

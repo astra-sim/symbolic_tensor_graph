@@ -73,6 +73,8 @@ class TensorGraph:
         dims = self.get_dimensions(tensors=tensors)
         symbols = set()
         for dim in dims:
+            if isinstance(dim, int) or isinstance(dim, float):
+                continue
             for sym in dim.free_symbols:
                 symbols.add(sym)
         return symbols

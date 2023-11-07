@@ -16,8 +16,9 @@ class OPHandler:
 
     @classmethod
     def get_shardable_dims(cls, tensor):
+        ## TODO: Maybe shardable dims can be parsed from the output shape instead of input shape
         matched_op = cls.match_op(tensor)
-        return matched_op.eval(tensor)
+        return matched_op.shardable_options(tensor)
 
     @classmethod
     def match_op(cls, tensor):

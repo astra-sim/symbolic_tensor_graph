@@ -22,6 +22,8 @@ class CommunicationMatcher:
         to_parallel_dims = cls.get_parallel_dims(to_shape, to_hidden, parallel_symbols)
         matched_comm_pair = list()
         for parallel_symbol in parallel_symbols:
+            if (not parallel_symbol in from_parallel_dims.keys()) and (not parallel_symbol in to_parallel_dims.keys()):
+                continue
             if parallel_symbol in from_parallel_dims.keys():
                 from_comm = from_parallel_dims[parallel_symbol]
             else:
@@ -74,6 +76,8 @@ class CommunicationMatcher:
         parallel_dims = dict()
 
         for dim in shape:
+            if isinstance(dim, int) or isinstance(dim, float):
+                continue
             matched = None
             for parallel_symbol in remaining_parallel_symbols:
                 if parallel_symbol in dim.free_symbols:
@@ -84,6 +88,8 @@ class CommunicationMatcher:
                 parallel_dims[matched] = cls.EndType.PARTITION, dim
 
         for dim in hidden:
+            if isinstance(dim, int) or isinstance(dim, float):
+                continue
             matched = None
             for parallel_symbol in remaining_parallel_symbols:
                 if parallel_symbol in dim.free_symbols:

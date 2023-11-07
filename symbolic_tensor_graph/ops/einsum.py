@@ -45,6 +45,8 @@ class Einsum(OPBase):
             if not char in einsum_letter_map_dim_symbol:
                 einsum_letter_map_dim_symbol[char] = symbol
             else:
+                # if not einsum_letter_map_dim_symbol[char] == symbol:
+                    # hook = 1
                 assert einsum_letter_map_dim_symbol[char] == symbol
         y_shape = list()
         for char in y_einsum:
@@ -69,7 +71,7 @@ class Einsum(OPBase):
     @classmethod
     def _shardable_options_impl(cls, tensor):
         op_attr = tensor.op_attr
-        terms = op_attr.split("=>")[0].split(",")
+        terms = op_attr.split("->")[0].split(",")
         charset = set()
         for char in terms[0]:
             charset.add(char)

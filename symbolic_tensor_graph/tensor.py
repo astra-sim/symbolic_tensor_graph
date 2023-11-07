@@ -249,8 +249,9 @@ class Tensor:
             if tensor.x2 is not None:
                 tensor.x2 = tensor_id_map_tensor[tensor.x2]
             if tensor.grad_of is not None:
+                assert tensor.grad_of in tensor_id_map_tensor
                 tensor.grad_of = tensor_id_map_tensor[tensor.grad_of]
-                tensor.grad_of.grad = tensor
+                tensor.grad_of._grad = tensor
         return tensors
 
     @staticmethod
@@ -273,5 +274,14 @@ class Tensor:
                 f.edge(tensor.x2.id, tensor.id)
         f.render(filename, format=format, cleanup=True)
 
-    def __eq__(one, another):
-        return one._to_record() == another._to_record()
+    # def __eq__(one, another):
+    #     return one._to_record() == another._to_record()
+
+    def __repr__(self):
+        x1_id = self.x1.id if not self.x1 is None else "None"
+        x2_id = self.x2.id if not self.x2 is None else "None"
+        grad_id = self._grad.id if not self._grad is None else "None"
+        return f"{self.id}: {x1_id}[{self.x1_shape}@{self.x1_hidden}] {x2_id}[{self.x2_shape}@{self.x2_hidden}] grad={grad_id}"
+
+    def __str__(self):
+        return self.__repr__()

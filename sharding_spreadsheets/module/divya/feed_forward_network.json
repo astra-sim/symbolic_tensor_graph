@@ -3,7 +3,9 @@
         "Batch",
         "Seq",
         "Dmodel",
-        "Dff"
+        "Dff",
+        "dp",
+        "mp"
     ],
     "in_tensors": [
         "x0",

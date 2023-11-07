@@ -30,7 +30,9 @@ class Reshape(OPBase):
     @classmethod
     def _shardable_options_impl(cls, tensor):
         syms = set()
-        for dims in tensor.x1_shape:
-            for sym in dims.free_symbols:
+        for dim in tensor.x1_shape:
+            if isinstance(dim, int) or isinstance(dim, float):
+                continue
+            for sym in dim.free_symbols:
                 syms.add(sym)
         return list(syms)
