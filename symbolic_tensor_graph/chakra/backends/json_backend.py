@@ -7,8 +7,10 @@ class JsonBackend(NodeBackendBase):
 
     @classmethod
     def serialize_nodes(cls, backend_nodes, file):
+        file = open(file, "w")
         data = {"nodes": backend_nodes}
         json.dump(data, file)
+        file.close()
 
     @classmethod
     def alloc_backend_node(cls):
@@ -46,8 +48,8 @@ class JsonBackend(NodeBackendBase):
 
     @classmethod
     def set_comp_attrs(cls, num_ops, tensor_size, backend_node):
-        backend_node["num_ops"] = num_ops
-        backend_node["tensor_size"] = tensor_size
+        backend_node["num_ops"] = int(num_ops)
+        backend_node["tensor_size"] = int(tensor_size)
 
     @classmethod
     def set_coll_comm_attrs(cls, comm_size, comm_type, backend_node):
@@ -63,21 +65,21 @@ class JsonBackend(NodeBackendBase):
             else:
                 assert False
 
-        backend_node["comm_size"] = comm_size
+        backend_node["comm_size"] = int(comm_size)
         backend_node["comm_type"] = _get_backend_comm_type(comm_type)
 
     @classmethod
     def set_comm_recv_attrs(cls, comm_size, comm_tag, comm_src, backend_node):
-        backend_node["comm_size"] = comm_size
-        backend_node["comm_tag"] = comm_tag
-        backend_node["comm_src"] = comm_src
+        backend_node["comm_size"] = int(comm_size)
+        backend_node["comm_tag"] = int(comm_tag)
+        backend_node["comm_src"] = int(comm_src)
 
     @classmethod
     def set_comm_send_attrs(cls, comm_size, comm_tag, comm_dst, backend_node):
-        backend_node["comm_size"] = comm_size
-        backend_node["comm_tag"] = comm_tag
-        backend_node["comm_dst"] = comm_dst
+        backend_node["comm_size"] = int(comm_size)
+        backend_node["comm_tag"] = int(comm_tag)
+        backend_node["comm_dst"] = int(comm_dst)
 
     @classmethod
     def set_mem_attrs(cls, tensor_size, backend_node):
-        backend_node["tensor_size"] = tensor_size
+        backend_node["tensor_size"] = int(tensor_size)

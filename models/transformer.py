@@ -13,6 +13,23 @@ def transformer_stack(mha, ffn):
     return stack
 
 
+def transformer_stacks(stack, num_stacks):
+    graphs = list()
+    links = dict()
+    for num_stack in range(num_stacks):
+        graphs.append(ReplicateGraph.apply(stack, f"stack_{num_stack}_%s"))
+        if num_stack == 0:
+            pass
+        elif num_stack > num_stacks - 1:
+            links[f"stack_{num_stack-1}_ffn_norm"] = f"stack_{num_stack}_mha_x"
+            links[f"stack_{num_stack}_mha_d_x"] = f"stack_{num_stack-1}_ffn_dnorm"
+        else:
+            links[f"stack_{num_stack-1}_ffn_norm"] = f"stack_{num_stack}_mha_x"
+            links[f"stack_{num_stack}_mha_d_x"] = f"stack_{num_stack-1}_ffn_dnorm"
+    transformer_graph = ConnectGraph.apply(graphs, links)
+    return transformer_graph
+
+
 def transformer(in_emb, out_emb, stack, num_stacks):
     graphs = list()
     links = dict()

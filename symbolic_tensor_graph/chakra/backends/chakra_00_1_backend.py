@@ -16,8 +16,10 @@ class Chakra001Backend(NodeBackendBase):
 
     @classmethod
     def serialize_nodes(cls, backend_nodes, file):
+        file = open(file, "wb")
         for node in backend_nodes:
             encodeMessage(file, node)
+        file.close()
 
     @classmethod
     def alloc_backend_node(cls):
@@ -27,7 +29,7 @@ class Chakra001Backend(NodeBackendBase):
     def set_node_common_attrs(cls, id, name, node_type, backend_node):
         def _get_backend_node_type(_frontend_node_type):
             if _frontend_node_type == FrontendNode.NodeType.COLL_COMM_NODE:
-                return NodeType.COLL_COMM_NODE
+                return NodeType.COMM_COLL_NODE
             elif _frontend_node_type == FrontendNode.NodeType.COMM_RECV_NODE:
                 return NodeType.COMM_RECV_NODE
             elif _frontend_node_type == FrontendNode.NodeType.COMM_SEND_NODE:
@@ -59,41 +61,41 @@ class Chakra001Backend(NodeBackendBase):
 
     @classmethod
     def set_comp_attrs(cls, num_ops, tensor_size, backend_node):
-        backend_node.num_ops = num_ops
-        backend_node.tensor_size = tensor_size
+        backend_node.num_ops = int(num_ops)
+        backend_node.tensor_size = int(tensor_size)
 
     @classmethod
     def set_coll_comm_attrs(cls, comm_size, comm_type, backend_node):
         def _get_backend_comm_type(_frontend_comm_type):
             if _frontend_comm_type == FrontendNode.CollectiveType.ALL_GATHER:
-                return CollectiveType.ALL_GATHER
+                return CollectiveCommType.ALL_GATHER
             elif _frontend_comm_type == FrontendNode.CollectiveType.ALL_REDUCE:
-                return CollectiveType.ALL_REDUCE
+                return CollectiveCommType.ALL_REDUCE
             elif _frontend_comm_type == FrontendNode.CollectiveType.ALL_TO_ALL:
-                return CollectiveType.ALL_TO_ALL
+                return CollectiveCommType.ALL_TO_ALL
             elif _frontend_comm_type == FrontendNode.CollectiveType.REDUCE_SCATTER:
-                return CollectiveType.REDUCE_SCATTER
+                return CollectiveCommType.REDUCE_SCATTER
             else:
                 assert False
 
-        backend_node.comm_size = comm_size
+        backend_node.comm_size = int(comm_size)
         backend_node.comm_type = _get_backend_comm_type(comm_type)
-        for _ in cls.DEFAULT_NETWORK_DIM:
+        for _ in range(cls.DEFAULT_NETWORK_DIM):
             backend_node.involved_dim.append(True)
 
     @classmethod
     def set_comm_send_attrs(cls, comm_size, comm_tag, comm_dst, backend_node):
-        backend_node.comm_size = comm_size
-        backend_node.comm_tag = comm_tag
-        backend_node.comm_dst = comm_dst
+        backend_node.comm_size = int(comm_size)
+        backend_node.comm_tag = int(comm_tag)
+        backend_node.comm_dst = int(comm_dst)
 
     @classmethod
     def set_comm_recv_attrs(cls, comm_size, comm_tag, comm_src, backend_node):
-        backend_node.comm_size = comm_size
-        backend_node.comm_tag = comm_tag
-        backend_node.comm_src = comm_src
+        backend_node.comm_size = int(comm_size)
+        backend_node.comm_tag = int(comm_tag)
+        backend_node.comm_src = int(comm_src)
 
     @classmethod
     def set_mem_attrs(cls, tensor_size, backend_node):
-        backend_node.tensor_siize = tensor_size
+        backend_node.tensor_siize = int(tensor_size)
         backend_node.tensor_loc = MemoryType.REMOTE_MEMORY

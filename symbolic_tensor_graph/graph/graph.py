@@ -168,20 +168,25 @@ class TensorGraph:
 
 
 class HybridGraph(TensorGraph):
+    class NodeType:
+        COMP = "comp"
+        X1_COMM = "x1_comm"
+        X2_COMM = "x2_comm"
+
     def __init__(self, tensors, tensor_map_nodes=None):
         super(HybridGraph, self).__init__(tensors)
         if tensor_map_nodes is None:
             tensor_map_nodes = dict()
             for tensor in self.tensors:
-                tensor_map_nodes[tensor] = list()
+                tensor_map_nodes[tensor] = dict()
         self.tensor_map_nodes = tensor_map_nodes
         for tensor in tensors:
             assert tensor in self.tensor_map_nodes
 
     def get_nodes(self):
         nodes = list()
-        for tensor in self.tensor_map_node.keys():
-            nodes_this_tensor = self.tensor_map_node[tensor]
+        for tensor in self.tensor_map_nodes.keys():
+            nodes_this_tensor = self.tensor_map_nodes[tensor]
             for node in nodes_this_tensor.values():
                 nodes.append(node)
         return nodes
@@ -190,7 +195,7 @@ class HybridGraph(TensorGraph):
         unprocessed_nodes = copy.deepcopy(nodes)
         node_id_map_node = self.get_node_id_map_node(unprocessed_nodes)
         for tensor in self.tensor_map_node.keys():
-            nodes_this_tensor = self.tensor_map_node[tensor]
+            nodes_this_tensor = self.tensor_map_nodes[tensor]
             for key in nodes_this_tensor.keys():
                 old_value = nodes_this_tensor[key]
                 if not old_value.id in node_id_map_node:
@@ -205,7 +210,7 @@ class HybridGraph(TensorGraph):
 
     def get_node_id_map_node(self, nodes=None):
         if nodes is None:
-            nodes = self.get_nodes
+            nodes = self.get_nodes()
         ret = dict()
         for node in nodes:
             assert not node.id in ret
@@ -240,3 +245,13 @@ class HybridGraph(TensorGraph):
     def apply_node_parent_to_child_link(self, parent_to_child, nodes=None):
         child_to_parent = self.reverse_links(parent_to_child)
         self.apply_node_child_to_parent_link(child_to_parent, nodes)
+
+    def get_node_id_map_tensor(self, tensor_map_nodes=None):
+        if tensor_map_nodes is None:
+            tensor_map_nodes = self.tensor_map_nodes
+        node_id_map_tensor = dict()
+        for tensor in tensor_map_nodes.keys():
+            for node in tensor_map_nodes[tensor].values():
+                assert node.id not in node_id_map_tensor
+                node_id_map_tensor[node.id] = tensor
+        return node_id_map_tensor

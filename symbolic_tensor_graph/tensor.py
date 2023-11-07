@@ -88,6 +88,9 @@ class Tensor:
 
     @staticmethod
     def eval_expr(expr, target_symbol_value_dict):
+        if isinstance(expr, int) or isinstance(expr, float):
+            # already value
+            return expr
         if not OPTIMIZE:
             return expr.evalf(subs=target_symbol_value_dict)
         target_eval_expr_cache = None
@@ -122,7 +125,7 @@ class Tensor:
             tensor_revision = 0
         elif len(terms) == 2:
             tensor_name = terms[0]
-            tensor_revision = int(terms[1])
+            tensor_revision = terms[1]
         else:
             assert False
         return tensor_name, tensor_revision

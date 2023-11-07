@@ -1,7 +1,3 @@
-from .backends.chakra_00_1_backend import Chakra001Backend
-from .backends.json_backend import JsonBackend
-
-
 class Node:
     class NodeType:
         COMP_NODE = 1
@@ -17,7 +13,6 @@ class Node:
         ALL_GATHER = 3
         ALL_TO_ALL = 4
 
-    backend = Chakra001Backend
     node_id = 0
 
     @staticmethod
@@ -59,5 +54,23 @@ class Node:
 
     def readout(node, backend=None):
         if backend is None:
-            backend = Node.backend
+            from .backends.chakra_00_1_backend import Chakra001Backend
+
+            backend = Chakra001Backend
         return backend.readout(node)
+
+    @classmethod
+    def readout_nodes(cls, nodes, filename, backend=None):
+        if backend is None:
+            from .backends.chakra_00_1_backend import Chakra001Backend
+
+            backend = Chakra001Backend
+        frontend_nodes = nodes
+        backend.readout_nodes(frontend_nodes, filename)
+
+    @property
+    def parent(self):
+        parent = list()
+        parent.extend(self.ctrl_deps)
+        parent.extend(self.data_deps)
+        return parent

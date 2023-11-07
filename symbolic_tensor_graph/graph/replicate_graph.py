@@ -1,4 +1,5 @@
 import copy
+import typing
 import sympy as sp
 from .graph import TensorGraph
 
@@ -20,8 +21,15 @@ class ReplicateGraph:
             graph = copy.deepcopy(graph)
         assert isinstance(graph, TensorGraph)
         tensors = graph.tensors
+        if isinstance(new_revision, str):
+            new_revision = lambda old_revision: new_revision
+        elif isinstance(new_revision, typing.Callable):
+            pass
+        else:
+            assert False
+
         for tensor in tensors:
-            tensor.revision = new_revision
+            tensor.revision = new_revision(tensor.revision)
         return graph
 
     @classmethod

@@ -1,4 +1,5 @@
 import copy
+import typing
 from ..ops import Add
 from ..tensor import Tensor
 
@@ -33,7 +34,7 @@ class GradUpdater:
             new_revision = cls._default_revision_fn
         elif isinstance(new_revision, str):
             new_revision = lambda _: new_revision
-        elif isinstance(new_revision, callable):
+        elif isinstance(new_revision, typing.Callable):
             pass
         else:
             assert False

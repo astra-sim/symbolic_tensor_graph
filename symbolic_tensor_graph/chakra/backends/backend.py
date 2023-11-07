@@ -1,5 +1,5 @@
-from ..node import Node as FrontendNode
 from typing import List
+from ..node import Node as FrontendNode
 
 
 class NodeBackendBase:
