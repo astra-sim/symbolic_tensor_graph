@@ -15,7 +15,8 @@ class TestTensorGraph(unittest.TestCase):
         graph = TensorGraph.load_tensor_graph(validation_file)
         graph.save_tensor_graph(resave_1_file)
         graph2 = TensorGraph.load_tensor_graph(resave_1_file)
-        self.assertEqual(graph, graph2)
+        for tensor1, tensor2 in zip(graph.tensors, graph2.tensors):
+            self.assertEqual(tensor1._to_record(), tensor2._to_record())
         graph2.save_tensor_graph(resave_2_file)
 
     def test_tensor_graph_load_save2(self):
@@ -28,7 +29,8 @@ class TestTensorGraph(unittest.TestCase):
         graph = TensorGraph.load_tensor_graph(validation_file)
         graph.save_tensor_graph(resave_1_file)
         graph2 = TensorGraph.load_tensor_graph(resave_1_file)
-        self.assertEqual(graph, graph2)
+        for tensor1, tensor2 in zip(graph.tensors, graph2.tensors):
+            self.assertEqual(tensor1._to_record(), tensor2._to_record())
         graph2.save_tensor_graph(resave_2_file)
 
     def test_tensor_graph_load_save3(self):
@@ -41,7 +43,8 @@ class TestTensorGraph(unittest.TestCase):
         graph = TensorGraph.load_tensor_graph(validation_file)
         graph.save_tensor_graph(resave_1_file)
         graph2 = TensorGraph.load_tensor_graph(resave_1_file)
-        self.assertEqual(graph, graph2)
+        for tensor1, tensor2 in zip(graph.tensors, graph2.tensors):
+            self.assertEqual(tensor1._to_record(), tensor2._to_record())
         graph2.save_tensor_graph(resave_2_file)
 
     def test_tensor_graph_get_tensor_child_to_parent_link1(self):

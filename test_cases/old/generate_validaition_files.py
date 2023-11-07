@@ -1,5 +1,5 @@
 import os
-from models.transformer import transformer
+from models.old.transformer import transformer
 from multiprocessing import Pool, cpu_count
 from symbolic_tensor_graph.symbolic2chakra_converter import Symbolic2ChakraConverter
 

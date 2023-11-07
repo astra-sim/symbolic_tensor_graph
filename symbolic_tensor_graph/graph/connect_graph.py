@@ -1,6 +1,6 @@
 import copy
 from .graph import TensorGraph
-from ..ops import PlaceHolder
+from ..ops import PlaceHolder, Identical
 
 
 class ConnectGraph:
@@ -21,7 +21,6 @@ class ConnectGraph:
             )
         assert connected_graph is not None
         connected_graph_id_map_graph = connected_graph.get_tensor_id_map_tensor()
-        connected_parent_map_child = connected_graph.get_tensor_parent_to_child_link()
         for from_, to_ in links.items():
             if isinstance(from_, str):
                 assert isinstance(to_, str)
@@ -32,17 +31,10 @@ class ConnectGraph:
                 from_ = connected_graph_id_map_graph[from_]
                 to_ = connected_graph_id_map_graph[to_]
             assert to_.op_type == PlaceHolder.type_name
-            assert from_.y_shape == to_.x1_shape
-            # assert from_.y_hidden == to_.x1_hidden
-            for child_id in connected_parent_map_child[to_.id]:
-                child = connected_graph_id_map_graph[child_id]
-                if child.x1 == to_:
-                    child.x1 = from_
-                elif child.x2 == to_:
-                    child.x2 = from_
-                else:
-                    assert False
-            connected_graph.tensors.remove(to_)
+            # should have some machnisum to ensure they have same shape except parallel shardings
+            # assert from_.y_shape == to_.x1_shape
+            to_.op_type = Identical.type_name
+            to_.x1 = from_
             connected_graph.in_tensors.remove(to_)
             connected_graph.out_tensors.remove(from_)
         return connected_graph

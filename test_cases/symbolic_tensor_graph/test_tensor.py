@@ -11,7 +11,8 @@ class TestTensor(unittest.TestCase):
         tensors1 = Tensor.parse_records(validation_file)
         Tensor.to_records(tensors1, resave_1_file)
         tensors2 = Tensor.parse_records(resave_1_file)
-        self.assertEqual(tensors1, tensors2)
+        for tensor1, tensor2 in zip(tensors1, tensors2):
+            self.assertEqual(tensor1._to_record(), tensor2._to_record())
         Tensor.to_records(tensors2, resave_2_file)
 
     def test_op_handler1(self):
@@ -44,7 +45,8 @@ class TestTensor(unittest.TestCase):
         tensors1 = Tensor.parse_records(validation_file)
         Tensor.to_records(tensors1, resave_1_file)
         tensors2 = Tensor.parse_records(resave_1_file)
-        self.assertEqual(tensors1, tensors2)
+        for tensor1, tensor2 in zip(tensors1, tensors2):
+            self.assertEqual(tensor1._to_record(), tensor2._to_record())
         Tensor.to_records(tensors2, resave_2_file)
 
     def test_op_handler2(self):

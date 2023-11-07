@@ -6,7 +6,7 @@ sys.path.append("../../chakra/third_party/utils/")
 
 from multiprocessing import Pool, cpu_count
 
-from models.transformer import transformer
+from models.old.transformer import transformer
 from symbolic2chakra_converter import Symbolic2ChakraConverterWithOffload
 from offload_strategy import OffloadStrategy
 from tensor import Tensor

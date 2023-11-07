@@ -1,5 +1,5 @@
 import os, random
-from models.transformer import transformer, transformer_offload_strategy
+from models.old.transformer import transformer, transformer_offload_strategy
 from multiprocessing import Pool, cpu_count
 from symbolic2chakra_converter import (
     Symbolic2ChakraConverter,

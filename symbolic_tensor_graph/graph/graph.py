@@ -1,8 +1,10 @@
 import copy
 import json
+import tempfile
+import os
+import sympy as sp
 from ..tensor import Tensor
 from ..ops import PlaceHolder
-import sympy as sp
 
 
 class TensorGraph:
@@ -130,8 +132,15 @@ class TensorGraph:
         f.close()
 
     def __eq__(one, another):
-        if not one.tensors == another.tensors:
-            return False
+        for one_tensor, another_tensor in zip(one.tensors, another.tensors):
+            if not one_tensor._to_record() == another_tensor._to_record():
+                return False
+        for one_tensor, another_tensor in zip(one.in_tensors, another.in_tensors):
+            if not one_tensor._to_record() == another_tensor._to_record():
+                return False
+        for one_tensor, another_tensor in zip(one.out_tensors, another.out_tensors):
+            if not one_tensor._to_record() == another_tensor._to_record():
+                return False
         return True
 
     def sanity_check(self):
@@ -145,6 +154,17 @@ class TensorGraph:
         if tensors is None:
             tensors = self.tensors
         Tensor.visualize(tensors, filename, format)
+
+    def __deepcopy__(self, memo):
+        copied_graph = None
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            csv_file_path = os.path.join(tmp_dir, "graph.csv")
+            json_file_path = os.path.join(tmp_dir, "grpah.json")
+            self.save_tensor_graph(csv_file_path, json_file_path)
+            copied_graph = self.__class__.load_tensor_graph(
+                csv_file_path, json_file_path
+            )
+        return copied_graph
 
 
 class HybridGraph(TensorGraph):

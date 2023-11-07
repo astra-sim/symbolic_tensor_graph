@@ -5,7 +5,7 @@ sys.path.append("../../")
 from multiprocessing import Pool, cpu_count
 
 import design_space
-from models.transformer import transformer
+from models.old.transformer import transformer
 from symbolic_tensor_graph.symbolic2chakra_converter import Symbolic2ChakraConverter
 
 num_samples = 2048

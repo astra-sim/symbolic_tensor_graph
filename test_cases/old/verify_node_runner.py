@@ -5,7 +5,7 @@ from eg_simulator.runtime_database.astrasim_runtime_database import (
 )
 from eg_simulator.node_runner import NodeRunner
 from symbolic_tensor_graph.symbolic2chakra_converter import Symbolic2ChakraConverter
-from models.transformer import transformer
+from models.old.transformer import transformer
 
 
 if __name__ == "__main__":
