@@ -59,6 +59,7 @@ class ConvertChakra:
                 x1_comm_node.node_type = Node.NodeType.COLL_COMM_NODE
                 x1_comm_node.name = f"{tensor.id}_X1COMM"
                 x1_comm_node.comm_size = comm_size
+                x1_comm_node._comm_meta_data = comm
                 if comm[0] == CommunicationMatcher.CommType.ALL_REDUCE:
                     x1_comm_node.comm_type = Node.CollectiveType.ALL_REDUCE
                 elif comm[0] == CommunicationMatcher.CommType.ALL_GATHER:
@@ -104,6 +105,7 @@ class ConvertChakra:
                 x2_comm_node.node_type = Node.NodeType.COLL_COMM_NODE
                 x2_comm_node.name = f"{tensor.id}_X2_COMM"
                 x2_comm_node.comm_size = comm_size
+                x2_comm_node._comm_meta_data = comm
                 if comm[0] == CommunicationMatcher.CommType.ALL_REDUCE:
                     x2_comm_node.comm_type = Node.CollectiveType.ALL_REDUCE
                 elif comm[0] == CommunicationMatcher.CommType.ALL_GATHER:
@@ -244,6 +246,6 @@ class ConvertChakra:
             )
             tensor_map_nodes[tensor] = nodes_this_tensor
         cls._connect_tensors_node(tensor_graph.tensors, tensor_map_nodes)
-        graph = HybridGraph(tensor_graph.tensors, tensor_map_nodes)
+        graph = HybridGraph(tensor_graph.tensors, tensor_map_nodes, symbol_map_value)
         cls._clean_empty_comp(graph)
         return graph

@@ -173,15 +173,24 @@ class HybridGraph(TensorGraph):
         X1_COMM = "x1_comm"
         X2_COMM = "x2_comm"
 
-    def __init__(self, tensors, tensor_map_nodes=None):
+    def __init__(self, tensors, tensor_map_nodes=None, symbol_map_values=None):
         super(HybridGraph, self).__init__(tensors)
         if tensor_map_nodes is None:
+            assert symbol_map_values is None
             tensor_map_nodes = dict()
+            symbol_map_values = dict()
             for tensor in self.tensors:
                 tensor_map_nodes[tensor] = dict()
+            for symbol in self.get_symbols():
+                symbol_map_values[symbol] = None
+
+        assert symbol_map_values is not None
         self.tensor_map_nodes = tensor_map_nodes
+        self.symbol_map_values = symbol_map_values
         for tensor in tensors:
             assert tensor in self.tensor_map_nodes
+        for symbol in self.get_symbols():
+            assert symbol in symbol_map_values.keys()
 
     def get_nodes(self):
         nodes = list()
@@ -255,3 +264,23 @@ class HybridGraph(TensorGraph):
                 assert node.id not in node_id_map_tensor
                 node_id_map_tensor[node.id] = tensor
         return node_id_map_tensor
+
+
+class BundledHybridGraph:
+    def __init__(self, graphs, symbol_map_value=None, parallel_dims=None):
+        self.graphs = graphs
+        if parallel_dims is None:
+            assert symbol_map_value is None
+            self.parallel_dims = list()
+            self.symbol_map_value = dict()
+            for symbol in graph[0].get_symbols():
+                self.symbol_map_value[symbol] = None
+        assert symbol_map_value is not None
+
+        self.parallel_dims = list(parallel_dims)
+        for graph in graphs:
+            for symbol in graph.symbol_map_value.key():
+                assert symbol in self.symbol_map_value
+                assert self.symbol_map_value[symbol] == graph.symbol_map_value[symbol]
+        for dim in self.parallel_dims:
+            assert dim in self.symbol_map_value
