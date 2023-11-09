@@ -2,9 +2,13 @@ import sympy as sp
 from symbolic_tensor_graph.graph.graph import TensorGraph
 from symbolic_tensor_graph.graph.coll_comm_matcher import CommunicationMatcher
 from symbolic_tensor_graph.graph.grad_updater import GradUpdater
-from symbolic_tensor_graph.graph.convert_chakra import ConvertChakra
+from symbolic_tensor_graph.graph.convert_chakra import (
+    ConvertChakra,
+    BundledConvertChakra,
+)
 from symbolic_tensor_graph.graph.replicate_graph import ReplicateGraph
 from symbolic_tensor_graph.graph.connect_graph import ConnectGraph
+from symbolic_tensor_graph.graph.pipeline_parallel import GraphDistributer
 from symbolic_tensor_graph.chakra.node import Node
 from symbolic_tensor_graph.chakra.backends.json_backend import JsonBackend
 from models.transformer import (
@@ -227,5 +231,142 @@ def test4():
     Node.readout_nodes(nodes, "test.json", backend=JsonBackend)
 
 
+def test5():
+    dp, mp, pp = sp.symbols("dp mp pp")
+    Din, Dout, Dmodel, Dff, Batch, Seq, Head = sp.symbols(
+        "Din Dout Dmodel Dff Batch Seq Head"
+    )
+    symbol_map_value = {
+        Din: 51200,
+        Dout: 25600,
+        Dmodel: 25600,
+        Dff: 25600 * 4,
+        Batch: 1024,
+        Seq: 1024,
+        Head: 1024,
+        dp: 4,
+        mp: 4,
+        pp: 2,
+    }
+    spatial_parallel_dims = [dp, mp]
+    temporal_parallel_dims = [pp]
+    mha = TensorGraph.load_tensor_graph(
+        "./sharding_spreadsheets/module/divya/multi_head_attention.csv"
+    )
+    ffn = TensorGraph.load_tensor_graph(
+        "./sharding_spreadsheets/module/divya/feed_forward_network.csv"
+    )
+    stack = transformer_stack_fn(mha, ffn)
+    # transformer = transformer_fn(in_emb, out_emb, stack, 2)
+    transformer = transformer_fn(stack, 2)
+    transformer_updated_grad = GradUpdater.apply(transformer)
+    split_tensor1 = list()
+    for tensor in transformer_updated_grad.tensors:
+        if "stack_1_mha_x" in tensor.id:
+            split_tensor1.append(tensor)
+    split_tensor2 = list()
+    for tensor in transformer_updated_grad.tensors:
+        if "stack_1_mha_d_x" in tensor.id:
+            split_tensor2.append(tensor)
+    upper_graph1, lower_graph, split_shadow1 = GraphSpliter.apply(
+        transformer_updated_grad, split_tensor1
+    )
+
+    lower_graph, upper_graph2, split_shadow2 = GraphSpliter.apply(
+        lower_graph, split_tensor2
+    )
+
+    upper_graph = ConnectGraph([upper_graph1, upper_graph2], {})
+
+    print("upper_graph1")
+    for tensor in upper_graph1.tensors:
+        print(tensor)
+    print("upper_graph2")
+    for tensor in upper_graph2.tensors:
+        print(tensor)
+    print("lower graph")
+    for tensor in lower_graph.tensors:
+        print(tensor)
+    print("split_shadow1")
+    print(split_shadow1)
+    print("split_shadow2")
+    print(split_shadow2)
+
+    hybrid_graph_upper = ConvertChakra.apply(
+        upper_graph, symbol_map_value, spatial_parallel_dims
+    )
+    hybrid_graph_lower = ConvertChakra.apply(
+        lower_graph, symbol_map_value, spatial_parallel_dims
+    )
+    nodes = hybrid_graph_upper.get_nodes()
+    Node.readout_nodes(nodes, "test_upper.0.eg")
+    Node.readout_nodes(nodes, "test_upper.json", backend=JsonBackend)
+    nodes = hybrid_graph_lower.get_nodes()
+    Node.readout_nodes(nodes, "test_lower.0.eg")
+    Node.readout_nodes(nodes, "test_lower.json", backend=JsonBackend)
+
+
+def test6():
+    num_stacks = 4
+    dp, mp, pp = sp.symbols("dp mp pp")
+    Din, Dout, Dmodel, Dff, Batch, Seq, Head = sp.symbols(
+        "Din Dout Dmodel Dff Batch Seq Head"
+    )
+    symbol_map_value = {
+        Din: 51200,
+        Dout: 25600,
+        Dmodel: 25600,
+        Dff: 25600 * 4,
+        Batch: 1024,
+        Seq: 1024,
+        Head: 1024,
+        dp: 4,
+        mp: 4,
+        pp: 2,
+    }
+    spatial_parallel_dims = [dp, mp]
+    temporal_parallel_dims = [pp]
+    mha = TensorGraph.load_tensor_graph(
+        "./sharding_spreadsheets/module/divya/multi_head_attention.csv"
+    )
+    ffn = TensorGraph.load_tensor_graph(
+        "./sharding_spreadsheets/module/divya/feed_forward_network.csv"
+    )
+    stack = transformer_stack_fn(mha, ffn)
+    # transformer = transformer_fn(in_emb, out_emb, stack, 2)
+    transformer = transformer_fn(stack, num_stacks)
+    transformer_updated_grad = GradUpdater.apply(transformer)
+
+    def _create_tensor_map(_tensors, _temporal_parallel_dims, _symbol_map_value):
+        _tensor_map = dict()
+        assert len(_temporal_parallel_dims) == 1
+        parallel_dim = _temporal_parallel_dims[0]
+        range_ = _symbol_map_value[parallel_dim]
+        for tensor in _tensors:
+            for num_stack in range(num_stacks):
+                if f"stack_{num_stack}" in tensor.id:
+                    _tensor_map[tensor.id] = {parallel_dim: num_stack % range_}
+                    break
+        return _tensor_map
+
+    hook = 0
+    tensor_map = _create_tensor_map(
+        transformer_updated_grad.tensors, temporal_parallel_dims, symbol_map_value
+    )
+    bundled_graph = GraphDistributer.apply(
+        transformer_updated_grad,
+        symbol_map_value,
+        spatial_parallel_dims,
+        temporal_parallel_dims,
+        tensor_map,
+    )
+    hook = 1
+    bundled_hybrid_graph = BundledConvertChakra.apply(bundled_graph, symbol_map_value)
+    hook = 2
+    bundled_hybrid_graph.readout("test.%d.eg")
+    bundled_hybrid_graph.readout("test.%d.json", backend=JsonBackend)
+    hook = 3
+
+
 if __name__ == "__main__":
-    test4()
+    test6()

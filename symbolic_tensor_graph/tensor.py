@@ -39,7 +39,7 @@ class Tensor:
         self.x1_shape = None
         self.x1_hidden = None
         self.x2_shape = None
-        self.x2_hiden = None
+        self.x2_hidden = None
         self.grad_of = None
         self._grad = None
 

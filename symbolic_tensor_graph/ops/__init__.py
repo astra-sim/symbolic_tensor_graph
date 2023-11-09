@@ -5,3 +5,4 @@ from .op_handler import OPHandler
 from .place_holder import PlaceHolder
 from .identical import Identical
 from .reshape import Reshape
+from .shadow import Shadow

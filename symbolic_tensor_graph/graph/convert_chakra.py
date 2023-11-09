@@ -1,9 +1,11 @@
+import random
 import copy
 import sympy as sp
 from ..tensor import Tensor
-from .graph import HybridGraph
+from .graph import HybridGraph, TensorGraph, BundledTensorGraph, BundledHybridGraph
 from .coll_comm_matcher import CommunicationMatcher
 from ..chakra.node import Node
+from ..ops import Shadow
 
 
 class ConvertChakra:
@@ -181,8 +183,8 @@ class ConvertChakra:
         return nodes_this_tensor
 
     @classmethod
-    def _connect_tensors_node(cls, tensors, tensor_map_nodes):
-        for tensor in tensors:
+    def _connect_tensors_node(cls, tensor_map_nodes):
+        for tensor in tensor_map_nodes.keys():
             if not tensor.x1 is None:
                 x1_to = cls._get_x1_input_node(tensor_map_nodes[tensor])
                 x1_from = cls._get_output_node(tensor_map_nodes[tensor.x1])
@@ -191,12 +193,14 @@ class ConvertChakra:
                     x1_to.data_deps.append(x1_from.id)
             if not tensor.x2 is None:
                 x2_to = cls._get_x2_input_node(tensor_map_nodes[tensor])
+                print(tensor.x2, tensor)
                 x2_from = cls._get_output_node(tensor_map_nodes[tensor.x2])
                 if not x2_from is None:
                     x2_to.data_deps.append(x2_from.id)
 
     @classmethod
     def _sanity_check(cls, tensor_graph, symbol_map_value, parallel_syms):
+        assert isinstance(tensor_graph, TensorGraph)
         for symbol in tensor_graph.get_symbols():
             assert symbol in symbol_map_value
         for parallel_sym in parallel_syms:
@@ -245,7 +249,125 @@ class ConvertChakra:
                 tensor, symbol_map_value, parallel_syms
             )
             tensor_map_nodes[tensor] = nodes_this_tensor
-        cls._connect_tensors_node(tensor_graph.tensors, tensor_map_nodes)
+        cls._connect_tensors_node(tensor_map_nodes)
         graph = HybridGraph(tensor_graph.tensors, tensor_map_nodes, symbol_map_value)
         cls._clean_empty_comp(graph)
         return graph
+
+
+class BundledConvertChakra:
+    class _ConvertChakra(ConvertChakra):
+        @classmethod
+        def _get_output_node(cls, nodes_this_tensor):
+            if HybridGraph.NodeType.Y_RECV in nodes_this_tensor:
+                return nodes_this_tensor[HybridGraph.NodeType.Y_RECV]
+            else:
+                return super()._get_output_node(nodes_this_tensor)
+
+        @classmethod
+        def _insert_send_node(
+            cls, tensor, nodes_this_tensor, dst_rank, tag, symbol_map_value
+        ):
+            node = Node()
+            node.node_type = Node.NodeType.COMM_SEND_NODE
+            node.name = tensor.id + "_Y_SEND"
+            node.data_deps.append(cls._get_output_node(nodes_this_tensor).id)
+            node.comm_size = Tensor.eval_expr(
+                Tensor.eval_size(tensor.y_shape), symbol_map_value
+            )
+            node.comm_tag = tag
+            node.comm_dst = dst_rank
+            nodes_this_tensor[f"{HybridGraph.NodeType.Y_SEND}{tag}"] = node
+
+        @classmethod
+        def _insert_recv_node(
+            cls, tensor, nodes_this_tensor, src_rank, tag, symbol_map_value
+        ):
+            assert tensor.op_type == Shadow.type_name
+            node = Node()
+            node.node_type = Node.NodeType.COMM_RECV_NODE
+            node.name = tensor.id + "_Y_RECV"
+            node.comm_size = Tensor.eval_expr(
+                Tensor.eval_size(tensor.y_shape), symbol_map_value
+            )
+            node.comm_tag = tag
+            node.comm_src = src_rank
+            nodes_this_tensor[HybridGraph.NodeType.Y_RECV] = node
+
+        @classmethod
+        def apply_before_cross_bucket_comms(
+            cls, tensor_graph, symbol_map_value, spatial_parallel_syms
+        ):
+            cls._sanity_check(tensor_graph, symbol_map_value, spatial_parallel_syms)
+            tensor_map_nodes = dict()
+            for tensor in tensor_graph.tensors:
+                nodes_this_tensor = cls._tensor_to_nodes(
+                    tensor, symbol_map_value, spatial_parallel_syms
+                )
+                tensor_map_nodes[tensor] = nodes_this_tensor
+            return tensor_map_nodes
+
+        @classmethod
+        def apply_after_cross_bucket_comms(cls, tensor_map_nodes, symbol_map_value):
+            cls._connect_tensors_node(tensor_map_nodes)
+            graph = HybridGraph(
+                tensor_map_nodes.keys(), tensor_map_nodes, symbol_map_value
+            )
+            cls._clean_empty_comp(graph)
+            return graph
+
+    @classmethod
+    def apply(cls, bundled_graph, symbol_map_value):
+        for symbol in bundled_graph.symbol_map_value:
+            assert bundled_graph.symbol_map_value[symbol] == symbol_map_value[symbol]
+        readable_rank_map_number_rank = dict()
+        for num_rank, readable_rank in enumerate(bundled_graph.graphs.keys()):
+            readable_rank_map_number_rank[readable_rank] = num_rank
+
+        buckets = dict()
+        for readable_rank in bundled_graph.graphs.keys():
+            tensor_graph = bundled_graph.graphs[readable_rank]
+            tensor_map_nodes = cls._ConvertChakra.apply_before_cross_bucket_comms(
+                tensor_graph, symbol_map_value, bundled_graph.spatial_parallel_dims
+            )
+            tensor_id_map_tensor = tensor_graph.get_tensor_id_map_tensor()
+            buckets[readable_rank] = [tensor_map_nodes, tensor_id_map_tensor]
+
+        tag_cnt = random.randint(0, 1e6)
+        for link in bundled_graph.remote_parent_shadow_pairs:
+            (remote_readable_rank, remote_id), (shadow_readable_rank, shadow_id) = link
+            remote_tensor = buckets[remote_readable_rank][1][remote_id]
+            remote_tensor_nodes = buckets[remote_readable_rank][0][remote_tensor]
+            shadow_tensor = buckets[shadow_readable_rank][1][shadow_id]
+            shadow_tensor_nodes = buckets[shadow_readable_rank][0][shadow_tensor]
+            remote_num_rank = readable_rank_map_number_rank[remote_readable_rank]
+            shadow_num_rank = readable_rank_map_number_rank[shadow_readable_rank]
+            cls._ConvertChakra._insert_send_node(
+                remote_tensor,
+                remote_tensor_nodes,
+                shadow_num_rank,
+                tag_cnt,
+                symbol_map_value,
+            )
+            cls._ConvertChakra._insert_recv_node(
+                shadow_tensor,
+                shadow_tensor_nodes,
+                remote_num_rank,
+                tag_cnt,
+                symbol_map_value,
+            )
+            tag_cnt += 1
+
+        for readable_rank in bundled_graph.graphs.keys():
+            hybrid_graph = cls._ConvertChakra.apply_after_cross_bucket_comms(
+                buckets[readable_rank][0], symbol_map_value
+            )
+            buckets[readable_rank] = hybrid_graph
+        return BundledHybridGraph(
+            buckets,
+            bundled_graph.remote_parent_shadow_pairs,
+            bundled_graph.spatial_parallel_dims,
+            bundled_graph.temporal_parallel_dims,
+            symbol_map_value,
+            readable_rank_map_number_rank,
+        )

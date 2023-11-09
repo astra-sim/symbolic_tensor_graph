@@ -4,10 +4,11 @@ from .element import Element
 from .identical import Identical
 from .place_holder import PlaceHolder
 from .reshape import Reshape
+from .shadow import Shadow
 
 
 class OPHandler:
-    ops = [Add, Einsum, Element, Identical, PlaceHolder, Reshape]
+    ops = [Add, Einsum, Element, Identical, PlaceHolder, Reshape, Shadow]
 
     @classmethod
     def eval(cls, tensor):

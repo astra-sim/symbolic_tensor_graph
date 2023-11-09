@@ -5,6 +5,7 @@ import os
 import sympy as sp
 from ..tensor import Tensor
 from ..ops import PlaceHolder
+from ..chakra.node import Node
 
 
 class TensorGraph:
@@ -19,6 +20,8 @@ class TensorGraph:
 
     def reverse_links(self, links):
         reversed_links = dict()
+        for old_from in links.keys():
+            reversed_links[old_from] = list()
         for old_from in links.keys():
             for old_to in links[old_from]:
                 new_from, new_to = old_to, old_from
@@ -172,6 +175,8 @@ class HybridGraph(TensorGraph):
         COMP = "comp"
         X1_COMM = "x1_comm"
         X2_COMM = "x2_comm"
+        Y_RECV = "y_recv"
+        Y_SEND = "y_send"
 
     def __init__(self, tensors, tensor_map_nodes=None, symbol_map_values=None):
         super(HybridGraph, self).__init__(tensors)
@@ -265,22 +270,56 @@ class HybridGraph(TensorGraph):
                 node_id_map_tensor[node.id] = tensor
         return node_id_map_tensor
 
+    def readout(self, filename, backend=None):
+        nodes = self.get_nodes()
+        Node.readout_nodes(nodes, filename, backend=backend)
 
-class BundledHybridGraph:
-    def __init__(self, graphs, symbol_map_value=None, parallel_dims=None):
+
+class BundledTensorGraph:
+    def __init__(
+        self,
+        graphs,
+        remote_parent_shadow_pairs,
+        spatial_parallel_dims,
+        temporal_parallel_dims,
+        symbol_value_dict,
+    ):
+        self.spatial_parallel_dims = spatial_parallel_dims
+        self.temporal_parallel_dims = temporal_parallel_dims
+        for dim in spatial_parallel_dims:
+            assert dim in symbol_value_dict
+        for dim in temporal_parallel_dims:
+            assert dim in symbol_value_dict
         self.graphs = graphs
-        if parallel_dims is None:
-            assert symbol_map_value is None
-            self.parallel_dims = list()
-            self.symbol_map_value = dict()
-            for symbol in graph[0].get_symbols():
-                self.symbol_map_value[symbol] = None
-        assert symbol_map_value is not None
+        self.remote_parent_shadow_pairs = remote_parent_shadow_pairs
+        self.symbol_map_value = symbol_value_dict
 
-        self.parallel_dims = list(parallel_dims)
-        for graph in graphs:
-            for symbol in graph.symbol_map_value.key():
-                assert symbol in self.symbol_map_value
-                assert self.symbol_map_value[symbol] == graph.symbol_map_value[symbol]
-        for dim in self.parallel_dims:
-            assert dim in self.symbol_map_value
+
+class BundledHybridGraph(BundledTensorGraph):
+    def __init__(
+        self,
+        graphs,
+        remote_parent_shadow_pairs,
+        spatial_parallel_dims,
+        temporal_parallel_dims,
+        symbol_value_dict,
+        readable_rank_map_number_rank,
+    ):
+        super(BundledHybridGraph, self).__init__(
+            graphs,
+            remote_parent_shadow_pairs,
+            spatial_parallel_dims,
+            temporal_parallel_dims,
+            symbol_value_dict,
+        )
+        self.readable_rank_map_number_rank = readable_rank_map_number_rank
+
+    def readout(self, filename, backend=None):
+        for readable_rank in self.graphs.keys():
+            number_rank = self.readable_rank_map_number_rank[readable_rank]
+            if "%d" in filename:
+                filename_this_node = filename % (number_rank,)
+            else:
+                filename_this_node = f"{filename}.{number_rank}"
+            graph = self.graphs[readable_rank]
+            graph.readout(filename_this_node, backend)

@@ -31,7 +31,7 @@ class NodeBackendBase:
             cls.set_comm_send_attrs(
                 frontend_node.comm_size,
                 frontend_node.comm_tag,
-                frontend_node.comm_dsr,
+                frontend_node.comm_dst,
                 backend_node,
             )
         elif frontend_node.node_type == FrontendNode.NodeType.COMP_NODE:

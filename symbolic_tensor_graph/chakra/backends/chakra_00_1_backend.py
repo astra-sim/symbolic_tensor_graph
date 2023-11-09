@@ -33,7 +33,7 @@ class Chakra001Backend(NodeBackendBase):
             elif _frontend_node_type == FrontendNode.NodeType.COMM_RECV_NODE:
                 return NodeType.COMM_RECV_NODE
             elif _frontend_node_type == FrontendNode.NodeType.COMM_SEND_NODE:
-                return NodeType.COMM_SEND_NODe
+                return NodeType.COMM_SEND_NODE
             elif _frontend_node_type == FrontendNode.NodeType.COMP_NODE:
                 return NodeType.COMP_NODE
             elif _frontend_node_type == FrontendNode.NodeType.MEM_LOAD_NODE:

@@ -1,7 +1,7 @@
 import copy
+from ..graph.graph import TensorGraph, BundledTensorGraph
 from ..tensor import Tensor
-from ..ops import PlaceHolder
-from ..graph.graph import TensorGraph
+from ..ops import Shadow
 
 
 class GraphDistributer:
@@ -12,32 +12,122 @@ class GraphDistributer:
         symbol_map_value,
         spatial_parallel_dims,
         temporal_parallel_dims,
-        tensor_maps,
+        tensor_id_temporal_map,
     ):
-        for symbol in tensor_graph.get_symbols():
-            assert symbol in symbol_map_value
         for symbol in spatial_parallel_dims:
             assert symbol in symbol_map_value
         for symbol in temporal_parallel_dims:
             assert symbol in symbol_map_value
-        mapped_tensors = list()
-        assert len(temporal_parallel_dims) == len(tensor_maps.keys())
-        for dim in tensor_maps:
-            assert dim in temporal_parallel_dims
-            map_this_dim = tensor_maps[dim]
-            assert len(map_this_dim) == symbol_map_value[dim]
-            for i, bucket in enumerate(map_this_dim):
-                for tensor in bucket:
-                    assert tensor in tensor_graph.tensors
-                    assert not tensor in mapped_tensors
-                    mapped_tensors.append(tensor)
-        assert len(mapped_tensors) == len(tensor_graph.tensors)
+        assert len(tensor_id_temporal_map) == len(tensor_graph.tensors)
+        for tensor in tensor_id_temporal_map.keys():
+            position = tensor_id_temporal_map[tensor]
+            assert len(position.keys()) == len(temporal_parallel_dims)
+            for asked_dim in position.keys():
+                asked_rank = position[asked_dim]
+                assert asked_dim in temporal_parallel_dims
+                assert asked_rank < symbol_map_value[asked_dim] and asked_rank >= 0
 
     @classmethod
-    def _split_graph(cls, tensor_graph, tensor_maps):
-        for dim in tensor_maps:
-            map_this_dim = tensor_maps[dim]
-        raise NotImplementedError()
+    def _temporal_dispatch_tensors(cls, tensors, tensor_id_temporal_map):
+        buckets = dict()
+        for tensor in tensors:
+            tensor_id = tensor.id
+            position = tensor_id_temporal_map[tensor_id]
+            target_bucket_key = cls._mapping_dict_to_tuple(position)
+            if not target_bucket_key in buckets:
+                buckets[target_bucket_key] = list()
+            buckets[target_bucket_key].append(tensor)
+        return buckets
+
+    @classmethod
+    def _mapping_dict_to_tuple(cls, dict_):
+        ret = tuple()
+        for key in dict_:
+            ret += ((key, dict_[key]),)
+        return ret
+
+    @classmethod
+    def _fix_cross_bucket_data_dependancies(cls, buckets, tensor_id_temporal_map):
+        remote_parent_shadow_pairs = list()
+        for bucket_key in buckets:
+            remote_parent_map_shadow = dict()
+            bucket = buckets[bucket_key]
+            for tensor in bucket:
+                if not tensor.x1 is None:
+                    if not tensor.x1 in bucket:
+                        remote = tensor.x1
+                        child = tensor
+                        if not remote in remote_parent_map_shadow:
+                            shadow = cls._create_shadow(remote)
+                            remote_parent_map_shadow[remote] = shadow
+                        shadow = remote_parent_map_shadow[remote]
+                        child.x1 = shadow
+                if not tensor.x2 is None:
+                    if not tensor.x2 in bucket:
+                        remote = tensor.x2
+                        child = tensor
+                        if not remote in remote_parent_map_shadow:
+                            shadow = cls._create_shadow(remote)
+                            remote_parent_map_shadow[remote] = shadow
+                        shadow = remote_parent_map_shadow[remote]
+                        child.x2 = shadow
+            for remote in remote_parent_map_shadow:
+                remote_map = cls._mapping_dict_to_tuple(
+                    tensor_id_temporal_map[remote.id]
+                )
+                shadow = remote_parent_map_shadow[remote]
+                shadow_map = bucket_key
+                remote_parent_shadow_pairs.append(
+                    (
+                        (remote_map, remote.id),
+                        (shadow_map, shadow.id),
+                    )
+                )
+                bucket.append(shadow)
+        return buckets, remote_parent_shadow_pairs
+
+    @classmethod
+    def _spatial_copy_graphs(
+        cls,
+        buckets,
+        remote_parent_shadow_pairs,
+        spatial_parallel_dims,
+        symbol_map_value,
+    ):
+        if len(spatial_parallel_dims) == 0:
+            return buckets, remote_parent_shadow_pairs
+        dim = spatial_parallel_dims[0]
+        spatial_parallel_dims = spatial_parallel_dims[1:]
+        buckets, remote_parent_shadow_pairs = cls._spatial_copy_graphs(
+            buckets, remote_parent_shadow_pairs, spatial_parallel_dims, symbol_map_value
+        )
+        new_buckets = dict()
+        for key in buckets.keys():
+            for rank in range(symbol_map_value[dim]):
+                new_key = key + ((dim, rank),)
+                stub_graph = TensorGraph(buckets[key])
+                stub_graph_copied = copy.deepcopy(stub_graph)
+                new_buckets[new_key] = stub_graph_copied.tensors
+        new_remote_parent_shadow_pairs = list()
+        for item in remote_parent_shadow_pairs:
+            for rank in range(symbol_map_value[dim]):
+                (remote_map, remote_id), (shadow_map, shadow_id) = item
+                remote_map = remote_map + ((dim, rank),)
+                shadow_map = shadow_map + ((dim, rank),)
+                new_item = (remote_map, remote_id), (shadow_map, shadow_id)
+                new_remote_parent_shadow_pairs.append(new_item)
+        return new_buckets, new_remote_parent_shadow_pairs
+
+    @classmethod
+    def _create_shadow(cls, remote):
+        shadow = Tensor(create_empty=True)
+        shadow.name = f"shadow_{remote.name}"
+        shadow.revision = remote.revision
+        shadow.op_type = Shadow.type_name
+        shadow.require_grads = False
+        shadow.x1_shape = remote.y_shape
+        shadow.x1_hidden = remote.y_hidden
+        return shadow
 
     @classmethod
     def apply(
@@ -46,137 +136,37 @@ class GraphDistributer:
         symbol_map_value,
         spatial_parallel_dims,
         temporal_parallel_dims,
-        tensor_maps,
+        tensor_id_temporal_map,
+        inplace=False,
     ):
+        if not inplace:
+            tensor_graph = copy.deepcopy(tensor_graph)
         cls._sanity_check(
             tensor_graph,
             symbol_map_value,
             spatial_parallel_dims,
             temporal_parallel_dims,
-            tensor_maps,
+            tensor_id_temporal_map,
         )
 
-
-class GraphSpliter:
-    @classmethod
-    def apply(cls, tensor_graph, split_tensors, inplace=False):
-        if not inplace:
-            tensor_graph = copy.deepcopy(tensor_graph)
-        tensor_id_map_tensor = tensor_graph.get_tensor_id_map_tensor()
-        tensor_parent_to_child = tensor_graph.get_tensor_parent_to_child_links()
-        new_shadow_tensors = list()
-        for tensor in split_tensors:
-            splitted_shadow_tensor = cls._split_tensor(
-                tensor, tensor_parent_to_child, tensor_id_map_tensor
-            )
-            new_shadow_tensors.append(splitted_shadow_tensor)
-        for tensor in new_shadow_tensors:
-            tensor_graph.tensors.append(tensor)
-
-        upper_graph_tensors = cls._find_upper_graph_tensors(
-            tensor_graph, split_tensors, new_shadow_tensors
+        buckets = cls._temporal_dispatch_tensors(
+            tensor_graph.tensors, tensor_id_temporal_map
         )
-        lower_graph_tensors = cls._get_complement(
-            tensor_graph.tensors, upper_graph_tensors
+        buckets, remote_parent_shadow_pairs = cls._fix_cross_bucket_data_dependancies(
+            buckets, tensor_id_temporal_map
         )
-
-        in_tensors = tensor_graph.in_tensors + new_shadow_tensors
-        out_tensors = tensor_graph.out_tensors + split_tensors
-
-        (
-            upper_in_tensors,
-            upper_out_tensors,
-            lower_in_tensors,
-            lower_out_tensors,
-        ) = cls._split_in_out_tensors(
-            upper_graph_tensors, lower_graph_tensors, in_tensors, out_tensors
+        buckets, remote_parent_shadow_pairs = cls._spatial_copy_graphs(
+            buckets, remote_parent_shadow_pairs, spatial_parallel_dims, symbol_map_value
         )
+        graphs = dict()
+        for key in buckets.keys():
+            graphs[key] = TensorGraph(buckets[key])
 
-        upper_graph = TensorGraph(
-            upper_graph_tensors, upper_in_tensors, upper_out_tensors
+        bundled_tensor_graph = BundledTensorGraph(
+            graphs,
+            remote_parent_shadow_pairs,
+            spatial_parallel_dims,
+            temporal_parallel_dims,
+            symbol_map_value,
         )
-        lower_graph = TensorGraph(
-            lower_graph_tensors, lower_in_tensors, lower_out_tensors
-        )
-        return upper_graph, lower_graph, new_shadow_tensors
-
-    @classmethod
-    def _split_tensor(cls, tensor, tensor_parent_to_child, tensor_id_map_tensor):
-        if isinstance(tensor, str):
-            if not "@" in tensor:
-                tensor += "@0"
-            tensor = tensor_id_map_tensor[tensor]
-        assert not tensor.require_grads
-        splitted_shadow_tensor = Tensor(create_empty=True)
-        splitted_shadow_tensor.name = f"shadow{tensor.name}"
-        splitted_shadow_tensor.require_grads = tensor.require_grads
-        splitted_shadow_tensor.op_type = PlaceHolder.type_name
-        splitted_shadow_tensor.x1_shape = tensor.y_shape
-        splitted_shadow_tensor.x1_hidden = tensor.y_hidden
-        splitted_shadow_tensor.revision = tensor.revision
-        for child_id in tensor_parent_to_child[tensor.id]:
-            child = tensor_id_map_tensor[child_id]
-            if child.x1 == tensor:
-                child.x1 = splitted_shadow_tensor
-            if child.x2 == tensor:
-                child.x2 = splitted_shadow_tensor
-        splitted_shadow_tensor._shadow_of = tensor.id
-        tensor._shadow = splitted_shadow_tensor.id
-        return splitted_shadow_tensor
-
-    @classmethod
-    def _reachable(cls, from_, to_, parent_to_child_links):
-        if from_ == to_:
-            return True
-        for child in parent_to_child_links[from_]:
-            if cls._reachable(child, to_):
-                return True
-        return False
-
-    @classmethod
-    def _find_upper_graph_tensors(
-        cls, tensor_graph, split_real_tensors, split_shadow_tensors
-    ):
-        upper_graph_tensors = list()
-        parent_to_child_links = tensor_graph.get_tensor_parent_to_child_link()
-        for tensor in tensor_graph.tensors:
-            for split_tensor in split_real_tensors:
-                if cls._reachable(tensor.id, split_tensor.id, parent_to_child_links):
-                    upper_graph_tensors.append(tensor)
-                    break
-            for split_shadow_tensor in split_shadow_tensors:
-                assert not cls._reachable(
-                    tensor.id, split_shadow_tensor.id, parent_to_child_links
-                )
-        return upper_graph_tensors
-
-    @classmethod
-    def _get_complement(cls, all_tensors, one_set_tensors):
-        all_tensors = set(all_tensors)
-        one_set_tensors = set(one_set_tensors)
-        another_set_tensors = all_tensors - one_set_tensors
-        return list(another_set_tensors)
-
-    @classmethod
-    def _split_in_out_tensors(
-        cls, upper_tensors, lower_tensors, in_tensors, out_tensors
-    ):
-        upper_in_tensors = list()
-        upper_out_tensors = list()
-        lower_in_tensors = list()
-        lower_out_tensors = list()
-
-        for tensor in in_tensors:
-            if tensor in upper_tensors:
-                upper_in_tensors.append(tensor)
-            else:
-                assert tensor in lower_tensors
-                lower_in_tensors.append(tensor)
-
-        for tensor in out_tensors:
-            if tensor in upper_tensors:
-                upper_out_tensors.append(tensor)
-            else:
-                assert tensor in lower_tensors
-                lower_out_tensors.append(tensor)
-        return upper_in_tensors, upper_out_tensors, lower_in_tensors, lower_out_tensors
+        return bundled_tensor_graph
