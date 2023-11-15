@@ -316,6 +316,14 @@ class BundledConvertChakra:
             cls._clean_empty_comp(graph)
             return graph
 
+        @classmethod
+        def _clean_empty_comp(cls, graph):
+            # soft clean
+            for node in graph.get_nodes():
+                if node.node_type == Node.NodeType.COMP_NODE:
+                    if node.num_ops == 0:
+                        node.num_ops = 10
+
     @classmethod
     def apply(cls, bundled_graph, symbol_map_value):
         for symbol in bundled_graph.symbol_map_value:

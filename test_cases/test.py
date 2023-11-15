@@ -307,7 +307,7 @@ def test5():
 
 
 def test6():
-    num_stacks = 4
+    num_stacks = 2
     dp, mp, pp = sp.symbols("dp mp pp")
     Din, Dout, Dmodel, Dff, Batch, Seq, Head = sp.symbols(
         "Din Dout Dmodel Dff Batch Seq Head"
@@ -320,9 +320,9 @@ def test6():
         Batch: 1024,
         Seq: 1024,
         Head: 1024,
-        dp: 4,
-        mp: 4,
-        pp: 2,
+        dp: 8,
+        mp: 8,
+        pp: 1,
     }
     spatial_parallel_dims = [dp, mp]
     temporal_parallel_dims = [pp]
@@ -361,10 +361,11 @@ def test6():
         tensor_map,
     )
     hook = 1
+    bundled_graph.remote_parent_shadow_pairs = []
     bundled_hybrid_graph = BundledConvertChakra.apply(bundled_graph, symbol_map_value)
     hook = 2
-    bundled_hybrid_graph.readout("test.%d.eg")
-    bundled_hybrid_graph.readout("test.%d.json", backend=JsonBackend)
+    bundled_hybrid_graph.readout("transformer_2stack.%d.eg")
+    bundled_hybrid_graph.readout("transformer_2stack.%d.json", backend=JsonBackend)
     hook = 3
 
 
