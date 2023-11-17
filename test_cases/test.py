@@ -369,5 +369,137 @@ def test6():
     hook = 3
 
 
+def test7(symbol_map_value, output_filename):
+    num_stacks = 2
+    dp, mp, pp = sp.symbols("dp mp pp")
+    Din, Dout, Dmodel, Dff, Batch, Seq, Head = sp.symbols(
+        "Din Dout Dmodel Dff Batch Seq Head"
+    )
+
+    spatial_parallel_dims = [dp, mp]
+    temporal_parallel_dims = [pp]
+    mha = TensorGraph.load_tensor_graph(
+        "./sharding_spreadsheets/module/divya/multi_head_attention.csv"
+    )
+    ffn = TensorGraph.load_tensor_graph(
+        "./sharding_spreadsheets/module/divya/feed_forward_network.csv"
+    )
+    stack = transformer_stack_fn(mha, ffn)
+    # transformer = transformer_fn(in_emb, out_emb, stack, 2)
+    transformer = transformer_fn(stack, num_stacks)
+    transformer_updated_grad = GradUpdater.apply(transformer)
+
+    def _create_tensor_map(_tensors, _temporal_parallel_dims, _symbol_map_value):
+        _tensor_map = dict()
+        assert len(_temporal_parallel_dims) == 1
+        parallel_dim = _temporal_parallel_dims[0]
+        range_ = _symbol_map_value[parallel_dim]
+        for tensor in _tensors:
+            for num_stack in range(num_stacks):
+                if f"stack_{num_stack}" in tensor.id:
+                    _tensor_map[tensor.id] = {parallel_dim: num_stack % range_}
+                    break
+        return _tensor_map
+
+    hook = 0
+    tensor_map = _create_tensor_map(
+        transformer_updated_grad.tensors, temporal_parallel_dims, symbol_map_value
+    )
+    bundled_graph = GraphDistributer.apply(
+        transformer_updated_grad,
+        symbol_map_value,
+        spatial_parallel_dims,
+        temporal_parallel_dims,
+        tensor_map,
+    )
+    hook = 1
+    bundled_graph.remote_parent_shadow_pairs = []
+    bundled_hybrid_graph = BundledConvertChakra.apply(bundled_graph, symbol_map_value)
+    hook = 2
+    bundled_hybrid_graph.readout(output_filename)
+    # bundled_hybrid_graph.readout("transformer_2stack.%d.json", backend=JsonBackend)
+    hook = 3
+
+
 if __name__ == "__main__":
-    test6()
+    import os
+
+    generated_root = ""
+    dp, mp, pp = sp.symbols("dp mp pp")
+    Din, Dout, Dmodel, Dff, Batch, Seq, Head = sp.symbols(
+        "Din Dout Dmodel Dff Batch Seq Head"
+    )
+    symbol_map_value = {
+        Din: 51200,
+        Dout: 25600,
+        Dmodel: 25600,
+        Dff: 25600 * 4,
+        Batch: 1024,
+        Seq: 1024,
+        Head: 1024,
+        dp: 1,
+        mp: 64,
+        pp: 1,
+    }
+    # pp has to be one as there is bug in astrasim of send/recv pairs between stages of pipeline.
+    test7(
+        symbol_map_value,
+        os.path.join(
+            generated_root,
+            "workload/transformer_2stack_dp1_mp64/transformer_2stack_dp1_mp64.%d.eg",
+        ),
+    )
+    symbol_map_value[dp] = 2
+    symbol_map_value[mp] = 32
+    test7(
+        symbol_map_value,
+        os.path.join(
+            generated_root,
+            "workload/transformer_2stack_dp2_mp32/transformer_2stack_dp2_mp32.%d.eg",
+        ),
+    )
+    symbol_map_value[dp] = 4
+    symbol_map_value[mp] = 16
+    test7(
+        symbol_map_value,
+        os.path.join(
+            generated_root,
+            "workload/transformer_2stack_dp4_mp16/transformer_2stack_dp4_mp16.%d.eg",
+        ),
+    )
+    symbol_map_value[dp] = 8
+    symbol_map_value[mp] = 8
+    test7(
+        symbol_map_value,
+        os.path.join(
+            generated_root,
+            "workload/transformer_2stack_dp8_mp8/transformer_2stack_dp8_mp8.%d.eg",
+        ),
+    )
+    symbol_map_value[dp] = 16
+    symbol_map_value[mp] = 4
+    test7(
+        symbol_map_value,
+        os.path.join(
+            generated_root,
+            "workload/transformer_2stack_dp16_mp4/transformer_2stack_dp16_mp4.%d.eg",
+        ),
+    )
+    symbol_map_value[dp] = 32
+    symbol_map_value[mp] = 2
+    test7(
+        symbol_map_value,
+        os.path.join(
+            generated_root,
+            "workload/transformer_2stack_dp32_mp2/transformer_2stack_dp32_mp2.%d.eg",
+        ),
+    )
+    symbol_map_value[dp] = 64
+    symbol_map_value[mp] = 1
+    test7(
+        symbol_map_value,
+        os.path.join(
+            generated_root,
+            "workload/transformer_2stack_dp64_mp1/transformer_2stack_dp64_mp1.%d.eg",
+        ),
+    )
