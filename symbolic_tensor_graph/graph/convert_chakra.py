@@ -341,7 +341,7 @@ class BundledConvertChakra:
             tensor_id_map_tensor = tensor_graph.get_tensor_id_map_tensor()
             buckets[readable_rank] = [tensor_map_nodes, tensor_id_map_tensor]
 
-        tag_cnt = random.randint(0, 1e6)
+        tag_cnt = random.randint(0, int(1e6))
         for link in bundled_graph.remote_parent_shadow_pairs:
             (remote_readable_rank, remote_id), (shadow_readable_rank, shadow_id) = link
             remote_tensor = buckets[remote_readable_rank][1][remote_id]

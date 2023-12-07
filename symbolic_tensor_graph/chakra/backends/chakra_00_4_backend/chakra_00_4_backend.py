@@ -1,22 +1,31 @@
-import os, sys
+import os
+from .et_def.et_def_pb2 import (
+    Node,
+    AttributeProto as ChakraAttr,
+    NodeType,
+    CollectiveCommType,
+    GlobalMetadata
+)
+from .protolib import *
 
-file_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.join(file_dir, "../../../chakra/et_def/"))
-sys.path.append(os.path.join(file_dir, "../../../chakra/third_party/utils/"))
-
-from et_def_pb2 import *
-from protolib import *
-
-from .backend import FrontendNode, NodeBackendBase
+from ..backend import FrontendNode, NodeBackendBase
 
 
-class Chakra001Backend(NodeBackendBase):
-    SCHEMA = "Chakra v0.0.1"
+class Chakra004Backend(NodeBackendBase):
+    SCHEMA = "Chakra v0.0.4"
     DEFAULT_NETWORK_DIM = 3
+    
+    @classmethod
+    def get_global_metadata_node(cls):
+        node = GlobalMetadata()
+        node.attr.append(ChakraAttr(name="schema", string_val="symbolic_tensor_network"))
+        return node
 
     @classmethod
     def serialize_nodes(cls, backend_nodes, file):
+        os.makedirs(os.path.split(file)[0], exist_ok=True)
         file = open(file, "wb")
+        encodeMessage(file, cls.get_global_metadata_node())
         for node in backend_nodes:
             encodeMessage(file, node)
         file.close()
@@ -45,24 +54,28 @@ class Chakra001Backend(NodeBackendBase):
 
         backend_node.id = id
         backend_node.name = name
-        backend_node.node_type = _get_backend_node_type(node_type)
+        backend_node.type = _get_backend_node_type(node_type)
 
     @classmethod
     def set_data_deps(cls, data_deps, backend_node):
         for dep in data_deps:
-            if not dep in backend_node.parent:
-                backend_node.parent.append(dep)
+            if not dep in backend_node.data_deps:
+                backend_node.data_deps.append(dep)
 
     @classmethod
     def set_ctrl_deps(cls, ctrl_deps, backend_node):
         for dep in ctrl_deps:
-            if not dep in backend_node.parent:
-                backend_node.parent.append(dep)
+            if not dep in backend_node.ctrl_deps:
+                backend_node.ctrl_deps.append(dep)
 
     @classmethod
     def set_comp_attrs(cls, num_ops, tensor_size, backend_node):
-        backend_node.num_ops = int(num_ops)
-        backend_node.tensor_size = int(tensor_size)
+        backend_node.attr.append(
+            ChakraAttr(name="num_ops", uint64_val=int(num_ops))
+        )
+        backend_node.attr.append(
+            ChakraAttr(name="tensor_size", uint64_val=int(tensor_size))
+        )
 
     @classmethod
     def set_coll_comm_attrs(cls, comm_size, comm_type, backend_node):
@@ -77,25 +90,44 @@ class Chakra001Backend(NodeBackendBase):
                 return CollectiveCommType.REDUCE_SCATTER
             else:
                 assert False
-
-        backend_node.comm_size = int(comm_size)
-        backend_node.comm_type = _get_backend_comm_type(comm_type)
+        
+        backend_node.attr.append(
+            ChakraAttr(name="comm_size", uint64_val=int(comm_size))
+        )
+        backend_node.attr.append(
+            ChakraAttr(name="comm_type", int64_val=_get_backend_comm_type(comm_type))
+        )
+        involved_dim = ChakraAttr(name="involved_dim")
         for _ in range(cls.DEFAULT_NETWORK_DIM):
-            backend_node.involved_dim.append(True)
+            involved_dim.bool_list.values.append(True)
+        backend_node.attr.append(involved_dim)
 
     @classmethod
     def set_comm_send_attrs(cls, comm_size, comm_tag, comm_dst, backend_node):
-        backend_node.comm_size = int(comm_size)
-        backend_node.comm_tag = int(comm_tag)
-        backend_node.comm_dst = int(comm_dst)
+        backend_node.attr.append(
+            ChakraAttr(name="comm_size", uint64_val=int(comm_size))
+        )
+        backend_node.attr.append(
+            ChakraAttr(name="comm_tag", uint32_val=int(comm_tag))
+        )
+        backend_node.attr.append(
+            ChakraAttr(name="comm_dst", uint32_val=int(comm_dst))
+        )
 
     @classmethod
     def set_comm_recv_attrs(cls, comm_size, comm_tag, comm_src, backend_node):
-        backend_node.comm_size = int(comm_size)
-        backend_node.comm_tag = int(comm_tag)
-        backend_node.comm_src = int(comm_src)
+        backend_node.attr.append(
+            ChakraAttr(name="comm_size", uint64_val=int(comm_size))
+        )
+        backend_node.attr.append(
+            ChakraAttr(name="comm_tag", uint32_val=int(comm_tag))
+        )
+        backend_node.attr.append(
+            ChakraAttr(name="comm_src", uint32_val=int(comm_src))
+        )
 
     @classmethod
     def set_mem_attrs(cls, tensor_size, backend_node):
-        backend_node.tensor_siize = int(tensor_size)
-        backend_node.tensor_loc = MemoryType.REMOTE_MEMORY
+        backend_node.attr.append(
+            ChakraAttr(name="tensor_size", uint64_val=int(tensor_size))
+        )

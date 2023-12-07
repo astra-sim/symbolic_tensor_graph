@@ -54,17 +54,17 @@ class Node:
 
     def readout(node, backend=None):
         if backend is None:
-            from .backends.chakra_00_1_backend import Chakra001Backend
+            from .backends.chakra_00_4_backend.chakra_00_4_backend import Chakra004Backend
 
-            backend = Chakra001Backend
+            backend = Chakra004Backend
         return backend.readout(node)
 
     @classmethod
     def readout_nodes(cls, nodes, filename, backend=None):
         if backend is None:
-            from .backends.chakra_00_1_backend import Chakra001Backend
+            from .backends.chakra_00_4_backend.chakra_00_4_backend import Chakra004Backend
 
-            backend = Chakra001Backend
+            backend = Chakra004Backend
         frontend_nodes = nodes
         backend.readout_nodes(frontend_nodes, filename)
 

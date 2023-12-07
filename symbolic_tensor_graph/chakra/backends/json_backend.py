@@ -1,4 +1,5 @@
 import json
+import os
 from .backend import FrontendNode, NodeBackendBase
 
 
@@ -7,6 +8,7 @@ class JsonBackend(NodeBackendBase):
 
     @classmethod
     def serialize_nodes(cls, backend_nodes, file):
+        os.makedirs(os.path.split(file)[0], exist_ok=True)
         file = open(file, "w")
         data = {"nodes": backend_nodes}
         json.dump(data, file)

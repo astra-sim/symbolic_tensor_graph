@@ -417,7 +417,6 @@ def test7(symbol_map_value, output_filename):
     bundled_hybrid_graph = BundledConvertChakra.apply(bundled_graph, symbol_map_value)
     hook = 2
     bundled_hybrid_graph.readout(output_filename)
-    # bundled_hybrid_graph.readout("transformer_2stack.%d.json", backend=JsonBackend)
     hook = 3
 
 
@@ -446,7 +445,7 @@ if __name__ == "__main__":
         symbol_map_value,
         os.path.join(
             generated_root,
-            "workload/transformer_2stack_dp1_mp64/transformer_2stack_dp1_mp64.%d.eg",
+            "workload/transformer_2stack_dp1_mp64/transformer_2stack_dp1_mp64.%d.et",
         ),
     )
     symbol_map_value[dp] = 2
@@ -455,7 +454,7 @@ if __name__ == "__main__":
         symbol_map_value,
         os.path.join(
             generated_root,
-            "workload/transformer_2stack_dp2_mp32/transformer_2stack_dp2_mp32.%d.eg",
+            "workload/transformer_2stack_dp2_mp32/transformer_2stack_dp2_mp32.%d.et",
         ),
     )
     symbol_map_value[dp] = 4
@@ -464,7 +463,7 @@ if __name__ == "__main__":
         symbol_map_value,
         os.path.join(
             generated_root,
-            "workload/transformer_2stack_dp4_mp16/transformer_2stack_dp4_mp16.%d.eg",
+            "workload/transformer_2stack_dp4_mp16/transformer_2stack_dp4_mp16.%d.et",
         ),
     )
     symbol_map_value[dp] = 8
@@ -473,7 +472,7 @@ if __name__ == "__main__":
         symbol_map_value,
         os.path.join(
             generated_root,
-            "workload/transformer_2stack_dp8_mp8/transformer_2stack_dp8_mp8.%d.eg",
+            "workload/transformer_2stack_dp8_mp8/transformer_2stack_dp8_mp8.%d.et",
         ),
     )
     symbol_map_value[dp] = 16
@@ -482,7 +481,7 @@ if __name__ == "__main__":
         symbol_map_value,
         os.path.join(
             generated_root,
-            "workload/transformer_2stack_dp16_mp4/transformer_2stack_dp16_mp4.%d.eg",
+            "workload/transformer_2stack_dp16_mp4/transformer_2stack_dp16_mp4.%d.et",
         ),
     )
     symbol_map_value[dp] = 32
@@ -491,7 +490,7 @@ if __name__ == "__main__":
         symbol_map_value,
         os.path.join(
             generated_root,
-            "workload/transformer_2stack_dp32_mp2/transformer_2stack_dp32_mp2.%d.eg",
+            "workload/transformer_2stack_dp32_mp2/transformer_2stack_dp32_mp2.%d.et",
         ),
     )
     symbol_map_value[dp] = 64
@@ -500,6 +499,6 @@ if __name__ == "__main__":
         symbol_map_value,
         os.path.join(
             generated_root,
-            "workload/transformer_2stack_dp64_mp1/transformer_2stack_dp64_mp1.%d.eg",
+            "workload/transformer_2stack_dp64_mp1/transformer_2stack_dp64_mp1.%d.et",
         ),
     )
