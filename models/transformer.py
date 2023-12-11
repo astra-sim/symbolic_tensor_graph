@@ -55,4 +55,8 @@ def transformer(in_emb, out_emb, stack, num_stacks):
             links[f"stack_{num_stack}_ffn_norm"] = "out_emb_x"
             links["out_emb_dx"] = f"stack_{num_stack}_ffn_dnorm"
     transformer_graph = ConnectGraph.apply(graphs, links)
+    graphs = [transformer_graph]
+    links = dict()
+    links["out_emb_y"] = "out_emb_dy"
+    transformer_graph = ConnectGraph.apply(graphs, links, force_connect=True)
     return transformer_graph

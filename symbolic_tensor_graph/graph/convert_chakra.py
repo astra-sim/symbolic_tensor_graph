@@ -243,6 +243,9 @@ class ConvertChakra:
     @classmethod
     def apply(cls, tensor_graph, symbol_map_value, parallel_syms):
         cls._sanity_check(tensor_graph, symbol_map_value, parallel_syms)
+        for sym in copy.copy(parallel_syms):
+            if symbol_map_value[sym] == 1:
+                parallel_syms.remove(sym)
         tensor_map_nodes = dict()
         for tensor in tensor_graph.tensors:
             nodes_this_tensor = cls._tensor_to_nodes(
@@ -328,6 +331,9 @@ class BundledConvertChakra:
     def apply(cls, bundled_graph, symbol_map_value):
         for symbol in bundled_graph.symbol_map_value:
             assert bundled_graph.symbol_map_value[symbol] == symbol_map_value[symbol]
+        for sym in copy.copy(bundled_graph.spatial_parallel_dims):
+            if symbol_map_value[sym] == 1:
+                bundled_graph.spatial_parallel_dims.remove(sym)
         readable_rank_map_number_rank = dict()
         for num_rank, readable_rank in enumerate(bundled_graph.graphs.keys()):
             readable_rank_map_number_rank[readable_rank] = num_rank

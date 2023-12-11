@@ -12,9 +12,9 @@ from symbolic_tensor_graph.graph.pipeline_parallel import GraphDistributer
 from symbolic_tensor_graph.chakra.node import Node
 from symbolic_tensor_graph.chakra.backends.json_backend import JsonBackend
 from models.transformer import (
-    # transformer as transformer_fn,
+    transformer as transformer_fn,
     transformer_stack as transformer_stack_fn,
-    transformer_stacks as transformer_fn,
+    # transformer_stacks as transformer_fn,
 )
 
 
@@ -333,7 +333,7 @@ def test6():
         "./sharding_spreadsheets/module/divya/feed_forward_network.csv"
     )
     stack = transformer_stack_fn(mha, ffn)
-    # transformer = transformer_fn(in_emb, out_emb, stack, 2)
+    # transformer = transformer_fn(in_emb, out_emb, stack, num_stacks)
     transformer = transformer_fn(stack, num_stacks)
     transformer_updated_grad = GradUpdater.apply(transformer)
 
@@ -345,8 +345,12 @@ def test6():
         for tensor in _tensors:
             for num_stack in range(num_stacks):
                 if f"stack_{num_stack}" in tensor.id:
-                    _tensor_map[tensor.id] = {parallel_dim: num_stack % range_}
+                    _tensor_map[tensor.id] = {parallel_dim: (num_stack+1) % range_}
                     break
+            if "in_emb" in tensor.id:
+                _tensor_map[tensor.id] = {parallel_dim: 0}
+            elif "out_emb" in tensor.id:
+                _tensor_map[tensor.id] = {parallel_dim: (num_stacks+1) % range_}
         return _tensor_map
 
     hook = 0
@@ -384,9 +388,15 @@ def test7(symbol_map_value, output_filename):
     ffn = TensorGraph.load_tensor_graph(
         "./sharding_spreadsheets/module/divya/feed_forward_network.csv"
     )
+    in_emb = TensorGraph.load_tensor_graph(
+        "./sharding_spreadsheets/module/divya/embedding.csv"
+    )
+    out_emb = TensorGraph.load_tensor_graph(
+        "./sharding_spreadsheets/module/divya/embedding.csv"
+    )
     stack = transformer_stack_fn(mha, ffn)
-    # transformer = transformer_fn(in_emb, out_emb, stack, 2)
-    transformer = transformer_fn(stack, num_stacks)
+    transformer = transformer_fn(in_emb, out_emb, stack, num_stacks)
+    # transformer = transformer_fn(stack, num_stacks)
     transformer_updated_grad = GradUpdater.apply(transformer)
 
     def _create_tensor_map(_tensors, _temporal_parallel_dims, _symbol_map_value):
@@ -397,10 +407,13 @@ def test7(symbol_map_value, output_filename):
         for tensor in _tensors:
             for num_stack in range(num_stacks):
                 if f"stack_{num_stack}" in tensor.id:
-                    _tensor_map[tensor.id] = {parallel_dim: num_stack % range_}
+                    _tensor_map[tensor.id] = {parallel_dim: (num_stack+1) % range_}
                     break
+            if "in_emb" in tensor.id:
+                _tensor_map[tensor.id] = {parallel_dim: 0}
+            elif "out_emb" in tensor.id:
+                _tensor_map[tensor.id] = {parallel_dim: (num_stacks+1) % range_}
         return _tensor_map
-
     hook = 0
     tensor_map = _create_tensor_map(
         transformer_updated_grad.tensors, temporal_parallel_dims, symbol_map_value

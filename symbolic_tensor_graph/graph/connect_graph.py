@@ -5,7 +5,7 @@ from ..ops import PlaceHolder, Identical
 
 class ConnectGraph:
     @classmethod
-    def apply(cls, graphs, links, inplace=False):
+    def apply(cls, graphs, links, inplace=False, force_connect=False):
         if not inplace:
             graphs = copy.deepcopy(graphs)
         connected_tensors = list()
@@ -30,7 +30,7 @@ class ConnectGraph:
                     to_ += "@0"
                 from_ = connected_graph_id_map_graph[from_]
                 to_ = connected_graph_id_map_graph[to_]
-            assert to_.op_type == PlaceHolder.type_name
+            assert to_.op_type == PlaceHolder.type_name or force_connect
             # should have some machnisum to ensure they have same shape except parallel shardings
             # assert from_.y_shape == to_.x1_shape
             to_.op_type = Identical.type_name

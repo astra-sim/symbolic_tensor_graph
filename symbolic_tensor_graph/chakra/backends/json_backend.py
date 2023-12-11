@@ -9,17 +9,16 @@ class JsonBackend(NodeBackendBase):
     @classmethod
     def serialize_nodes(cls, backend_nodes, file):
         os.makedirs(os.path.split(file)[0], exist_ok=True)
-        file = open(file, "w")
         data = {"nodes": backend_nodes}
-        json.dump(data, file)
-        file.close()
+        with open(file, "w", encoding="utf-8") as f:
+            json.dump(data, f)
 
     @classmethod
     def alloc_backend_node(cls):
-        return dict()
+        return {}
 
     @classmethod
-    def set_node_common_attrs(cls, id, name, node_type, backend_node):
+    def set_node_common_attrs(cls, id_, name, node_type, backend_node):
         def _get_backend_node_type(_frontend_node_type):
             frontend_node_type_map_string = {
                 FrontendNode.NodeType.COLL_COMM_NODE: "coll_comm_node",
@@ -32,19 +31,19 @@ class JsonBackend(NodeBackendBase):
             assert _frontend_node_type in frontend_node_type_map_string
             return frontend_node_type_map_string[_frontend_node_type]
 
-        backend_node["id"] = id
+        backend_node["id"] = id_
         backend_node["name"] = name
         backend_node["node_type"] = _get_backend_node_type(node_type)
 
     @classmethod
     def set_data_deps(cls, data_deps, backend_node):
-        backend_node["data_deps"] = list()
+        backend_node["data_deps"] = []
         for dep in data_deps:
             backend_node["data_deps"].append(dep)
 
     @classmethod
     def set_ctrl_deps(cls, ctrl_deps, backend_node):
-        backend_node["ctrl_deps"] = list()
+        backend_node["ctrl_deps"] = []
         for dep in ctrl_deps:
             backend_node["ctrl_deps"].append(dep)
 
