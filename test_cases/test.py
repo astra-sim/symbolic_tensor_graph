@@ -383,16 +383,16 @@ def test7(symbol_map_value, output_filename):
     spatial_parallel_dims = [dp, mp]
     temporal_parallel_dims = [pp]
     mha = TensorGraph.load_tensor_graph(
-        "./sharding_spreadsheets/module/divya/multi_head_attention.csv"
+        "./sharding_spreadsheets/module/fully_sharded_divya/multi_head_attention.csv"
     )
     ffn = TensorGraph.load_tensor_graph(
-        "./sharding_spreadsheets/module/divya/feed_forward_network.csv"
+        "./sharding_spreadsheets/module/fully_sharded_divya/feed_forward_network.csv"
     )
     in_emb = TensorGraph.load_tensor_graph(
-        "./sharding_spreadsheets/module/divya/embedding.csv"
+        "./sharding_spreadsheets/module/fully_sharded_divya/embedding.csv"
     )
     out_emb = TensorGraph.load_tensor_graph(
-        "./sharding_spreadsheets/module/divya/embedding.csv"
+        "./sharding_spreadsheets/module/fully_sharded_divya/embedding.csv"
     )
     stack = transformer_stack_fn(mha, ffn)
     transformer = transformer_fn(in_emb, out_emb, stack, num_stacks)
@@ -458,7 +458,7 @@ if __name__ == "__main__":
         symbol_map_value,
         os.path.join(
             generated_root,
-            "workload/transformer_2stack_dp1_mp64/transformer_2stack_dp1_mp64.%d.et",
+            "workload_fs/transformer_2stack_dp1_mp64/transformer_2stack_dp1_mp64.%d.et",
         ),
     )
     symbol_map_value[dp] = 2
@@ -467,7 +467,7 @@ if __name__ == "__main__":
         symbol_map_value,
         os.path.join(
             generated_root,
-            "workload/transformer_2stack_dp2_mp32/transformer_2stack_dp2_mp32.%d.et",
+            "workload_fs/transformer_2stack_dp2_mp32/transformer_2stack_dp2_mp32.%d.et",
         ),
     )
     symbol_map_value[dp] = 4
@@ -476,7 +476,7 @@ if __name__ == "__main__":
         symbol_map_value,
         os.path.join(
             generated_root,
-            "workload/transformer_2stack_dp4_mp16/transformer_2stack_dp4_mp16.%d.et",
+            "workload_fs/transformer_2stack_dp4_mp16/transformer_2stack_dp4_mp16.%d.et",
         ),
     )
     symbol_map_value[dp] = 8
@@ -485,7 +485,7 @@ if __name__ == "__main__":
         symbol_map_value,
         os.path.join(
             generated_root,
-            "workload/transformer_2stack_dp8_mp8/transformer_2stack_dp8_mp8.%d.et",
+            "workload_fs/transformer_2stack_dp8_mp8/transformer_2stack_dp8_mp8.%d.et",
         ),
     )
     symbol_map_value[dp] = 16
@@ -494,7 +494,7 @@ if __name__ == "__main__":
         symbol_map_value,
         os.path.join(
             generated_root,
-            "workload/transformer_2stack_dp16_mp4/transformer_2stack_dp16_mp4.%d.et",
+            "workload_fs/transformer_2stack_dp16_mp4/transformer_2stack_dp16_mp4.%d.et",
         ),
     )
     symbol_map_value[dp] = 32
@@ -503,7 +503,7 @@ if __name__ == "__main__":
         symbol_map_value,
         os.path.join(
             generated_root,
-            "workload/transformer_2stack_dp32_mp2/transformer_2stack_dp32_mp2.%d.et",
+            "workload_fs/transformer_2stack_dp32_mp2/transformer_2stack_dp32_mp2.%d.et",
         ),
     )
     symbol_map_value[dp] = 64
@@ -512,6 +512,6 @@ if __name__ == "__main__":
         symbol_map_value,
         os.path.join(
             generated_root,
-            "workload/transformer_2stack_dp64_mp1/transformer_2stack_dp64_mp1.%d.et",
+            "workload_fs/transformer_2stack_dp64_mp1/transformer_2stack_dp64_mp1.%d.et",
         ),
     )

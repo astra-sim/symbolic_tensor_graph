@@ -83,5 +83,8 @@
         "valarray": "cpp",
         "variant": "cpp"
     },
-    "python.analysis.typeCheckingMode": "off"
+    "python.analysis.typeCheckingMode": "off",
+    "pylint.args": [
+        "\"pylint.args\": [\"--errors-only\"]"
+    ]
 }
