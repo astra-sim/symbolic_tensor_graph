@@ -84,7 +84,7 @@ class CommunicationMatcher:
                     matched = parallel_symbol
                     break
             if not matched is None:
-                remaining_parallel_symbols.remove(parallel_symbol)
+                remaining_parallel_symbols.remove(matched)
                 parallel_dims[matched] = cls.EndType.PARTITION, dim
 
         for dim in hidden:

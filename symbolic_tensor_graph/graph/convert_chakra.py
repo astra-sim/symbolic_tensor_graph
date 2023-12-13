@@ -189,11 +189,9 @@ class ConvertChakra:
                 x1_to = cls._get_x1_input_node(tensor_map_nodes[tensor])
                 x1_from = cls._get_output_node(tensor_map_nodes[tensor.x1])
                 if not x1_from is None:
-                    print(tensor)
                     x1_to.data_deps.append(x1_from.id)
             if not tensor.x2 is None:
                 x2_to = cls._get_x2_input_node(tensor_map_nodes[tensor])
-                print(tensor.x2, tensor)
                 x2_from = cls._get_output_node(tensor_map_nodes[tensor.x2])
                 if not x2_from is None:
                     x2_to.data_deps.append(x2_from.id)
@@ -222,14 +220,12 @@ class ConvertChakra:
             if len(empty_comp_nodes) == 0:
                 break
             for empty_comp_node in empty_comp_nodes:
-                print(f" ask for {empty_comp_node.id}")
                 tensor = node_id_map_tensor[empty_comp_node.id]
                 nodes_this_tensor = hybrid_graph.tensor_map_nodes[tensor]
                 nodes_this_tensor_keys = copy.copy(list(nodes_this_tensor.keys()))
                 for key in nodes_this_tensor_keys:
                     if nodes_this_tensor[key].id == empty_comp_node.id:
                         del nodes_this_tensor[key]
-                print(f"cleaned {empty_comp_node.id} {tensor.id}")
                 for child_id in node_parent_to_child_link[empty_comp_node.id]:
                     child = node_id_map_node[child_id]
                     child.data_deps.remove(empty_comp_node.id)
