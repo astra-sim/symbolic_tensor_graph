@@ -54,9 +54,19 @@ def main():
     spatial_parallel_dims = [dp, mp]
     temporal_parallel_dims = [pp]
     
-    module_template_dir = "./sharding_spreadsheets/module/divya"
+    module_template_dir = os.path.join(
+            os.path.split(
+                os.path.abspath(__file__)
+            )[0],
+            "./sharding_spreadsheets/module/divya"  
+    )
     if args.weight_sharded:
-        module_template_dir = "./sharding_spreadsheets/module/fully_sharded_divya"
+        module_template_dir = os.path.join(
+                os.path.split(
+                    os.path.abspath(__file__)
+                )[0],
+                "./sharding_spreadsheets/module/fully_sharded_divya"
+        )
         
     # build the tensor graph
     mha = TensorGraph.load_tensor_graph(
