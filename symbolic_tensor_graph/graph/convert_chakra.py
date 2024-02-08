@@ -1,5 +1,6 @@
 import random
 import copy
+import json
 import sympy as sp
 from ..tensor import Tensor
 from .graph import HybridGraph, TensorGraph, BundledTensorGraph, BundledHybridGraph
@@ -54,6 +55,9 @@ class ConvertChakra:
 
             comm_nodes = list()
             for comm in matched_comms:
+                parallel_dim = comm[3]
+                if symbol_map_value[parallel_dim] == 1:
+                    continue
                 comm_size = Tensor.eval_expr(
                     Tensor.eval_size(tensor.x1.y_shape), symbol_map_value
                 )
@@ -100,6 +104,9 @@ class ConvertChakra:
 
             comm_nodes = list()
             for comm in matched_comms:
+                parallel_dim = comm[3]
+                if symbol_map_value[parallel_dim] == 1:
+                    continue
                 comm_size = Tensor.eval_expr(
                     Tensor.eval_size(tensor.x2.y_shape), symbol_map_value
                 )
@@ -239,6 +246,7 @@ class ConvertChakra:
     @classmethod
     def apply(cls, tensor_graph, symbol_map_value, parallel_syms):
         cls._sanity_check(tensor_graph, symbol_map_value, parallel_syms)
+        assert hasattr(tensor_graph, "comm_groups")
         for sym in copy.copy(parallel_syms):
             if symbol_map_value[sym] == 1:
                 parallel_syms.remove(sym)
@@ -247,6 +255,11 @@ class ConvertChakra:
             nodes_this_tensor = cls._tensor_to_nodes(
                 tensor, symbol_map_value, parallel_syms
             )
+            for node in nodes_this_tensor.values():
+                if node.node_type == Node.NodeType.COLL_COMM_NODE:
+                    parallel_dim = node._comm_meta_data[3]
+                    assert parallel_dim in tensor_graph.comm_groups
+                    node.comm_group = tensor_graph.comm_groups[parallel_dim][0]
             tensor_map_nodes[tensor] = nodes_this_tensor
         cls._connect_tensors_node(tensor_map_nodes)
         graph = HybridGraph(tensor_graph.tensors, tensor_map_nodes, symbol_map_value)
@@ -303,6 +316,12 @@ class BundledConvertChakra:
                 nodes_this_tensor = cls._tensor_to_nodes(
                     tensor, symbol_map_value, spatial_parallel_syms
                 )
+                for node in nodes_this_tensor.values():
+                    if node.node_type == Node.NodeType.COLL_COMM_NODE:
+                        parallel_dim = node._comm_meta_data[3]
+                        assert parallel_dim in tensor_graph.comm_groups
+                        node.comm_group = tensor_graph.comm_groups[parallel_dim][0]
+
                 tensor_map_nodes[tensor] = nodes_this_tensor
             return tensor_map_nodes
 
@@ -315,33 +334,67 @@ class BundledConvertChakra:
             cls._clean_empty_comp(graph)
             return graph
 
-        @classmethod
-        def _clean_empty_comp(cls, graph):
-            # soft clean
-            for node in graph.get_nodes():
-                if node.node_type == Node.NodeType.COMP_NODE:
-                    if node.num_ops == 0:
-                        node.num_ops = 10
+        # @classmethod
+        # def _clean_empty_comp(cls, graph):
+        #     # soft clean
+        #     for node in graph.get_nodes():
+        #         if node.node_type == Node.NodeType.COMP_NODE:
+        #             if node.num_ops == 0:
+        #                 node.num_ops = 10
+        #                 node.tensor_size = 10
 
     @classmethod
-    def apply(cls, bundled_graph, symbol_map_value):
+    def _get_comm_group_id_map_num_comm_group(cls, readable_comm_groups, readable_rank_map_number_rank):
+        comm_group_id_map_number_comm_group = dict()
+        def _tuple_to_dict(tuple_):
+            ret = dict()
+            for key, value in tuple_:
+                ret[key] = value
+            return ret
+        for readable_comm_group in readable_comm_groups.values():
+            comm_group_id = readable_comm_group[0]
+            readable_comm_group = readable_comm_group[1:]
+            num_comm_group = list()
+            for asked_readable_rank in readable_comm_group:
+                asked_readable_rank_dict = _tuple_to_dict(asked_readable_rank)
+                matched_rank = None
+                for test_readable_rank in readable_rank_map_number_rank.keys():
+                    if _tuple_to_dict(test_readable_rank) == asked_readable_rank_dict:
+                        matched_rank = readable_rank_map_number_rank[test_readable_rank]
+                        break
+                assert not matched_rank is None
+                num_comm_group.append(matched_rank)
+            comm_group_id_map_number_comm_group[comm_group_id] = num_comm_group
+        return comm_group_id_map_number_comm_group
+    
+    @classmethod
+    def _readout_comm_group(cls, comm_group_file, comm_group):
+        f = open(comm_group_file, "w")
+        json.dump(comm_group, f)
+        f.close()
+
+    @classmethod
+    def apply(cls, bundled_graph, symbol_map_value, comm_group_file):
         for symbol in bundled_graph.symbol_map_value:
             assert bundled_graph.symbol_map_value[symbol] == symbol_map_value[symbol]
         for sym in copy.copy(bundled_graph.spatial_parallel_dims):
             if symbol_map_value[sym] == 1:
                 bundled_graph.spatial_parallel_dims.remove(sym)
         readable_rank_map_number_rank = dict()
-        for num_rank, readable_rank in enumerate(bundled_graph.graphs.keys()):
-            readable_rank_map_number_rank[readable_rank] = num_rank
-
+        for num_rank, asked_readable_rank in enumerate(bundled_graph.graphs.keys()):
+            readable_rank_map_number_rank[asked_readable_rank] = num_rank
+        assert hasattr(bundled_graph, "comm_groups")
+        comm_group = cls._get_comm_group_id_map_num_comm_group(bundled_graph.comm_groups, readable_rank_map_number_rank)
+        cls._readout_comm_group(comm_group_file, comm_group)
+        
         buckets = dict()
-        for readable_rank in bundled_graph.graphs.keys():
-            tensor_graph = bundled_graph.graphs[readable_rank]
+        for asked_readable_rank in bundled_graph.graphs.keys():
+            tensor_graph = bundled_graph.graphs[asked_readable_rank]
             tensor_map_nodes = cls._ConvertChakra.apply_before_cross_bucket_comms(
                 tensor_graph, symbol_map_value, bundled_graph.spatial_parallel_dims
             )
             tensor_id_map_tensor = tensor_graph.get_tensor_id_map_tensor()
-            buckets[readable_rank] = [tensor_map_nodes, tensor_id_map_tensor]
+            buckets[asked_readable_rank] = [tensor_map_nodes, tensor_id_map_tensor]
 
         tag_cnt = random.randint(0, int(1e6))
         for link in bundled_graph.remote_parent_shadow_pairs:
@@ -368,11 +421,11 @@ class BundledConvertChakra:
             )
             tag_cnt += 1
 
-        for readable_rank in bundled_graph.graphs.keys():
+        for asked_readable_rank in bundled_graph.graphs.keys():
             hybrid_graph = cls._ConvertChakra.apply_after_cross_bucket_comms(
-                buckets[readable_rank][0], symbol_map_value
+                buckets[asked_readable_rank][0], symbol_map_value
             )
-            buckets[readable_rank] = hybrid_graph
+            buckets[asked_readable_rank] = hybrid_graph
         return BundledHybridGraph(
             buckets,
             bundled_graph.remote_parent_shadow_pairs,

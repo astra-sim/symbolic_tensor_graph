@@ -433,85 +433,153 @@ def test7(symbol_map_value, output_filename):
     hook = 3
 
 
-if __name__ == "__main__":
-    import os
-
-    generated_root = ""
-    dp, mp, pp = sp.symbols("dp mp pp")
+def test_comm_group():
+    num_stacks = 2
+    dp, mp, pp, ssp = sp.symbols("dp mp pp sp")
     Din, Dout, Dmodel, Dff, Batch, Seq, Head = sp.symbols(
         "Din Dout Dmodel Dff Batch Seq Head"
     )
-    symbol_map_value = {
-        Din: 51200,
-        Dout: 25600,
-        Dmodel: 25600,
-        Dff: 25600 * 4,
-        Batch: 1024,
-        Seq: 1024,
-        Head: 1024,
-        dp: 1,
-        mp: 64,
-        pp: 1,
-    }
-    # pp has to be one as there is bug in astrasim of send/recv pairs between stages of pipeline.
-    test7(
-        symbol_map_value,
-        os.path.join(
-            generated_root,
-            "workload_fs/transformer_2stack_dp1_mp64/transformer_2stack_dp1_mp64.%d.et",
-        ),
+    symbol_map_value = {dp: 2, mp: 3, pp: 5, ssp: 1}
+
+    spatial_parallel_dims = [dp, mp, ssp]
+    temporal_parallel_dims = [pp]
+    mha = TensorGraph.load_tensor_graph(
+        "./sharding_spreadsheets/module/fully_sharded_divya/multi_head_attention.csv"
     )
-    symbol_map_value[dp] = 2
-    symbol_map_value[mp] = 32
-    test7(
-        symbol_map_value,
-        os.path.join(
-            generated_root,
-            "workload_fs/transformer_2stack_dp2_mp32/transformer_2stack_dp2_mp32.%d.et",
-        ),
+    ffn = TensorGraph.load_tensor_graph(
+        "./sharding_spreadsheets/module/fully_sharded_divya/feed_forward_network.csv"
     )
-    symbol_map_value[dp] = 4
-    symbol_map_value[mp] = 16
-    test7(
-        symbol_map_value,
-        os.path.join(
-            generated_root,
-            "workload_fs/transformer_2stack_dp4_mp16/transformer_2stack_dp4_mp16.%d.et",
-        ),
+    in_emb = TensorGraph.load_tensor_graph(
+        "./sharding_spreadsheets/module/fully_sharded_divya/embedding.csv"
     )
-    symbol_map_value[dp] = 8
-    symbol_map_value[mp] = 8
-    test7(
-        symbol_map_value,
-        os.path.join(
-            generated_root,
-            "workload_fs/transformer_2stack_dp8_mp8/transformer_2stack_dp8_mp8.%d.et",
-        ),
+    out_emb = TensorGraph.load_tensor_graph(
+        "./sharding_spreadsheets/module/fully_sharded_divya/embedding.csv"
     )
-    symbol_map_value[dp] = 16
-    symbol_map_value[mp] = 4
-    test7(
-        symbol_map_value,
-        os.path.join(
-            generated_root,
-            "workload_fs/transformer_2stack_dp16_mp4/transformer_2stack_dp16_mp4.%d.et",
-        ),
+    stack = transformer_stack_fn(mha, ffn)
+    transformer = transformer_fn(in_emb, out_emb, stack, num_stacks)
+    # transformer = transformer_fn(stack, num_stacks)
+    transformer_updated_grad = GradUpdater.apply(transformer)
+
+    def _create_tensor_map(_tensors, _temporal_parallel_dims, _symbol_map_value):
+        _tensor_map = dict()
+        assert len(_temporal_parallel_dims) == 1
+        parallel_dim = _temporal_parallel_dims[0]
+        range_ = _symbol_map_value[parallel_dim]
+        for tensor in _tensors:
+            for num_stack in range(num_stacks):
+                if f"stack_{num_stack}" in tensor.id:
+                    _tensor_map[tensor.id] = {parallel_dim: (num_stack+1) % range_}
+                    break
+            if "in_emb" in tensor.id:
+                _tensor_map[tensor.id] = {parallel_dim: 0}
+            elif "out_emb" in tensor.id:
+                _tensor_map[tensor.id] = {parallel_dim: (num_stacks+1) % range_}
+        return _tensor_map
+    hook = 0
+    tensor_map = _create_tensor_map(
+        transformer_updated_grad.tensors, temporal_parallel_dims, symbol_map_value
     )
-    symbol_map_value[dp] = 32
-    symbol_map_value[mp] = 2
-    test7(
+    bundled_graph = GraphDistributer.apply(
+        transformer_updated_grad,
         symbol_map_value,
-        os.path.join(
-            generated_root,
-            "workload_fs/transformer_2stack_dp32_mp2/transformer_2stack_dp32_mp2.%d.et",
-        ),
+        spatial_parallel_dims,
+        temporal_parallel_dims,
+        tensor_map,
     )
-    symbol_map_value[dp] = 64
-    symbol_map_value[mp] = 1
-    test7(
-        symbol_map_value,
-        os.path.join(
-            generated_root,
-            "workload_fs/transformer_2stack_dp64_mp1/transformer_2stack_dp64_mp1.%d.et",
-        ),
-    )
+    
+    comm_groups = GraphDistributer._create_comm_groups(spatial_parallel_dims, temporal_parallel_dims, symbol_map_value)
+    hook = 1
+    for graph_key in comm_groups.keys():
+        print(f"{graph_key}: {comm_groups[graph_key]}")
+        
+    GraphDistributer._distribute_comm_groups(bundled_graph.graphs, comm_groups, spatial_parallel_dims)
+    for graph_key in bundled_graph.graphs.keys():
+        print(f"{graph_key}")
+        comm_groups = bundled_graph.graphs[graph_key].comm_groups
+        for key in comm_groups:
+            print(f"\t{key}: {comm_groups[key]}")
+    hook = 2
+
+if __name__ == "__main__":
+    test_comm_group()
+    # import os
+
+    # generated_root = ""
+    # dp, mp, pp = sp.symbols("dp mp pp")
+    # Din, Dout, Dmodel, Dff, Batch, Seq, Head = sp.symbols(
+    #     "Din Dout Dmodel Dff Batch Seq Head"
+    # )
+    # symbol_map_value = {
+    #     Din: 51200,
+    #     Dout: 25600,
+    #     Dmodel: 25600,
+    #     Dff: 25600 * 4,
+    #     Batch: 1024,
+    #     Seq: 1024,
+    #     Head: 1024,
+    #     dp: 1,
+    #     mp: 64,
+    #     pp: 1,
+    # }
+    # # pp has to be one as there is bug in astrasim of send/recv pairs between stages of pipeline.
+    # test7(
+    #     symbol_map_value,
+    #     os.path.join(
+    #         generated_root,
+    #         "workload_fs/transformer_2stack_dp1_mp64/transformer_2stack_dp1_mp64.%d.et",
+    #     ),
+    # )
+    # symbol_map_value[dp] = 2
+    # symbol_map_value[mp] = 32
+    # test7(
+    #     symbol_map_value,
+    #     os.path.join(
+    #         generated_root,
+    #         "workload_fs/transformer_2stack_dp2_mp32/transformer_2stack_dp2_mp32.%d.et",
+    #     ),
+    # )
+    # symbol_map_value[dp] = 4
+    # symbol_map_value[mp] = 16
+    # test7(
+    #     symbol_map_value,
+    #     os.path.join(
+    #         generated_root,
+    #         "workload_fs/transformer_2stack_dp4_mp16/transformer_2stack_dp4_mp16.%d.et",
+    #     ),
+    # )
+    # symbol_map_value[dp] = 8
+    # symbol_map_value[mp] = 8
+    # test7(
+    #     symbol_map_value,
+    #     os.path.join(
+    #         generated_root,
+    #         "workload_fs/transformer_2stack_dp8_mp8/transformer_2stack_dp8_mp8.%d.et",
+    #     ),
+    # )
+    # symbol_map_value[dp] = 16
+    # symbol_map_value[mp] = 4
+    # test7(
+    #     symbol_map_value,
+    #     os.path.join(
+    #         generated_root,
+    #         "workload_fs/transformer_2stack_dp16_mp4/transformer_2stack_dp16_mp4.%d.et",
+    #     ),
+    # )
+    # symbol_map_value[dp] = 32
+    # symbol_map_value[mp] = 2
+    # test7(
+    #     symbol_map_value,
+    #     os.path.join(
+    #         generated_root,
+    #         "workload_fs/transformer_2stack_dp32_mp2/transformer_2stack_dp32_mp2.%d.et",
+    #     ),
+    # )
+    # symbol_map_value[dp] = 64
+    # symbol_map_value[mp] = 1
+    # test7(
+    #     symbol_map_value,
+    #     os.path.join(
+    #         generated_root,
+    #         "workload_fs/transformer_2stack_dp64_mp1/transformer_2stack_dp64_mp1.%d.et",
+    #     ),
+    # )

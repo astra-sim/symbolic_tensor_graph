@@ -130,6 +130,78 @@ class GraphDistributer:
         return shadow
 
     @classmethod
+    def _create_comm_groups(cls, spatial_parallel_dims, temporal_parallel_dims, symbol_map_value):
+        def _create_keys(parallel_dims, symbol_map_value, comm_groups_idx_dicts):
+            dim = parallel_dims[0]
+            ret = list()
+            assert len(parallel_dims) > 0
+            if len(parallel_dims) == 1:
+                for rank in range(symbol_map_value[dim]):
+                    idx = {dim: rank}
+                    ret.append(idx)
+                return ret
+            parallel_dims = parallel_dims[1:]
+            comm_groups_idx_dicts = _create_keys(parallel_dims, symbol_map_value, comm_groups_idx_dicts)
+            for rank in range(symbol_map_value[dim]):
+                for idx in comm_groups_idx_dicts:
+                    idx = copy.deepcopy(idx)
+                    idx[dim] = rank
+                    ret.append(idx)
+            return ret
+        def _dict_to_tuple(dict_):
+            ret = tuple()
+            for key in dict_:
+                value = dict_[key]
+                ret += ((key, value),)
+            return ret
+        comm_groups_idx_dicts = list()
+        for spatial_parallel_dim in spatial_parallel_dims:
+            parallel_dims = list()
+            parallel_dims.extend(temporal_parallel_dims)
+            parallel_dims.extend(spatial_parallel_dims)
+            parallel_dims.remove(spatial_parallel_dim)
+            comm_groups_idx_dicts.extend(_create_keys(parallel_dims, symbol_map_value, list()))
+        comm_groups = dict()
+        for i, comm_groups_idx_dict in enumerate(comm_groups_idx_dicts):
+            group_dim = None
+            for dim in spatial_parallel_dims:
+                if not dim in comm_groups_idx_dict.keys():
+                    group_dim = dim
+                    break
+            assert group_dim is not None
+            comm_groups_idx_tuple = _dict_to_tuple(comm_groups_idx_dict)
+            in_group_machines = list()
+            in_group_machines.append(i+1)
+            for rank in range(symbol_map_value[group_dim]):
+                machine_idx_dict = copy.deepcopy(comm_groups_idx_dict)
+                machine_idx_dict[group_dim] = rank
+                in_group_machines.append(_dict_to_tuple(machine_idx_dict))
+            comm_groups[comm_groups_idx_tuple] = in_group_machines
+        return comm_groups
+
+    @classmethod
+    def _distribute_comm_groups(cls, graphs, comm_groups, spatial_parallel_dims):
+        def _tuple_to_dict(tuple_):
+            ret = dict()
+            for key, value in tuple_:
+                ret[key] = value
+            return ret
+        for graph_key in graphs.keys():
+            graph_key_dict = _tuple_to_dict(graph_key)
+            graph_comm_groups = dict()
+            for dim in spatial_parallel_dims:
+                comm_group_key_dict = copy.deepcopy(graph_key_dict)
+                del comm_group_key_dict[dim]
+                matched_comm_groups = None
+                for comm_group_key_tuple in comm_groups.keys():
+                    if comm_group_key_dict == _tuple_to_dict(comm_group_key_tuple):
+                        matched_comm_groups = comm_groups[comm_group_key_tuple]
+                        break
+                assert matched_comm_groups is not None
+                graph_comm_groups[dim] = matched_comm_groups
+            graphs[graph_key].comm_groups = graph_comm_groups
+
+    @classmethod
     def apply(
         cls,
         tensor_graph,
@@ -169,4 +241,7 @@ class GraphDistributer:
             temporal_parallel_dims,
             symbol_map_value,
         )
+        comm_groups = cls._create_comm_groups(spatial_parallel_dims, temporal_parallel_dims, symbol_map_value)
+        cls._distribute_comm_groups(bundled_tensor_graph.graphs, comm_groups, spatial_parallel_dims)
+        bundled_tensor_graph.comm_groups = comm_groups
         return bundled_tensor_graph

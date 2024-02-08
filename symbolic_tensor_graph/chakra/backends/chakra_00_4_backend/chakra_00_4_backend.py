@@ -13,7 +13,7 @@ from ..backend import FrontendNode, NodeBackendBase
 
 class Chakra004Backend(NodeBackendBase):
     SCHEMA = "Chakra v0.0.4"
-    DEFAULT_NETWORK_DIM = 3
+    DEFAULT_NETWORK_DIM = 0
     
     @classmethod
     def get_global_metadata_node(cls):
@@ -78,7 +78,7 @@ class Chakra004Backend(NodeBackendBase):
         )
 
     @classmethod
-    def set_coll_comm_attrs(cls, comm_size, comm_type, backend_node):
+    def set_coll_comm_attrs(cls, comm_size, comm_type, comm_group, backend_node):
         def _get_backend_comm_type(_frontend_comm_type):
             if _frontend_comm_type == FrontendNode.CollectiveType.ALL_GATHER:
                 return CollectiveCommType.ALL_GATHER
@@ -97,10 +97,14 @@ class Chakra004Backend(NodeBackendBase):
         backend_node.attr.append(
             ChakraAttr(name="comm_type", int64_val=_get_backend_comm_type(comm_type))
         )
-        involved_dim = ChakraAttr(name="involved_dim")
-        for _ in range(cls.DEFAULT_NETWORK_DIM):
-            involved_dim.bool_list.values.append(True)
-        backend_node.attr.append(involved_dim)
+        backend_node.attr.append(
+            ChakraAttr(name="comm_group", int32_val=int(comm_group))
+        )
+        if cls.DEFAULT_NETWORK_DIM != 0:
+            involved_dim = ChakraAttr(name="involved_dim")
+            for _ in range(cls.DEFAULT_NETWORK_DIM):
+                involved_dim.bool_list.values.append(True)
+            backend_node.attr.append(involved_dim)
 
     @classmethod
     def set_comm_send_attrs(cls, comm_size, comm_tag, comm_dst, backend_node):

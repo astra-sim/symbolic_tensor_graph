@@ -61,7 +61,7 @@ class Chakra001Backend(NodeBackendBase):
         backend_node.tensor_size = int(tensor_size)
 
     @classmethod
-    def set_coll_comm_attrs(cls, comm_size, comm_type, backend_node):
+    def set_coll_comm_attrs(cls, comm_size, comm_type, comm_group, backend_node):
         def _get_backend_comm_type(_frontend_comm_type):
             if _frontend_comm_type == FrontendNode.CollectiveType.ALL_GATHER:
                 return CollectiveCommType.ALL_GATHER
@@ -76,6 +76,7 @@ class Chakra001Backend(NodeBackendBase):
 
         backend_node.comm_size = int(comm_size)
         backend_node.comm_type = _get_backend_comm_type(comm_type)
+        backend_node.communicator_id = int(comm_group)
         for _ in range(cls.DEFAULT_NETWORK_DIM):
             backend_node.involved_dim.append(True)
 

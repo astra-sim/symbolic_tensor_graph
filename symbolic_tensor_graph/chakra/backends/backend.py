@@ -17,9 +17,14 @@ class NodeBackendBase:
         cls.set_ctrl_deps(frontend_node.ctrl_deps, backend_node)
 
         if frontend_node.node_type == FrontendNode.NodeType.COLL_COMM_NODE:
-            cls.set_coll_comm_attrs(
-                frontend_node.comm_size, frontend_node.comm_type, backend_node
-            )
+            if hasattr(frontend_node, "comm_group"):
+                cls.set_coll_comm_attrs(
+                    frontend_node.comm_size, frontend_node.comm_type, node.comm_group, backend_node
+                )
+            else:
+                cls.set_coll_comm_attrs(
+                    frontend_node.comm_size, frontend_node.comm_type, backend_node
+                )
         elif frontend_node.node_type == FrontendNode.NodeType.COMM_RECV_NODE:
             cls.set_comm_recv_attrs(
                 frontend_node.comm_size,

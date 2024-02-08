@@ -32,33 +32,33 @@ class CommunicationMatcher:
                 to_comm = to_parallel_dims[parallel_symbol]
             else:
                 to_comm = (cls.EndType.REDUCED, None)
-            matched_comm_pair.append((from_comm, to_comm))
+            matched_comm_pair.append((from_comm, to_comm, parallel_symbol))
         comms = list()
-        for from_comm, to_comm in matched_comm_pair:
+        for from_comm, to_comm, parallel_symbol in matched_comm_pair:
             if from_comm[0] == cls.EndType.PARTITION:
                 if to_comm[0] == cls.EndType.PARTITION:
                     if not from_comm[1] == to_comm[1]:
                         # TODO: need some clever way to examine if there two dims contains each other and no a2a required
                         comms.append(
-                            (cls.CommType.ALL_TO_ALL, from_comm[1], to_comm[1])
+                            (cls.CommType.ALL_TO_ALL, from_comm[1], to_comm[1], parallel_symbol)
                         )
                     else:
                         # do nothing
                         pass
                 elif to_comm[0] == cls.EndType.REDUCED:
                     assert to_comm[1] is None  # shouldnt dim on reduced dim
-                    comms.append((cls.CommType.ALL_GATHER, from_comm[1], to_comm[1]))
+                    comms.append((cls.CommType.ALL_GATHER, from_comm[1], to_comm[1], parallel_symbol))
                 else:
                     assert False
             elif from_comm[0] == cls.EndType.REDUCED:
                 if to_comm[0] == cls.EndType.PARTITION:
                     comms.append(
-                        (cls.CommType.REDUCE_SCATTER, from_comm[1], to_comm[1])
+                        (cls.CommType.REDUCE_SCATTER, from_comm[1], to_comm[1], parallel_symbol)
                     )
                 elif to_comm[0] == cls.EndType.REDUCED:
                     if to_comm[1] is None:
                         comms.append(
-                            (cls.CommType.ALL_REDUCE, from_comm[1], to_comm[1])
+                            (cls.CommType.ALL_REDUCE, from_comm[1], to_comm[1], parallel_symbol)
                         )
                     else:
                         # do nothing
