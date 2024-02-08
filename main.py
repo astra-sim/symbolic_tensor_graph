@@ -11,14 +11,21 @@ from models.transformer import (
 )
 
 
+def str_to_bool(v):
+    # Convert "true" to True and "false" to False
+    return v.lower() in ("true", "t", "1", "yes", "y")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output_dir", type=str, help="dir where stores output traces", required=True)
     parser.add_argument("--output_name", type=str, help="name of output traces", required=True)
+    parser.add_argument("--comm_group_file", type=str, help="name of comm_group_file", required=True)
     parser.add_argument("--dp", type=int, help="data parallel degree", required=True)
     parser.add_argument("--mp", type=int, help="model parallel degree", required=True)
+    parser.add_argument("--sp", type=int, help="token parallel degree", required=False, default=1)
     parser.add_argument("--pp", type=int, default=1, help="pipeline parallel degree", required=False)
-    parser.add_argument("--weight_sharded", type=bool, help="whether weight sharded", required=True)
+    parser.add_argument("--weight_sharded", type=str_to_bool, help="whether weight sharded", required=True)
     parser.add_argument("--din", type=int, default=51200, required=False)
     parser.add_argument("--dout", type=int, default=25600, required=False)
     parser.add_argument("--dmodel", type=int, default=25600, required=False)
@@ -34,7 +41,7 @@ def main():
     if not "%d" in args.output_name:
         args.output_name = f"{args.output_name}.%d.eg"
     generated_filename = os.path.join(args.output_dir, args.output_name)
-    dp, mp, pp = sp.symbols("dp mp pp")
+    dp, mp, pp, spp = sp.symbols("dp mp pp sp")
     Din, Dout, Dmodel, Dff, Batch, Seq, Head = sp.symbols(
         "Din Dout Dmodel Dff Batch Seq Head"
     )
@@ -49,23 +56,24 @@ def main():
         dp: args.dp,
         mp: args.mp,
         pp: args.pp,
+        spp: args.sp
     }
     num_stacks = args.num_stacks
-    spatial_parallel_dims = [dp, mp]
+    spatial_parallel_dims = [dp, mp, spp]
     temporal_parallel_dims = [pp]
     
     module_template_dir = os.path.join(
             os.path.split(
                 os.path.abspath(__file__)
             )[0],
-            "./sharding_spreadsheets/module/divya"  
+            "./sharding_spreadsheets/module/fullset"  
     )
     if args.weight_sharded:
         module_template_dir = os.path.join(
                 os.path.split(
                     os.path.abspath(__file__)
                 )[0],
-                "./sharding_spreadsheets/module/fully_sharded_divya"
+                "./sharding_spreadsheets/module/fully_sharded_fullset"
         )
         
     # build the tensor graph
@@ -93,7 +101,7 @@ def main():
         range_ = _symbol_map_value[parallel_dim]
         for tensor in _tensors:
             for num_stack in range(num_stacks):
-                if f"stack_{num_stack}" in tensor.id:
+                if f"stack_{num_stack}_" in tensor.id:
                     _tensor_map[tensor.id] = {parallel_dim: (num_stack+1) % range_}
                     break
             if "in_emb" in tensor.id:
@@ -111,7 +119,7 @@ def main():
     )
     
     # readout to chakra
-    distributed_chakra_graph = BundledConvertChakra.apply(distributed_tensor_graph, symbol_map_value)
+    distributed_chakra_graph = BundledConvertChakra.apply(distributed_tensor_graph, symbol_map_value, os.path.join(args.output_dir, args.comm_group_file))
     if args.chakra_schema_version == "v0.0.1":
         from symbolic_tensor_graph.chakra.backends.chakra_00_1_backend import Chakra001Backend as ReadoutBackend
     elif args.chakra_schema_version == "v0.0.4":
