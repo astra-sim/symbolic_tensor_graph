@@ -332,6 +332,4 @@ dependencies:
   - zipp=3.17.0=pyhd8ed1ab_0
   - zlib=1.2.13=hd590300_5
   - zstd=1.5.5=hc292b87_0
-  - pip:
-      - chakra==0.0.4
-      - python-graphviz==0.20.1
+  - python-graphviz
