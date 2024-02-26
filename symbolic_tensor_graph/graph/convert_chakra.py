@@ -374,15 +374,16 @@ class BundledConvertChakra:
         f.close()
 
     @classmethod
-    def apply(cls, bundled_graph, symbol_map_value, comm_group_file):
+    def apply(cls, bundled_graph, symbol_map_value, comm_group_file, readable_rank_map_number_rank=None):
         for symbol in bundled_graph.symbol_map_value:
             assert bundled_graph.symbol_map_value[symbol] == symbol_map_value[symbol]
         for sym in copy.copy(bundled_graph.spatial_parallel_dims):
             if symbol_map_value[sym] == 1:
                 bundled_graph.spatial_parallel_dims.remove(sym)
-        readable_rank_map_number_rank = dict()
-        for num_rank, asked_readable_rank in enumerate(bundled_graph.graphs.keys()):
-            readable_rank_map_number_rank[asked_readable_rank] = num_rank
+        if readable_rank_map_number_rank is None:
+            readable_rank_map_number_rank = dict()
+            for num_rank, asked_readable_rank in enumerate(bundled_graph.graphs.keys()):
+                readable_rank_map_number_rank[asked_readable_rank] = num_rank
         assert hasattr(bundled_graph, "comm_groups")
         comm_group = cls._get_comm_group_id_map_num_comm_group(bundled_graph.comm_groups, readable_rank_map_number_rank)
         cls._readout_comm_group(comm_group_file, comm_group)
