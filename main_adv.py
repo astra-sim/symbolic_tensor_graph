@@ -9,7 +9,7 @@ from models.transformer import (
     transformer_stack as transformer_stack_fn, 
     transformer as transformer_fn
 )
-import json
+import pickle
 
 
 def str_to_bool(v):
@@ -37,7 +37,8 @@ def main():
     parser.add_argument("--num_stacks", type=int, default=32, required=False)
     parser.add_argument("--chakra_schema_version", type=str, default="v0.0.4", required=False)
     parser.add_argument("--layer_each_stage", type=int, default=1, required=False)
-    parser.add_argument("--rank_map", type=str, default=None, required=False)
+    parser.add_argument("--store_rank", type=str, default=None, required=False)
+    parser.add_argument("--load_rank_map", type=str, default=None, required=False)
     
     args = parser.parse_args()
 
@@ -111,8 +112,6 @@ def main():
                 _tensor_map[tensor.id] = {parallel_dim: 0}
             elif "out_emb" in tensor.id:
                 _tensor_map[tensor.id] = {parallel_dim: ((num_stacks+1)//layer_each_stage) % range_}
-            else:
-                assert False
         return _tensor_map
     pipeline_tensor_map = _create_pipeline_tensor_map(transformer_updated_grad.tensors, temporal_parallel_dims, symbol_map_value, args.layer_each_stage)
     distributed_tensor_graph = GraphDistributer.apply(
@@ -122,11 +121,16 @@ def main():
         temporal_parallel_dims,
         pipeline_tensor_map
     )
-    
+            
+    if args.store_rank is not None:
+        readable_ranks = list(distributed_tensor_graph.graphs.keys())
+        f = open(args.store_rank, "wb")
+        pickle.dump(readable_ranks, f)
+        f.close()
     readable_rank_map_number_rank = None
-    if args.rank_map is not None:
-        f = open(readable_rank_map_number_rank, 'r')
-        readable_rank_map_number_rank = json.load(f)
+    if args.load_rank_map is not None:
+        f = open(args.load_rank_map, 'rb')
+        readable_rank_map_number_rank = pickle.load(f)
         f.close()
     # readout to chakra
     distributed_chakra_graph = BundledConvertChakra.apply(distributed_tensor_graph, symbol_map_value, os.path.join(args.output_dir, args.comm_group_file), readable_rank_map_number_rank=readable_rank_map_number_rank)
