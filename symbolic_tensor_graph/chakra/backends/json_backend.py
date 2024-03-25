@@ -18,7 +18,7 @@ class JsonBackend(NodeBackendBase):
         return {}
 
     @classmethod
-    def set_node_common_attrs(cls, id_, name, node_type, backend_node):
+    def set_node_common_attrs(cls, id_, name, node_type, backend_node, inputs, outputs):
         def _get_backend_node_type(_frontend_node_type):
             frontend_node_type_map_string = {
                 FrontendNode.NodeType.COLL_COMM_NODE: "coll_comm_node",
@@ -34,6 +34,10 @@ class JsonBackend(NodeBackendBase):
         backend_node["id"] = id_
         backend_node["name"] = name
         backend_node["node_type"] = _get_backend_node_type(node_type)
+        if inputs is not None:
+            backend_node["inputs"] = inputs
+        if outputs is not None:
+            backend_node["outputs"] = outputs
 
     @classmethod
     def set_data_deps(cls, data_deps, backend_node):

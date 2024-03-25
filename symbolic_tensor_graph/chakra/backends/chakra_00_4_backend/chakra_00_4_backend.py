@@ -4,7 +4,8 @@ from .et_def.et_def_pb2 import (
     AttributeProto as ChakraAttr,
     NodeType,
     CollectiveCommType,
-    GlobalMetadata
+    GlobalMetadata, 
+    IOInfo
 )
 from .protolib import *
 
@@ -35,7 +36,7 @@ class Chakra004Backend(NodeBackendBase):
         return Node()
 
     @classmethod
-    def set_node_common_attrs(cls, id, name, node_type, backend_node):
+    def set_node_common_attrs(cls, id, name, node_type, backend_node, inputs, outputs):
         def _get_backend_node_type(_frontend_node_type):
             if _frontend_node_type == FrontendNode.NodeType.COLL_COMM_NODE:
                 return NodeType.COMM_COLL_NODE
@@ -51,10 +52,19 @@ class Chakra004Backend(NodeBackendBase):
                 return NodeType.MEM_STORE_NODE
             else:
                 assert False
+        def _frontend_IO_to_backend(_frontend_IO):
+            backend_msg = IOInfo()
+            backend_msg.values = str(_frontend_IO["size"])
+            backend_msg.shapes = _frontend_IO["name"]
+            return backend_msg
 
         backend_node.id = id
         backend_node.name = name
         backend_node.type = _get_backend_node_type(node_type)
+        for frontend_input in inputs:
+            backend_node.inputs.append(_frontend_IO_to_backend(frontend_input))
+        for frontend_output in outputs:
+            backend_node.outputs.append(_frontend_IO_to_backend(frontend_output))
 
     @classmethod
     def set_data_deps(cls, data_deps, backend_node):

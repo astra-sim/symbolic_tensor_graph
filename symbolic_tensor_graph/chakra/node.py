@@ -70,7 +70,7 @@ class Node:
 
     @property
     def parent(self):
-        parent = list()
-        parent.extend(self.ctrl_deps)
-        parent.extend(self.data_deps)
-        return parent
+        parent_ = list()
+        parent_.extend(self.ctrl_deps)
+        parent_.extend(self.data_deps)
+        return parent_

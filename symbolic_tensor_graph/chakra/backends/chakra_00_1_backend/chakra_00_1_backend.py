@@ -61,7 +61,10 @@ class Chakra001Backend(NodeBackendBase):
         backend_node.tensor_size = int(tensor_size)
 
     @classmethod
-    def set_coll_comm_attrs(cls, comm_size, comm_type, comm_group, backend_node):
+    def set_coll_comm_attrs(cls, comm_size, comm_type, comm_group, backend_node, inputs, outputs):
+        # IO should be none as v0.0.1 do not support those
+        assert inputs is None
+        assert outputs is None
         def _get_backend_comm_type(_frontend_comm_type):
             if _frontend_comm_type == FrontendNode.CollectiveType.ALL_GATHER:
                 return CollectiveCommType.ALL_GATHER
