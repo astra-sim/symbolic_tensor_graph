@@ -39,6 +39,7 @@ def main():
     parser.add_argument("--layer_each_stage", type=int, default=1, required=False)
     parser.add_argument("--store_rank", type=str, default=None, required=False)
     parser.add_argument("--load_rank_map", type=str, default=None, required=False)
+    parser.add_argument("--generate_io_info", type=str_to_bool, help="whether include io infos")
     
     args = parser.parse_args()
 
@@ -98,20 +99,25 @@ def main():
     transformer_updated_grad = GradUpdater.apply(transformer)
     
     # distribute tensor graph to machines
-    def _create_pipeline_tensor_map(_tensors, _temporal_parallel_dims, _symbol_map_value, layer_each_stage=1):
+    def _create_pipeline_tensor_map(_tensors, _temporal_parallel_dims, _symbol_map_value, layer_each_stage=-1):
+        # TODO: bug, num_stage=16, num_stacks=96, and pipeline 14, 15 is empty.
         _tensor_map = dict()
         assert len(_temporal_parallel_dims) == 1
         parallel_dim = _temporal_parallel_dims[0]
-        range_ = _symbol_map_value[parallel_dim]
+        num_stages = _symbol_map_value[parallel_dim]
+        if layer_each_stage <= 0:
+            # hotfix
+            # layer_each_stage = (num_stacks+2+num_stages-1) // num_stages
+            layer_each_stage = (num_stacks+2) // num_stages
         for tensor in _tensors:
             for num_stack in range(num_stacks):
                 if f"stack_{num_stack}_" in tensor.id:
-                    _tensor_map[tensor.id] = {parallel_dim: ((num_stack+1)//layer_each_stage) % range_}
+                    _tensor_map[tensor.id] = {parallel_dim: ((num_stack+1)//layer_each_stage) % num_stages}
                     break
             if "in_emb" in tensor.id:
                 _tensor_map[tensor.id] = {parallel_dim: 0}
             elif "out_emb" in tensor.id:
-                _tensor_map[tensor.id] = {parallel_dim: ((num_stacks+1)//layer_each_stage) % range_}
+                _tensor_map[tensor.id] = {parallel_dim: ((num_stacks+1)//layer_each_stage) % num_stages}
         return _tensor_map
     pipeline_tensor_map = _create_pipeline_tensor_map(transformer_updated_grad.tensors, temporal_parallel_dims, symbol_map_value, args.layer_each_stage)
     distributed_tensor_graph = GraphDistributer.apply(
@@ -133,6 +139,8 @@ def main():
         readable_rank_map_number_rank = pickle.load(f)
         f.close()
     # readout to chakra
+    if args.generate_io_info:
+        BundledConvertChakra._ConvertChakra.with_comm_info = True
     distributed_chakra_graph = BundledConvertChakra.apply(distributed_tensor_graph, symbol_map_value, os.path.join(args.output_dir, args.comm_group_file), readable_rank_map_number_rank=readable_rank_map_number_rank)
     if args.chakra_schema_version == "v0.0.1":
         from symbolic_tensor_graph.chakra.backends.chakra_00_1_backend import Chakra001Backend as ReadoutBackend

@@ -35,8 +35,8 @@ class JsonBackend(NodeBackendBase):
         backend_node["name"] = name
         backend_node["node_type"] = _get_backend_node_type(node_type)
         if inputs is not None:
+            assert outputs is not None
             backend_node["inputs"] = inputs
-        if outputs is not None:
             backend_node["outputs"] = outputs
 
     @classmethod

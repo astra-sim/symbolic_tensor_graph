@@ -4,8 +4,7 @@ from .et_def.et_def_pb2 import (
     AttributeProto as ChakraAttr,
     NodeType,
     CollectiveCommType,
-    GlobalMetadata, 
-    IOInfo
+    GlobalMetadata
 )
 from .protolib import *
 
@@ -52,20 +51,26 @@ class Chakra004Backend(NodeBackendBase):
                 return NodeType.MEM_STORE_NODE
             else:
                 assert False
-        def _frontend_IO_to_backend(_frontend_IO):
-            backend_msg = IOInfo()
-            backend_msg.values = str(_frontend_IO["size"])
-            backend_msg.shapes = _frontend_IO["name"]
-            return backend_msg
+        def _frontend_IOs_to_backend(_frontend_IOs, chakra_attr):
+            for frontend_IO in _frontend_IOs:
+                name = frontend_IO["name"]
+                value = str(frontend_IO["size"])
+                chakra_attr.string_list.values.append(name)
+                chakra_attr.string_list.values.append(value)
+            return chakra_attr
 
         backend_node.id = id
         backend_node.name = name
         backend_node.type = _get_backend_node_type(node_type)
-        for frontend_input in inputs:
-            backend_node.inputs.append(_frontend_IO_to_backend(frontend_input))
-        for frontend_output in outputs:
-            backend_node.outputs.append(_frontend_IO_to_backend(frontend_output))
-
+        if inputs is not None:
+            assert outputs is not None
+            input_attr = ChakraAttr(name="inputs")
+            _frontend_IOs_to_backend(inputs, input_attr)
+            backend_node.attr.append(input_attr)
+            output_attr = ChakraAttr(name="outputs")
+            _frontend_IOs_to_backend(outputs, output_attr)
+            backend_node.attr.append(output_attr)
+            
     @classmethod
     def set_data_deps(cls, data_deps, backend_node):
         for dep in data_deps:
