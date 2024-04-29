@@ -20,7 +20,7 @@ def run_astrasim(workload_path):
     file_dir = os.path.split(os.path.abspath(__file__))[0]
     astrasim_bin = os.path.join(astrasim_root, "build/astra_analytical/build/bin/AstraSim_Analytical_Congestion_Unaware")
     system = os.path.join(file_dir, "system.json")
-    network = os.path.join(file_dir, "network.yml")
+    network = os.path.join(file_dir, "network_1024.yml")
     memory = os.path.join(file_dir, "memory.json")
     os.makedirs(os.path.join(file_dir, "outputs"), exist_ok=True)
     log = os.path.join(file_dir, "outputs", os.path.split(workload_path)[1]+".log")
@@ -33,8 +33,10 @@ def run_astrasim(workload_path):
     
 if __name__ == '__main__':
     design_space = list_workloads("./generated")
-    with multiprocessing.Pool(int(multiprocessing.cpu_count()*0.8)) as pool:
+    # with multiprocessing.Pool(int(multiprocessing.cpu_count()*0.1)) as pool:
+    with multiprocessing.Pool(5) as pool:
         failed_cmds=pool.map(run_astrasim, design_space)
+        # failed_cmds = map(run_astrasim, design_space)
         print("\n\nrunfails:")
         for cmd in failed_cmds:
             if not cmd == "":

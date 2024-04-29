@@ -17,6 +17,45 @@ def str_to_bool(v):
     return v.lower() in ("true", "t", "1", "yes", "y")
 
 
+def build_transformer_tensor_graph(num_stacks, weight_sharded, create_new=False):
+    CACHE_DIR = os.path.join(os.path.split(os.path.abspath(__file__))[0], "sharding_spreadsheets/.cache")
+    signature = f"{num_stacks}_{weight_sharded}"
+    if signature+".csv" in os.listdir(CACHE_DIR) and (not create_new):
+        return TensorGraph.load_tensor_graph(os.path.join(CACHE_DIR, signature+".csv"))
+    
+    module_template_dir = os.path.join(
+            os.path.split(
+                os.path.abspath(__file__)
+            )[0],
+            "./sharding_spreadsheets/module/fullset"  
+    )
+    if weight_sharded:
+        module_template_dir = os.path.join(
+                os.path.split(
+                    os.path.abspath(__file__)
+                )[0],
+                "./sharding_spreadsheets/module/fully_sharded_fullset"
+        )
+        
+    # build the tensor graph
+    mha = TensorGraph.load_tensor_graph(
+        os.path.join(module_template_dir, "multi_head_attention.csv")
+    )
+    ffn = TensorGraph.load_tensor_graph(
+        os.path.join(module_template_dir, "feed_forward_network.csv")
+    )
+    in_emb = TensorGraph.load_tensor_graph(
+        os.path.join(module_template_dir, "embedding.csv")
+    )
+    out_emb = TensorGraph.load_tensor_graph(
+        os.path.join(module_template_dir, "embedding.csv")
+    )
+    stack = transformer_stack_fn(mha, ffn)
+    transformer = transformer_fn(in_emb, out_emb, stack, num_stacks)
+    transformer.save_tensor_graph(os.path.join(CACHE_DIR, signature+".csv"))
+    return transformer
+    
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output_dir", type=str, help="dir where stores output traces", required=True)
@@ -67,35 +106,7 @@ def main():
     spatial_parallel_dims = [dp, mp, spp]
     temporal_parallel_dims = [pp]
     
-    module_template_dir = os.path.join(
-            os.path.split(
-                os.path.abspath(__file__)
-            )[0],
-            "./sharding_spreadsheets/module/fullset"  
-    )
-    if args.weight_sharded:
-        module_template_dir = os.path.join(
-                os.path.split(
-                    os.path.abspath(__file__)
-                )[0],
-                "./sharding_spreadsheets/module/fully_sharded_fullset"
-        )
-        
-    # build the tensor graph
-    mha = TensorGraph.load_tensor_graph(
-        os.path.join(module_template_dir, "multi_head_attention.csv")
-    )
-    ffn = TensorGraph.load_tensor_graph(
-        os.path.join(module_template_dir, "feed_forward_network.csv")
-    )
-    in_emb = TensorGraph.load_tensor_graph(
-        os.path.join(module_template_dir, "embedding.csv")
-    )
-    out_emb = TensorGraph.load_tensor_graph(
-        os.path.join(module_template_dir, "embedding.csv")
-    )
-    stack = transformer_stack_fn(mha, ffn)
-    transformer = transformer_fn(in_emb, out_emb, stack, num_stacks)
+    transformer = build_transformer_tensor_graph(num_stacks, args.weight_sharded)
     transformer_updated_grad = GradUpdater.apply(transformer)
     
     # distribute tensor graph to machines

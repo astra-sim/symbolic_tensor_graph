@@ -8,9 +8,9 @@ def run_command(command, cwd=None):
     return True
 
 def get_design_space():
-    num_npus = 64
-    dp = {1, 2, 4, 8, 16, 32, 64}
-    mp = {1, 2, 4, 8, 16, 32, 64}
+    num_npus = 1024
+    dp = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024}
+    mp = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024}
     pp = {1, 2, 4, 8, 16, 32}
     sharded = {True, False}
     
@@ -34,7 +34,7 @@ def generate_instance(design_point):
         )
     dp, mp, ssp, pp, sharded = design_point
     cmd = (
-        f"python main.py "
+        f"python main_adv.py "
         f"--output_dir {root} "
         f"--output_name {dp}_{mp}_{ssp}_{pp}_{1 if sharded else 0}.%d.et "
         f"--comm_group {dp}_{mp}_{ssp}_{pp}_{1 if sharded else 0}.json "
@@ -44,7 +44,16 @@ def generate_instance(design_point):
         f"--sp {ssp} "
         f"--pp {pp} "
         f"--weight_sharded {sharded} "
-        f"--chakra_schema_version v0.0.4"
+        f"--chakra_schema_version v0.0.4 "
+        f"--din 12288 "
+        f"--dout 12288 "
+        f"--dff 49152 "
+        f"--dmodel 12288 "
+        f"--batch 8192 "
+        f"--seq 2048 "
+        f"--head 96 "
+        f"--num_stacks 96 "
+        f"--generate_io_info 1 "
     )
     cwd = os.path.join(
             os.path.split(
@@ -55,6 +64,7 @@ def generate_instance(design_point):
 
 if __name__ == '__main__':
     design_space = get_design_space()
-    with multiprocessing.Pool(int(multiprocessing.cpu_count()*0.8)) as pool:
+    # with multiprocessing.Pool(int(multiprocessing.cpu_count()*0.8)) as pool:
+    with multiprocessing.Pool(int(multiprocessing.cpu_count()*0.3)) as pool:
         pool.map(generate_instance, design_space)
     
