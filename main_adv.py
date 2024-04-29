@@ -39,6 +39,7 @@ def main():
     parser.add_argument("--layer_each_stage", type=int, default=1, required=False)
     parser.add_argument("--store_rank", type=str, default=None, required=False)
     parser.add_argument("--load_rank_map", type=str, default=None, required=False)
+    parser.add_argument("--generate_io_info", type=str_to_bool, help="whether include io infos(false knob, for now it will always be generated)", default=True, required=False)
     
     args = parser.parse_args()
 
