@@ -38,8 +38,9 @@ class ConvertChakra:
                 )
             tensor_size = y_tensor_size + x1_tensor_size + x2_tensor_size
             comp_node.tensor_size = tensor_size
+            comp_node.y_tensor_size = y_tensor_size
             nodes_this_tensor[HybridGraph.NodeType.COMP] = comp_node
-
+    
     @classmethod
     def _insert_comm_x1(
         cls, tensor, symbol_map_value, parallel_syms, nodes_this_tensor
@@ -78,6 +79,10 @@ class ConvertChakra:
                     assert False
                 if len(comm_nodes) > 0:
                     x1_comm_node.data_deps.append(comm_nodes[-1].id)
+                output_size = Tensor.eval_expr(
+                    Tensor.eval_size(tensor.x1_shape), symbol_map_value
+                )
+                x1_comm_node.y_tensor_size = output_size
                 comm_nodes.append(x1_comm_node)
             if HybridGraph.NodeType.COMP in nodes_this_tensor and len(comm_nodes) > 0:
                 nodes_this_tensor[HybridGraph.NodeType.COMP].data_deps.append(
@@ -127,6 +132,10 @@ class ConvertChakra:
                     assert False
                 if len(comm_nodes) > 0:
                     x2_comm_node.data_deps.append(comm_nodes[-1].id)
+                output_size = Tensor.eval_expr(
+                    Tensor.eval_size(tensor.x2_shape), symbol_map_value
+                )
+                x2_comm_node.y_tensor_size = output_size
                 comm_nodes.append(x2_comm_node)
             if HybridGraph.NodeType.COMP in nodes_this_tensor and len(comm_nodes) > 0:
                 nodes_this_tensor[HybridGraph.NodeType.COMP].data_deps.append(
@@ -289,6 +298,7 @@ class BundledConvertChakra:
             )
             node.comm_tag = tag
             node.comm_dst = dst_rank
+            node.y_tensor_size = 0
             nodes_this_tensor[f"{HybridGraph.NodeType.Y_SEND}{tag}"] = node
 
         @classmethod
@@ -304,6 +314,7 @@ class BundledConvertChakra:
             )
             node.comm_tag = tag
             node.comm_src = src_rank
+            node.y_tensor_size = node.comm_size
             nodes_this_tensor[HybridGraph.NodeType.Y_RECV] = node
 
         @classmethod

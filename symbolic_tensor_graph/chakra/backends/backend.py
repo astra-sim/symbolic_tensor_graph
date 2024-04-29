@@ -11,7 +11,7 @@ class NodeBackendBase:
         frontend_node.sanity_check()
         backend_node = cls.alloc_backend_node()
         cls.set_node_common_attrs(
-            frontend_node.id, frontend_node.name, frontend_node.node_type, backend_node
+            frontend_node.id, frontend_node.name, frontend_node.node_type, frontend_node.y_tensor_size, backend_node
         )
         cls.set_data_deps(frontend_node.data_deps, backend_node)
         cls.set_ctrl_deps(frontend_node.ctrl_deps, backend_node)
@@ -67,7 +67,7 @@ class NodeBackendBase:
         raise NotImplementedError()
 
     @classmethod
-    def set_node_common_attrs(cls, id, name, node_type, backend_node):
+    def set_node_common_attrs(cls, id, name, node_type, y_tensor_size, backend_node):
         raise NotImplementedError()
 
     @classmethod
