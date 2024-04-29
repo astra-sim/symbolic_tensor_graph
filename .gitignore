@@ -11,3 +11,6 @@
 .gitignore
 **/*.log
 **/offload/*.csv
+experiment
+generated
+sharding_spreadsheets/.cache/
