@@ -1,0 +1,11 @@
+how to use it:
+0. make sure installed chakra with v0.0.4 schema
+1. go to experiments/fullset, change configs in generate_workloads.py(or use default), run it.
+    Then you will generate lots of chakra ets in fullset/generated
+2. go to experiments/remove_comp, change configs in remove_comp_nodes, basically choose keep comp/coll_comm nodes, run it.
+    The generated ets in step 1 is softlinked in raw dir.
+    The script will transform ets in "raw" to ets with only single type of node and store them in "comp" or "coll_comm"
+   
+All scripts will run batch jobs, so if you are sharing same machine with other people, change the num_thread in Multiprocessing.Pool to proper value. 
+Also, watch out for memory usage.
+
