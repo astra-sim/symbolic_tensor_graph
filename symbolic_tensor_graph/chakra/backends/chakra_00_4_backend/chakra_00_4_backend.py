@@ -56,7 +56,7 @@ class Chakra004Backend(NodeBackendBase):
         backend_node.name = name
         backend_node.type = _get_backend_node_type(node_type)
         backend_node.attr.append(
-            ChakraAttr(name="y_tensor_size", uint64_val=int(y_tensor_size))
+            ChakraAttr(name="y_tensor_size", int64_val=int(y_tensor_size))
         )
 
     @classmethod
@@ -74,7 +74,7 @@ class Chakra004Backend(NodeBackendBase):
     @classmethod
     def set_comp_attrs(cls, num_ops, tensor_size, backend_node):
         backend_node.attr.append(
-            ChakraAttr(name="num_ops", uint64_val=int(num_ops))
+            ChakraAttr(name="num_ops", int64_val=int(num_ops))
         )
         backend_node.attr.append(
             ChakraAttr(name="tensor_size", uint64_val=int(tensor_size))
@@ -95,7 +95,7 @@ class Chakra004Backend(NodeBackendBase):
                 assert False
         
         backend_node.attr.append(
-            ChakraAttr(name="comm_size", uint64_val=int(comm_size))
+            ChakraAttr(name="comm_size", int64_val=int(comm_size))
         )
         backend_node.attr.append(
             ChakraAttr(name="comm_type", int64_val=_get_backend_comm_type(comm_type))
@@ -112,25 +112,25 @@ class Chakra004Backend(NodeBackendBase):
     @classmethod
     def set_comm_send_attrs(cls, comm_size, comm_tag, comm_dst, backend_node):
         backend_node.attr.append(
-            ChakraAttr(name="comm_size", uint64_val=int(comm_size))
+            ChakraAttr(name="comm_size", int64_val=int(comm_size))
         )
         backend_node.attr.append(
-            ChakraAttr(name="comm_tag", uint32_val=int(comm_tag))
+            ChakraAttr(name="comm_tag", int32_val=int(comm_tag))
         )
         backend_node.attr.append(
-            ChakraAttr(name="comm_dst", uint32_val=int(comm_dst))
+            ChakraAttr(name="comm_dst", int32_val=int(comm_dst))
         )
 
     @classmethod
     def set_comm_recv_attrs(cls, comm_size, comm_tag, comm_src, backend_node):
         backend_node.attr.append(
-            ChakraAttr(name="comm_size", uint64_val=int(comm_size))
+            ChakraAttr(name="comm_size", int64_val=int(comm_size))
         )
         backend_node.attr.append(
-            ChakraAttr(name="comm_tag", uint32_val=int(comm_tag))
+            ChakraAttr(name="comm_tag", int32_val=int(comm_tag))
         )
         backend_node.attr.append(
-            ChakraAttr(name="comm_src", uint32_val=int(comm_src))
+            ChakraAttr(name="comm_src", int32_val=int(comm_src))
         )
 
     @classmethod
