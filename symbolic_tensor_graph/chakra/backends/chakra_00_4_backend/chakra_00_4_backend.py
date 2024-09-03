@@ -103,6 +103,9 @@ class Chakra004Backend(NodeBackendBase):
         backend_node.attr.append(
             ChakraAttr(name="comm_group", int32_val=int(comm_group))
         )
+        backend_node.attr.append(
+            ChakraAttr(name="is_cpu_op", int32_val=int(0))
+        )
         if cls.DEFAULT_NETWORK_DIM != 0:
             involved_dim = ChakraAttr(name="involved_dim")
             for _ in range(cls.DEFAULT_NETWORK_DIM):
@@ -120,6 +123,9 @@ class Chakra004Backend(NodeBackendBase):
         backend_node.attr.append(
             ChakraAttr(name="comm_dst", int32_val=int(comm_dst))
         )
+        backend_node.attr.append(
+            ChakraAttr(name="is_cpu_op", int32_val=int(0))
+        )
 
     @classmethod
     def set_comm_recv_attrs(cls, comm_size, comm_tag, comm_src, backend_node):
@@ -131,6 +137,9 @@ class Chakra004Backend(NodeBackendBase):
         )
         backend_node.attr.append(
             ChakraAttr(name="comm_src", int32_val=int(comm_src))
+        )
+        backend_node.attr.append(
+            ChakraAttr(name="is_cpu_op", int32_val=int(0))
         )
 
     @classmethod
