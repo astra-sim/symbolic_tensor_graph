@@ -3,12 +3,12 @@
 
 # Symbolic Tensor Graph (STG) Generator
 
-**Author:** Changhai Man  
+**Author:** Changhai Man @ [SynergyLab](https://synergy.ece.gatech.edu/)    
 **Contact:** cman8@gatech.edu
 
 ## Overview
 
-The Symbolic Tensor Graph is a generator for Chakra Execution Trace (ET) files. This tool is designed to generate synthetic workload traces for use in parallel strategy exploration without needing to gather data from a real system or implement actual workload codes. It supports various parallelization strategies like Data Parallelism (DP), Model Parallelism (MP), and Pipeline Parallelism (PP).
+The Symbolic Tensor Graph is a generator for Chakra Execution Trace (ET) files. This tool is designed to generate synthetic workload traces for use in parallel strategy exploration without gathering data from a real system or implementing actual workload codes. It supports various parallelization strategies like Data Parallelism (DP), Model Parallelism (MP), and Pipeline Parallelism (PP).
 
 ### Key Features
 - Generate synthetic transformer workloads in Chakra ET format.
