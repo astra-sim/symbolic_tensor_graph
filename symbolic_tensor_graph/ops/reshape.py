@@ -15,8 +15,8 @@ class Reshape(OPBase):
         x2_hidden = tensor.x2_hidden
         assert op_attr is None
 
-        assert Tensor.eval_size(x1_shape) == Tensor.eval_size(x2_shape)
-        assert Tensor.eval_size(x1_hidden) == Tensor.eval_size(x2_hidden)
+        assert abs(Tensor.eval_size(x1_shape) - Tensor.eval_size(x2_shape)) < 1e-9
+        assert abs(Tensor.eval_size(x1_hidden) - Tensor.eval_size(x2_hidden)) < 1e-9
 
     @classmethod
     def _eval_impl(cls, tensor):

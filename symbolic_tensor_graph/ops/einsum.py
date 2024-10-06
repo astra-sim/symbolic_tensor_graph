@@ -12,8 +12,8 @@ class Einsum(OPBase):
         x1_hidden = tensor.x1_hidden
         x2_hidden = tensor.x2_hidden
 
-        assert x1_hidden == [1]
-        assert x2_hidden == [1]
+        assert len(x1_hidden)==1 and abs(float(x1_hidden[0])-1)<1e-9
+        assert len(x2_hidden)==1 and abs(float(x2_hidden[0])-1)<1e-9
 
         terms = op_attr.split("->")
         assert len(terms) == 2

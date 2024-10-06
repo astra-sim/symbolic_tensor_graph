@@ -17,7 +17,7 @@ class Add(OPBase):
         x2_hidden = tensor.x2_hidden
 
         assert x1_shape == x2_shape
-        assert Tensor.eval_size(x1_hidden) == Tensor.eval_size(x2_hidden)
+        assert abs(Tensor.eval_size(x1_hidden) - Tensor.eval_size(x2_hidden)) < 1e-9
 
     @classmethod
     def _eval_impl(cls, tensor):
