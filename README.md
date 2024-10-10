@@ -27,7 +27,7 @@ git clone git@github.com:changhai0109/symbolic_tensor_network.git
 cd symbolic_tensor_network
 
 # Install dependencies via conda
-conda env create -n <env_name>
+conda create -n <env_name>
 conda activate -n <env_name>
 conda install numpy sympy python-graphviz protobuf pandas -c conda-forge
 ```
