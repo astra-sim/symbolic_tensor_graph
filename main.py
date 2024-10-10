@@ -21,11 +21,11 @@ def main():
     parser.add_argument("--output_dir", type=str, help="dir where stores output traces", required=True)
     parser.add_argument("--output_name", type=str, help="name of output traces", required=True)
     parser.add_argument("--comm_group_file", type=str, help="name of comm_group_file", required=True)
-    parser.add_argument("--dp", type=int, help="data parallel degree", required=True)
-    parser.add_argument("--mp", type=int, help="model parallel degree", required=True)
+    parser.add_argument("--dp", type=int, help="data parallel degree", required=False, default=1)
+    parser.add_argument("--mp", type=int, help="model parallel degree", required=False, default=1)
     parser.add_argument("--sp", type=int, help="token parallel degree", required=False, default=1)
     parser.add_argument("--pp", type=int, default=1, help="pipeline parallel degree", required=False)
-    parser.add_argument("--weight_sharded", type=str_to_bool, help="whether weight sharded", required=True)
+    parser.add_argument("--weight_sharded", type=str_to_bool, help="whether weight sharded", required=False, default=False)
     parser.add_argument("--din", type=int, default=51200, required=False)
     parser.add_argument("--dout", type=int, default=25600, required=False)
     parser.add_argument("--dmodel", type=int, default=25600, required=False)
@@ -34,7 +34,7 @@ def main():
     parser.add_argument("--seq", type=int, default=1024, required=False)
     parser.add_argument("--head", type=int, default=1024, required=False)
     parser.add_argument("--num_stacks", type=int, default=32, required=False)
-    parser.add_argument("--chakra_schema_version", type=str, default="v0.0.1", required=False)
+    parser.add_argument("--chakra_schema_version", type=str, default="v0.0.4", required=False)
     
     args = parser.parse_args()
 
