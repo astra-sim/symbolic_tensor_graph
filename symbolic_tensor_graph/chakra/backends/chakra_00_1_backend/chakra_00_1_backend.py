@@ -22,7 +22,7 @@ class Chakra001Backend(NodeBackendBase):
         return Node()
 
     @classmethod
-    def set_node_common_attrs(cls, id, name, node_type, backend_node):
+    def set_node_common_attrs(cls, id, name, node_type, y_tensor_size, backend_node):
         def _get_backend_node_type(_frontend_node_type):
             if _frontend_node_type == FrontendNode.NodeType.COLL_COMM_NODE:
                 return NodeType.COMM_COLL_NODE
