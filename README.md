@@ -21,10 +21,10 @@ To set up the environment and install the required dependencies, follow these st
 
 ```bash
 # Clone the repository
-git clone git@github.com:changhai0109/symbolic_tensor_network.git
+git clone git@github.com:astra-sim/symbolic_tensor_graph.git
 
 # Navigate to the project directory
-cd symbolic_tensor_network
+cd symbolic_tensor_graph
 
 # Install dependencies via conda
 conda create -n <env_name>
