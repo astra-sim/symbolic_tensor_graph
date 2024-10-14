@@ -26,8 +26,8 @@ def test1():
         "./sharding_spreadsheets/module/divya/linear.csv",
     ]
 
-    mp, dp = sp.symbols("mp dp")
-    parallel_dims = [mp, dp]
+    tp, dp = sp.symbols("tp dp")
+    parallel_dims = [tp, dp]
 
     for path in paths:
         print(path)
@@ -52,7 +52,7 @@ def test1():
 
 
 def test2():
-    dp, mp = sp.symbols("dp mp")
+    dp, tp = sp.symbols("dp tp")
     Din, Dout, Dmodel, Dff, Batch, Seq, Head = sp.symbols(
         "Din Dout Dmodel Dff Batch Seq Head"
     )
@@ -65,10 +65,10 @@ def test2():
         Seq: 1024,
         Head: 1024,
         dp: 32,
-        mp: 32,
+        tp: 32,
     }
 
-    parallel_dims = [dp, mp]
+    parallel_dims = [dp, tp]
     mha = TensorGraph.load_tensor_graph(
         "./sharding_spreadsheets/module/divya/multi_head_attention.csv"
     )
@@ -110,7 +110,7 @@ def test2():
 
 
 def test3():
-    dp, mp = sp.symbols("dp mp")
+    dp, tp = sp.symbols("dp tp")
     Din, Dout, Dmodel, Dff, Batch, Seq, Head = sp.symbols(
         "Din Dout Dmodel Dff Batch Seq Head"
     )
@@ -123,7 +123,7 @@ def test3():
         Seq: 1024,
         Head: 1024,
         dp: 1024,
-        mp: 1,
+        tp: 1,
     }
 
     parallel_dims = [dp]
@@ -168,7 +168,7 @@ def test3():
 
 
 def test4():
-    dp, mp = sp.symbols("dp mp")
+    dp, tp = sp.symbols("dp tp")
     Din, Dout, Dmodel, Dff, Batch, Seq, Head = sp.symbols(
         "Din Dout Dmodel Dff Batch Seq Head"
     )
@@ -181,10 +181,10 @@ def test4():
         Seq: 1024,
         Head: 1024,
         dp: 32,
-        mp: 32,
+        tp: 32,
     }
 
-    parallel_dims = [dp, mp]
+    parallel_dims = [dp, tp]
     mha = TensorGraph.load_tensor_graph(
         "./sharding_spreadsheets/module/divya/multi_head_attention.csv"
     )
@@ -232,7 +232,7 @@ def test4():
 
 
 def test5():
-    dp, mp, pp = sp.symbols("dp mp pp")
+    dp, tp, pp = sp.symbols("dp tp pp")
     Din, Dout, Dmodel, Dff, Batch, Seq, Head = sp.symbols(
         "Din Dout Dmodel Dff Batch Seq Head"
     )
@@ -245,10 +245,10 @@ def test5():
         Seq: 1024,
         Head: 1024,
         dp: 4,
-        mp: 4,
+        tp: 4,
         pp: 2,
     }
-    spatial_parallel_dims = [dp, mp]
+    spatial_parallel_dims = [dp, tp]
     temporal_parallel_dims = [pp]
     mha = TensorGraph.load_tensor_graph(
         "./sharding_spreadsheets/module/divya/multi_head_attention.csv"
@@ -308,7 +308,7 @@ def test5():
 
 def test6():
     num_stacks = 2
-    dp, mp, pp = sp.symbols("dp mp pp")
+    dp, tp, pp = sp.symbols("dp tp pp")
     Din, Dout, Dmodel, Dff, Batch, Seq, Head = sp.symbols(
         "Din Dout Dmodel Dff Batch Seq Head"
     )
@@ -321,10 +321,10 @@ def test6():
         Seq: 1024,
         Head: 1024,
         dp: 8,
-        mp: 8,
+        tp: 8,
         pp: 1,
     }
-    spatial_parallel_dims = [dp, mp]
+    spatial_parallel_dims = [dp, tp]
     temporal_parallel_dims = [pp]
     mha = TensorGraph.load_tensor_graph(
         "./sharding_spreadsheets/module/divya/multi_head_attention.csv"
@@ -375,12 +375,12 @@ def test6():
 
 def test7(symbol_map_value, output_filename):
     num_stacks = 2
-    dp, mp, pp = sp.symbols("dp mp pp")
+    dp, tp, pp = sp.symbols("dp tp pp")
     Din, Dout, Dmodel, Dff, Batch, Seq, Head = sp.symbols(
         "Din Dout Dmodel Dff Batch Seq Head"
     )
 
-    spatial_parallel_dims = [dp, mp]
+    spatial_parallel_dims = [dp, tp]
     temporal_parallel_dims = [pp]
     mha = TensorGraph.load_tensor_graph(
         "./sharding_spreadsheets/module/fully_sharded_divya/multi_head_attention.csv"
@@ -435,13 +435,13 @@ def test7(symbol_map_value, output_filename):
 
 def test_comm_group():
     num_stacks = 2
-    dp, mp, pp, ssp = sp.symbols("dp mp pp sp")
+    dp, tp, pp, ssp = sp.symbols("dp tp pp sp")
     Din, Dout, Dmodel, Dff, Batch, Seq, Head = sp.symbols(
         "Din Dout Dmodel Dff Batch Seq Head"
     )
-    symbol_map_value = {dp: 2, mp: 3, pp: 5, ssp: 1}
+    symbol_map_value = {dp: 2, tp: 3, pp: 5, ssp: 1}
 
-    spatial_parallel_dims = [dp, mp, ssp]
+    spatial_parallel_dims = [dp, tp, ssp]
     temporal_parallel_dims = [pp]
     mha = TensorGraph.load_tensor_graph(
         "./sharding_spreadsheets/module/fully_sharded_divya/multi_head_attention.csv"
@@ -505,7 +505,7 @@ if __name__ == "__main__":
     # import os
 
     # generated_root = ""
-    # dp, mp, pp = sp.symbols("dp mp pp")
+    # dp, tp, pp = sp.symbols("dp tp pp")
     # Din, Dout, Dmodel, Dff, Batch, Seq, Head = sp.symbols(
     #     "Din Dout Dmodel Dff Batch Seq Head"
     # )
@@ -518,7 +518,7 @@ if __name__ == "__main__":
     #     Seq: 1024,
     #     Head: 1024,
     #     dp: 1,
-    #     mp: 64,
+    #     tp: 64,
     #     pp: 1,
     # }
     # # pp has to be one as there is bug in astrasim of send/recv pairs between stages of pipeline.
@@ -530,7 +530,7 @@ if __name__ == "__main__":
     #     ),
     # )
     # symbol_map_value[dp] = 2
-    # symbol_map_value[mp] = 32
+    # symbol_map_value[tp] = 32
     # test7(
     #     symbol_map_value,
     #     os.path.join(
@@ -539,7 +539,7 @@ if __name__ == "__main__":
     #     ),
     # )
     # symbol_map_value[dp] = 4
-    # symbol_map_value[mp] = 16
+    # symbol_map_value[tp] = 16
     # test7(
     #     symbol_map_value,
     #     os.path.join(
@@ -548,7 +548,7 @@ if __name__ == "__main__":
     #     ),
     # )
     # symbol_map_value[dp] = 8
-    # symbol_map_value[mp] = 8
+    # symbol_map_value[tp] = 8
     # test7(
     #     symbol_map_value,
     #     os.path.join(
@@ -557,7 +557,7 @@ if __name__ == "__main__":
     #     ),
     # )
     # symbol_map_value[dp] = 16
-    # symbol_map_value[mp] = 4
+    # symbol_map_value[tp] = 4
     # test7(
     #     symbol_map_value,
     #     os.path.join(
@@ -566,7 +566,7 @@ if __name__ == "__main__":
     #     ),
     # )
     # symbol_map_value[dp] = 32
-    # symbol_map_value[mp] = 2
+    # symbol_map_value[tp] = 2
     # test7(
     #     symbol_map_value,
     #     os.path.join(
@@ -575,7 +575,7 @@ if __name__ == "__main__":
     #     ),
     # )
     # symbol_map_value[dp] = 64
-    # symbol_map_value[mp] = 1
+    # symbol_map_value[tp] = 1
     # test7(
     #     symbol_map_value,
     #     os.path.join(

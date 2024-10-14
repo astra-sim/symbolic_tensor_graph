@@ -10,7 +10,7 @@ def _convert(_symbolic_value_map, symbolic, eg, offload=None):
             symbolic,
             eg,
             _symbolic_value_map,
-            _symbolic_value_map["bp"] * _symbolic_value_map["mp"],
+            _symbolic_value_map["bp"] * _symbolic_value_map["tp"],
         )
     else:
         pass
@@ -22,7 +22,7 @@ def _convert(_symbolic_value_map, symbolic, eg, offload=None):
 if __name__ == "__main__":
     symbol_value_map = {
         "bp": 16,
-        "mp": 1,
+        "tp": 1,
         "B": 32 * 16,
         "Seq": 256,
         "H": 16,

@@ -1,8 +1,8 @@
-﻿x0,N,"B/bp, Seq, H/mp*D",1,,,T,,,,,,"B/bp, Seq, H/mp*D",1,,
-x0_whole,N,"B/bp, Seq, H*D",1,x0,,C,AllGather@B/bp*Seq*H/mp*D,"B/bp, Seq, H/mp*D",1,,,"B/bp, Seq, H, D",1,,
-w1,Y,"H*D, H/mp*DF",1,,,T,,,,,,"H*D, H/mp*DF",1,,
-x1,N,"B/bp, Seq, H/mp*DF",1,x0_whole,w1,M,"bsd,de->bse","B/bp, Seq, H*D",1,"H*D, H/mp*DF",1,"B/bp, Seq, H/mp*DF",H*D,,B/bp*Seq*H/mp*DF*H*D
-w2,Y,"H/mp*DF, H*D",1,,,T,,,,,,"H/mp*DF, H*D",,,
-x2,N,"B/bp, Seq, H/mp*D",1,x1,w2,M,"bsd,de->bse","B/bp, Seq, H/mp*DF",1,"H/mp*DF, H*D",1,"B/bp, Seq, H*D",H/mp*DF,AllReduce@B/bp*Seq*H*D,B/bp*Seq*H*D*H/mp*DF
-res,N,"B/bp, Seq, H/mp*D",1,x2,x0,A,,"B/bp, Seq, H/mp*D",1,"B/bp, Seq, H/mp*D",1,"B/bp, Seq, H/mp*D",1,,B/bp*Seq*H/mp*D
-norm,N,"B/bp, Seq, H/mp*D",1,res,,E,10,"B/bp, Seq, H/mp*D",1,,,"B/bp, Seq, H/mp*D",1,,B/bp*Seq*H/mp*D*10
+﻿x0,N,"B/bp, Seq, H/tp*D",1,,,T,,,,,,"B/bp, Seq, H/tp*D",1,,
+x0_whole,N,"B/bp, Seq, H*D",1,x0,,C,AllGather@B/bp*Seq*H/tp*D,"B/bp, Seq, H/tp*D",1,,,"B/bp, Seq, H, D",1,,
+w1,Y,"H*D, H/tp*DF",1,,,T,,,,,,"H*D, H/tp*DF",1,,
+x1,N,"B/bp, Seq, H/tp*DF",1,x0_whole,w1,M,"bsd,de->bse","B/bp, Seq, H*D",1,"H*D, H/tp*DF",1,"B/bp, Seq, H/tp*DF",H*D,,B/bp*Seq*H/tp*DF*H*D
+w2,Y,"H/tp*DF, H*D",1,,,T,,,,,,"H/tp*DF, H*D",,,
+x2,N,"B/bp, Seq, H/tp*D",1,x1,w2,M,"bsd,de->bse","B/bp, Seq, H/tp*DF",1,"H/tp*DF, H*D",1,"B/bp, Seq, H*D",H/tp*DF,AllReduce@B/bp*Seq*H*D,B/bp*Seq*H*D*H/tp*DF
+res,N,"B/bp, Seq, H/tp*D",1,x2,x0,A,,"B/bp, Seq, H/tp*D",1,"B/bp, Seq, H/tp*D",1,"B/bp, Seq, H/tp*D",1,,B/bp*Seq*H/tp*D
+norm,N,"B/bp, Seq, H/tp*D",1,res,,E,10,"B/bp, Seq, H/tp*D",1,,,"B/bp, Seq, H/tp*D",1,,B/bp*Seq*H/tp*D*10

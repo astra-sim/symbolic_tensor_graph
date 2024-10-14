@@ -1,17 +1,17 @@
 ﻿id,require_grads,x1,x2,op_type,op_attr,x1_shape,x1_hidden,x2_shape,x2_hidden,grad_of
-x0,N,,,T,,"Batch/dp, Seq/sp, Dmodel/mp",1,,,
-w1,Y,,,T,,"Dmodel/(dp*sp), Dff/mp",1,,,
-x1,N,x0,w1,M,"bsm,mn->bsn","Batch/dp, Seq/sp, Dmodel",1,"Dmodel, Dff/mp",1,
-w2,Y,,,T,,"Dff/mp, Dmodel/(dp*sp)",1,,,
-x2,N,x1,w2,M,"bsm,mn->bsn","Batch/dp, Seq/sp, Dff/mp",1,"Dff/mp, Dmodel",1,
-res,N,x2,x0,A,,"Batch/dp, Seq/sp, Dmodel/mp",1,"Batch/dp, Seq/sp, Dmodel/mp",1,
-norm,N,res,,E,5,"Batch/dp, Seq/sp, Dmodel/mp",1,,,
-dnorm,N,,,T,,"Batch/dp, Seq/sp, Dmodel/mp",1,,,norm
-dres,N,dnorm,,E,5,"Batch/dp, Seq/sp, Dmodel/mp",1,,,res
-dx2,N,dres,,I,,"Batch/dp, Seq/sp, Dmodel/mp",1,,,x2
-dw2,N,dx2,x1,M,"bsn,bsm->mn","Batch/dp, Seq/sp, Dmodel",1,"Batch/dp, Seq/sp, Dff/mp",1,w2
-dx1,N,dx2,w2,M,"bsn,mn->bsm","Batch/dp, Seq/sp, Dmodel",1,"Dff/mp, Dmodel",1,x1
-dw1,N,dx1,x0,M,"bsn,bsm->mn","Batch/dp, Seq/sp, Dff/mp",1,"Batch/dp, Seq/sp, Dmodel",1,w1
-dx00,N,dres,,I,,"Batch/dp, Seq/sp, Dmodel/mp",1,,,
-dx01,N,dx1,w1,M,"bsn,mn->bsm","Batch/dp, Seq/sp, Dff/mp",1,"Dmodel, Dff/mp",1,
-dx0,N,dx00,dx01,A,,"Batch/dp, Seq/sp, Dmodel/mp",1,"Batch/dp, Seq/sp, Dmodel/mp",1,x0
+x0,N,,,T,,"Batch/dp, Seq/sp, Dmodel/tp",1,,,
+w1,Y,,,T,,"Dmodel/(dp*sp), Dff/tp",1,,,
+x1,N,x0,w1,M,"bsm,mn->bsn","Batch/dp, Seq/sp, Dmodel",1,"Dmodel, Dff/tp",1,
+w2,Y,,,T,,"Dff/tp, Dmodel/(dp*sp)",1,,,
+x2,N,x1,w2,M,"bsm,mn->bsn","Batch/dp, Seq/sp, Dff/tp",1,"Dff/tp, Dmodel",1,
+res,N,x2,x0,A,,"Batch/dp, Seq/sp, Dmodel/tp",1,"Batch/dp, Seq/sp, Dmodel/tp",1,
+norm,N,res,,E,5,"Batch/dp, Seq/sp, Dmodel/tp",1,,,
+dnorm,N,,,T,,"Batch/dp, Seq/sp, Dmodel/tp",1,,,norm
+dres,N,dnorm,,E,5,"Batch/dp, Seq/sp, Dmodel/tp",1,,,res
+dx2,N,dres,,I,,"Batch/dp, Seq/sp, Dmodel/tp",1,,,x2
+dw2,N,dx2,x1,M,"bsn,bsm->mn","Batch/dp, Seq/sp, Dmodel",1,"Batch/dp, Seq/sp, Dff/tp",1,w2
+dx1,N,dx2,w2,M,"bsn,mn->bsm","Batch/dp, Seq/sp, Dmodel",1,"Dff/tp, Dmodel",1,x1
+dw1,N,dx1,x0,M,"bsn,bsm->mn","Batch/dp, Seq/sp, Dff/tp",1,"Batch/dp, Seq/sp, Dmodel",1,w1
+dx00,N,dres,,I,,"Batch/dp, Seq/sp, Dmodel/tp",1,,,
+dx01,N,dx1,w1,M,"bsn,mn->bsm","Batch/dp, Seq/sp, Dff/tp",1,"Dmodel, Dff/tp",1,
+dx0,N,dx00,dx01,A,,"Batch/dp, Seq/sp, Dmodel/tp",1,"Batch/dp, Seq/sp, Dmodel/tp",1,x0

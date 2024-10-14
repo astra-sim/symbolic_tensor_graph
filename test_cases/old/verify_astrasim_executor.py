@@ -22,7 +22,7 @@ if __name__ == "__main__":
 
     symbol_value_map = {
         "bp": 1024,
-        "mp": 1,
+        "tp": 1,
         "B": 32 * 1024,
         "Seq": 1024,
         "H": 256,
@@ -36,7 +36,7 @@ if __name__ == "__main__":
         "sharding_spreadsheets/transformer/dp/processed_graphs/transformer_32.csv",
         "sharding_spreadsheets/transformer/validation/symbolic_transformer32.w0l0i0.dp",
         symbol_value_map,
-        symbol_value_map["bp"] * symbol_value_map["mp"],
+        symbol_value_map["bp"] * symbol_value_map["tp"],
     )
     converter.convert()
     nodes = converter.get_nodes()

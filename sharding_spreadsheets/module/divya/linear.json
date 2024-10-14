@@ -4,7 +4,7 @@
         "InFeat",
         "OutFeat",
         "dp",
-        "mp"
+        "tp"
     ],
     "in_tensors": [
         "x",

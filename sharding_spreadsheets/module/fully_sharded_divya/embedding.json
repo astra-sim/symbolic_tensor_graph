@@ -5,7 +5,7 @@
         "Din",
         "Dout",
         "dp",
-        "mp"
+        "tp"
     ],
     "in_tensors": [
         "x",

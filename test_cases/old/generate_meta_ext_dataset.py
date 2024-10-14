@@ -10,14 +10,14 @@ from symbolic2chakra_converter import (
 def _convert(_symbolic_value_map, symbolic, eg, offload=None):
     if offload is None:
         converter = Symbolic2ChakraConverter(
-            symbolic, eg, _symbolic_value_map["bp"] * _symbolic_value_map["mp"]
+            symbolic, eg, _symbolic_value_map["bp"] * _symbolic_value_map["tp"]
         )
     else:
         converter = Symbolic2ChakraConverterWithOffload(
             symbolic,
             offload,
             eg,
-            _symbolic_value_map["bp"] * _symbolic_value_map["mp"],
+            _symbolic_value_map["bp"] * _symbolic_value_map["tp"],
         )
     converter.symbol_value_map = _symbolic_value_map
     converter.convert()
@@ -35,8 +35,8 @@ def _sample_symbol_value_map(symbol_value_map_template):
         symbol_value_map[key] = random.randint(low, high)
     if "B" in symbol_value_map and "bp" in symbol_value_map:
         symbol_value_map["B"] *= symbol_value_map["bp"]
-    if "bp" in symbol_value_map and "mp" in symbol_value_map:
-        symbol_value_map["mp"] = 256 // symbol_value_map["bp"]
+    if "bp" in symbol_value_map and "tp" in symbol_value_map:
+        symbol_value_map["tp"] = 256 // symbol_value_map["bp"]
 
     return symbol_value_map
 
@@ -44,7 +44,7 @@ def _sample_symbol_value_map(symbol_value_map_template):
 if __name__ == "__main__":
     symbol_value_map_template = {
         "bp": (0, 8),
-        "mp": (0, 8),
+        "tp": (0, 8),
         "B": (1, 2048),
         "Seq": (32, 4096),
         "H": (4, 1024),
