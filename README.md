@@ -95,6 +95,11 @@ comm_group.json  workload.0.et  workload.1.et  workload.2.et  workload.3.et
   python main.py --output_dir generated/ --output_name workload_3.%d.json --comm_group_file comm_group_3.json --dp 4 --tp 4 --pp 2 --sp 2 --weight_sharded 1 --chakra_schema_version json
   ```
 
+
+## Tool workflow
+Here is a breif workflow about how stg generate traces step by step.
+![alt text](./docs/images/stg_workflow.png)
+
 ## Chakra Schema Version
 
 The schema version used determines compatibility with different tools and repositories:
