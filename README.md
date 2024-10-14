@@ -8,12 +8,12 @@
 
 ## Overview
 
-The Symbolic Tensor Graph is a generator for Chakra Execution Trace (ET) files. This tool is designed to generate synthetic workload traces for use in parallel strategy exploration without gathering data from a real system or implementing actual workload codes. It supports various parallelization strategies like Data Parallelism (DP), Model Parallelism (MP), and Pipeline Parallelism (PP).
+The Symbolic Tensor Graph is a generator for [Chakra Execution Trace (ET)](https://github.com/mlcommons/chakra) files. This tool is designed to generate synthetic workload traces for use in parallel strategy exploration without gathering data from a real system or implementing actual workload codes. It supports various parallelization strategies like Data Parallelism (DP), Model Parallelism (MP), Pipeline Parallelism (PP) and Sequence Parallelism (SP).
 
 ### Key Features
 - Generate synthetic transformer workloads in Chakra ET format.
 - Supports multiple parallelism strategies (DP, MP, PP, SP).
-- Support customized model dimensions (batch, seq, dmodel, dff, n_head)
+- Support customized model dimensions for Transformer Models (batch, seq, dmodel, dff, n_head)
 
 ## Installation
 
@@ -66,9 +66,9 @@ comm_group.json  workload.0.et  workload.1.et  workload.2.et  workload.3.et
 | `--comm_group_file`        | Communication group config file     | `comm_group.json`        |
 | `--chakra_schema_version`  | Chakra ET schema version            | `v0.0.4`, `v0.0.1`, `json`|
 | `--dp`                     | Data parallelism degree             | `32`                     |
-| `--mp`                     | Model parallelism degree            | `4`                      |
+| `--mp`                     | Model (Tensor) parallelism degree   | `4`                      |
 | `--pp`                     | Pipeline parallelism degree         | `2`                      |
-| `--sp`                     | Token parallelism degree            | `4`                      |
+| `--sp`                     | Sequence/Token parallelism degree   | `4`                      |
 | `--weight_sharded`         | Shard weights (FSDP enabled)        | `True/False`             |
 | `--din`                    | Input embedding size                | `51200`                  |
 | `--dout`                   | Output embedding size               | `25600`                  |
