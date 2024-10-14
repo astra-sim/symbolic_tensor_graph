@@ -24,7 +24,7 @@ def main():
     parser.add_argument("--comm_group_file", type=str, help="name of comm_group_file", required=True)
     parser.add_argument("--dp", type=int, help="data parallel degree", required=False, default=1)
     parser.add_argument("--tp", type=int, help="tensor parallel degree", required=False, default=1)
-    parser.add_argument("--sp", type=int, help="token parallel degree", required=False, default=1)
+    parser.add_argument("--sp", type=int, help="sequence parallel degree", required=False, default=1)
     parser.add_argument("--pp", type=int, default=1, help="pipeline parallel degree", required=False)
     parser.add_argument("--weight_sharded", type=str_to_bool, help="whether weight sharded", required=False, default=False)
     parser.add_argument("--din", type=int, default=51200, required=False)
