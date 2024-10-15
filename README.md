@@ -8,11 +8,11 @@
 
 ## Overview
 
-The Symbolic Tensor Graph is a generator for [Chakra Execution Trace (ET)](https://github.com/mlcommons/chakra) files. This tool is designed to generate synthetic workload traces for use in parallel strategy exploration without gathering data from a real system or implementing actual workload codes. It supports various parallelization strategies like Data Parallelism (DP), Model Parallelism (MP), Pipeline Parallelism (PP) and Sequence Parallelism (SP).
+The Symbolic Tensor Graph is a generator for [Chakra Execution Trace (ET)](https://github.com/mlcommons/chakra) files. This tool is designed to generate synthetic workload traces for use in parallel strategy exploration without gathering data from a real system or implementing actual workload codes. It supports various parallelization strategies like Data Parallelism (DP), Tensor Parallelism (TP), Pipeline Parallelism (PP) and Sequence Parallelism (SP).
 
 ### Key Features
 - Generate synthetic transformer workloads in Chakra ET format.
-- Supports multiple parallelism strategies (DP, MP, PP, SP).
+- Supports multiple parallelism strategies (DP, TP, PP, SP).
 - Support customized model dimensions for Transformer Models (batch, seq, dmodel, dff, n_head)
 
 ## Installation
