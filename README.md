@@ -46,7 +46,7 @@ This will show all available options and their descriptions. Example of running 
 python main.py --output_dir generated/ \
                --output_name workload.%d.et \
                --comm_group_file comm_group.json \
-               --dp 2 --mp 2 --pp 2 \
+               --dp 2 --tp 2 --pp 2 \
                --weight_sharded 0 
 ```
 
@@ -66,7 +66,7 @@ comm_group.json  workload.0.et  workload.1.et  workload.2.et  workload.3.et
 | `--comm_group_file`        | Communication group config file     | `comm_group.json`        |
 | `--chakra_schema_version`  | Chakra ET schema version            | `v0.0.4`, `v0.0.1`, `json`|
 | `--dp`                     | Data parallelism degree             | `32`                     |
-| `--mp`                     | Model (Tensor) parallelism degree   | `4`                      |
+| `--tp`                     | Tensor parallelism degree           | `4`                      |
 | `--pp`                     | Pipeline parallelism degree         | `2`                      |
 | `--sp`                     | Sequence/Token parallelism degree   | `4`                      |
 | `--weight_sharded`         | Shard weights (FSDP enabled)        | `True/False`             |
@@ -80,20 +80,25 @@ comm_group.json  workload.0.et  workload.1.et  workload.2.et  workload.3.et
 
 ## Example Commands
 
-- **Generate with DP=8, MP=4, PP=4, no FSDP:**
+- **Generate with DP=8, TP=4, PP=4, no FSDP:**
   ```bash
-  python main.py --output_dir generated/ --output_name workload_1.%d.et --comm_group_file comm_group_1.json --dp 8 --mp 4 --pp 4 --sp 1 --weight_sharded 0 --chakra_schema_version v0.0.4
+  python main.py --output_dir generated/ --output_name workload_1.%d.et --comm_group_file comm_group_1.json --dp 8 --tp 4 --pp 4 --sp 1 --weight_sharded 0 --chakra_schema_version v0.0.4
   ```
 
-- **Generate with DP=64, MP=1, PP=1, FSDP:**
+- **Generate with DP=64, TP=1, PP=1, FSDP:**
   ```bash
-  python main.py --output_dir generated/ --output_name workload_2.%d.et --comm_group_file comm_group_2.json --dp 64 --mp 1 --pp 1 --sp 1 --weight_sharded 1 --chakra_schema_version v0.0.4
+  python main.py --output_dir generated/ --output_name workload_2.%d.et --comm_group_file comm_group_2.json --dp 64 --tp 1 --pp 1 --sp 1 --weight_sharded 1 --chakra_schema_version v0.0.4
   ```
 
-- **Generate with DP=4, MP=4, PP=2, SP=2, FSDP, output in JSON format:**
+- **Generate with DP=4, TP=4, PP=2, SP=2, FSDP, output in JSON format:**
   ```bash
-  python main.py --output_dir generated/ --output_name workload_3.%d.json --comm_group_file comm_group_3.json --dp 4 --mp 4 --pp 2 --sp 2 --weight_sharded 1 --chakra_schema_version json
+  python main.py --output_dir generated/ --output_name workload_3.%d.json --comm_group_file comm_group_3.json --dp 4 --tp 4 --pp 2 --sp 2 --weight_sharded 1 --chakra_schema_version json
   ```
+
+
+## Tool workflow
+Here is a breif workflow about how stg generate traces step by step.
+![alt text](./docs/images/stg_workflow.png)
 
 ## Chakra Schema Version
 

@@ -1,3 +1,3 @@
 ﻿d_outEmbedY,N,"B/bp, Seq, H*DO",1,,,,,,,,,"B/bp, Seq, H*DO",,,
-d_outEmbedX,N,"B/bp, Seq, H/mp*D",1,d_outEmbedY,outEmbedW,M,"bse,de->bsd","B/bp, Seq, H*DO",1,"H/mp*D, H*DO",1,"B/bp, Seq, H/mp*D",H*DO,,B/bp*Seq*H/mp*D*H*DO
-d_outEmbedW,N,"H/mp*D, H*DO",1,d_outEmbedY,outEmbedX,M,"bse,bsd->de","B/bp, Seq, H*DO",1,"B/bp, Seq, H/mp*D",1,"H/mp*D, H*DO","B/bp, Seq",AllReduce@H/mp*D*H*DO,H/mp*D*H*DO*B/bp*Seq
+d_outEmbedX,N,"B/bp, Seq, H/tp*D",1,d_outEmbedY,outEmbedW,M,"bse,de->bsd","B/bp, Seq, H*DO",1,"H/tp*D, H*DO",1,"B/bp, Seq, H/tp*D",H*DO,,B/bp*Seq*H/tp*D*H*DO
+d_outEmbedW,N,"H/tp*D, H*DO",1,d_outEmbedY,outEmbedX,M,"bse,bsd->de","B/bp, Seq, H*DO",1,"B/bp, Seq, H/tp*D",1,"H/tp*D, H*DO","B/bp, Seq",AllReduce@H/tp*D*H*DO,H/tp*D*H*DO*B/bp*Seq

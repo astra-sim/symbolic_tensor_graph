@@ -22,8 +22,8 @@ def main():
     parser.add_argument("--output_name", type=str, help="name of output traces", required=True)
     parser.add_argument("--comm_group_file", type=str, help="name of comm_group_file", required=True)
     parser.add_argument("--dp", type=int, help="data parallel degree", required=False, default=1)
-    parser.add_argument("--mp", type=int, help="model parallel degree", required=False, default=1)
-    parser.add_argument("--sp", type=int, help="token parallel degree", required=False, default=1)
+    parser.add_argument("--tp", type=int, help="tensor parallel degree", required=False, default=1)
+    parser.add_argument("--sp", type=int, help="sequence parallel degree", required=False, default=1)
     parser.add_argument("--pp", type=int, default=1, help="pipeline parallel degree", required=False)
     parser.add_argument("--weight_sharded", type=str_to_bool, help="whether weight sharded", required=False, default=False)
     parser.add_argument("--din", type=int, default=51200, required=False)
@@ -41,7 +41,7 @@ def main():
     if not "%d" in args.output_name:
         args.output_name = f"{args.output_name}.%d.eg"
     generated_filename = os.path.join(args.output_dir, args.output_name)
-    dp, mp, pp, spp = sp.symbols("dp mp pp sp")
+    dp, tp, pp, spp = sp.symbols("dp tp pp sp")
     Din, Dout, Dmodel, Dff, Batch, Seq, Head = sp.symbols(
         "Din Dout Dmodel Dff Batch Seq Head"
     )
@@ -54,12 +54,12 @@ def main():
         Seq: args.seq,
         Head: args.head,
         dp: args.dp,
-        mp: args.mp,
+        tp: args.tp,
         pp: args.pp,
         spp: args.sp
     }
     num_stacks = args.num_stacks
-    spatial_parallel_dims = [dp, mp, spp]
+    spatial_parallel_dims = [dp, tp, spp]
     temporal_parallel_dims = [pp]
     
     module_template_dir = os.path.join(

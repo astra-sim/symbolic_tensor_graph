@@ -1,5 +1,5 @@
 ﻿id,require_grads,x1,x2,op_type,op_attr,x1_shape,x1_hidden,x2_shape,x2_hidden,grad_of
-x,N,,,T,,"Batch/dp, Seq*Feat/mp",1,,,
-y,N,x,,R,,"Batch/dp, Seq*Feat/mp",1,"Batch/dp, Seq, Feat/mp",1,
-dy,N,,,T,,"Batch/dp, Seq, Feat/mp",1,,,y
-dx,N,dy,,R,,"Batch/dp, Seq, Feat/mp",1,"Batch/dp, Seq*Feat/mp",1,x
+x,N,,,T,,"Batch/dp, Seq*Feat/tp",1,,,
+y,N,x,,R,,"Batch/dp, Seq*Feat/tp",1,"Batch/dp, Seq, Feat/tp",1,
+dy,N,,,T,,"Batch/dp, Seq, Feat/tp",1,,,y
+dx,N,dy,,R,,"Batch/dp, Seq, Feat/tp",1,"Batch/dp, Seq*Feat/tp",1,x
