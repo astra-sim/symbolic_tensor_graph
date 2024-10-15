@@ -20,9 +20,7 @@ def transformer_stacks(stack, num_stacks):
         graphs.append(ReplicateGraph.apply(stack, f"stack_{num_stack}_%s"))
         if num_stack == 0:
             pass
-        elif num_stack > num_stacks - 1:
-            links[f"stack_{num_stack-1}_ffn_norm"] = f"stack_{num_stack}_mha_x"
-            links[f"stack_{num_stack}_mha_d_x"] = f"stack_{num_stack-1}_ffn_dnorm"
+            
         else:
             links[f"stack_{num_stack-1}_ffn_norm"] = f"stack_{num_stack}_mha_x"
             links[f"stack_{num_stack}_mha_d_x"] = f"stack_{num_stack-1}_ffn_dnorm"
