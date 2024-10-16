@@ -78,6 +78,7 @@ comm_group.json  workload.0.et  workload.1.et  workload.2.et  workload.3.et
 | `--head`                   | Number of attention heads           | `128`                    |
 | `--num_stacks`             | Number of encoder stacks            | `32`                     |
 
+\*: We do not specify number of total NPUs, which will be infered from the parallel degree as: ```num_NPUs=DP*TP*PP*SP```
 ## Example Commands
 
 - **Generate with DP=8, TP=4, PP=4, no FSDP:**
