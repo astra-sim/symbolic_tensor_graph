@@ -28,7 +28,7 @@ cd symbolic_tensor_graph
 
 # Install dependencies via conda
 conda create -n <env_name>
-conda activate -n <env_name>
+conda activate <env_name>
 conda install numpy sympy python-graphviz protobuf pandas -c conda-forge
 ```
 
