@@ -1,0 +1,18 @@
+{
+    "symbols": [
+        "Batch",
+        "Seq",
+        "Din",
+        "Dout",
+        "dp",
+        "mp",
+        "sp"
+    ],
+    "in_tensors": [
+        "x",
+        "w"
+    ],
+    "out_tensors": [
+        "y"
+    ]
+}
