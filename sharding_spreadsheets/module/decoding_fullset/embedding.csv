@@ -1,0 +1,4 @@
+﻿id,require_grads,x1,x2,op_type,op_attr,x1_shape,x1_hidden,x2_shape,x2_hidden,grad_of
+x,N,,,T,,"Batch/dp, 1/sp, Din/mp",1,,,
+w,Y,,,T,,"Din, Dout/mp",1,,,
+y,N,x,w,M,"bsm,mn->bsn","Batch/dp, 1/sp, Din",1,"Din, Dout/mp",1,
