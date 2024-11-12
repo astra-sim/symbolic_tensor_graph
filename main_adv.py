@@ -9,6 +9,10 @@ from models.transformer import (
     transformer_stack as transformer_stack_fn, 
     transformer as transformer_fn
 )
+from models.transformer_forward_only import (
+    transformer_stack as inf_transformer_stack_fn, 
+    transformer as inf_transformer_fn
+)
 import pickle
 
 
@@ -40,6 +44,7 @@ def main():
     parser.add_argument("--store_rank", type=str, default=None, required=False)
     parser.add_argument("--load_rank_map", type=str, default=None, required=False)
     parser.add_argument("--generate_io_info", type=str_to_bool, help="whether include io infos")
+    parser.add_argument("--templates", type=str, default="training", choices=["training", "prefilling", "decoding"], required=False)
     
     args = parser.parse_args()
 
@@ -67,19 +72,29 @@ def main():
     spatial_parallel_dims = [dp, mp, spp]
     temporal_parallel_dims = [pp]
     
+    TEMPLATE_DIR_MAP = {
+        ("training", True): "./sharding_spreadsheets/module/fully_sharded_fullset",
+        ("training", False): "./sharding_spreadsheets/module/fullset",
+        ("prefilling", True): "./sharding_spreadsheets/module/prefilling_fully_sharded_fullset",
+        ("prefilling", False): "./sharding_spreadsheets/module/prefilling_fullset",
+        ("decoding", True): "./sharding_spreadsheets/module/decoding_fully_sharded_fullset",
+        ("decoding", False): "./sharding_spreadsheets/module/decoding_fullset",
+    }
+    template_dir = TEMPLATE_DIR_MAP[(args.templates, args.weight_sharded)]
+    
     module_template_dir = os.path.join(
-            os.path.split(
-                os.path.abspath(__file__)
-            )[0],
-            "./sharding_spreadsheets/module/fullset"  
+        os.path.split(
+            os.path.abspath(__file__)
+        )[0],
+        template_dir
     )
-    if args.weight_sharded:
-        module_template_dir = os.path.join(
-                os.path.split(
-                    os.path.abspath(__file__)
-                )[0],
-                "./sharding_spreadsheets/module/fully_sharded_fullset"
-        )
+    # if args.weight_sharded:
+    #     module_template_dir = os.path.join(
+    #             os.path.split(
+    #                 os.path.abspath(__file__)
+    #             )[0],
+    #             "./sharding_spreadsheets/module/fully_sharded_fullset"
+    #     )
         
     # build the tensor graph
     mha = TensorGraph.load_tensor_graph(
@@ -94,9 +109,16 @@ def main():
     out_emb = TensorGraph.load_tensor_graph(
         os.path.join(module_template_dir, "embedding.csv")
     )
-    stack = transformer_stack_fn(mha, ffn)
-    transformer = transformer_fn(in_emb, out_emb, stack, num_stacks)
-    transformer_updated_grad = GradUpdater.apply(transformer)
+    if args.templates in {"prefilling", "decoding"}:
+        stack = inf_transformer_stack_fn(mha, ffn)
+        transformer = inf_transformer_fn(in_emb, out_emb, stack, num_stacks)
+        transformer_updated_grad = transformer
+    elif args.templates in {"training"}:
+        stack = transformer_stack_fn(mha, ffn)
+        transformer = transformer_fn(in_emb, out_emb, stack, num_stacks)
+        transformer_updated_grad = GradUpdater.apply(transformer)
+    else:
+        assert False
     
     # distribute tensor graph to machines
     def _create_pipeline_tensor_map(_tensors, _temporal_parallel_dims, _symbol_map_value, layer_each_stage=-1):
