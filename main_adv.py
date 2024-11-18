@@ -3,7 +3,7 @@ import argparse
 import sympy as sp
 from symbolic_tensor_graph.graph.graph import TensorGraph
 from symbolic_tensor_graph.graph.grad_updater import GradUpdater
-from symbolic_tensor_graph.graph.pipeline_parallel import GraphDistributer
+from symbolic_tensor_graph.graph.graph_distributer import GraphDistributer
 from symbolic_tensor_graph.graph.convert_chakra import BundledConvertChakra
 from models.transformer import (
     transformer_stack as transformer_stack_fn, 
@@ -13,6 +13,7 @@ from models.transformer_forward_only import (
     transformer_stack as inf_transformer_stack_fn, 
     transformer as inf_transformer_fn
 )
+from symbolic_tensor_graph.graph.pipeline_parallel import naive_pipeline_emb_separate_n_layer_each_stage, gpipe_pipeline_prepare
 import pickle
 
 
@@ -117,29 +118,40 @@ def main():
     elif args.templates in {"training"}:
         stack = transformer_stack_fn(mha, ffn)
         transformer = transformer_fn(in_emb, out_emb, stack, num_stacks)
-        transformer_updated_grad = GradUpdater.apply(transformer)
     else:
         assert False
+        
+    # # distribute tensor graph to machines
+    # def _create_pipeline_tensor_map(_tensors, _temporal_parallel_dims, _symbol_map_value, layer_each_stage=1):
+    #     _tensor_map = dict()
+    #     assert len(_temporal_parallel_dims) == 1
+    #     parallel_dim = _temporal_parallel_dims[0]
+    #     range_ = _symbol_map_value[parallel_dim]
+    #     for tensor in _tensors:
+    #         for num_stack in range(num_stacks):
+    #             if f"stack_{num_stack}_" in tensor.id:
+    #                 _tensor_map[tensor.id] = {parallel_dim: ((num_stack+1)//layer_each_stage) % range_}
+    #                 break
+    #         if "in_emb" in tensor.id:
+    #             _tensor_map[tensor.id] = {parallel_dim: 0}
+    #         elif "out_emb" in tensor.id:
+    #             _tensor_map[tensor.id] = {parallel_dim: ((num_stacks+1)//layer_each_stage) % range_}
+    #     return _tensor_map
     
-    # distribute tensor graph to machines
-    def _create_pipeline_tensor_map(_tensors, _temporal_parallel_dims, _symbol_map_value, layer_each_stage=1):
-        _tensor_map = dict()
-        assert len(_temporal_parallel_dims) == 1
-        parallel_dim = _temporal_parallel_dims[0]
-        range_ = _symbol_map_value[parallel_dim]
-        for tensor in _tensors:
-            for num_stack in range(num_stacks):
-                if f"stack_{num_stack}_" in tensor.id:
-                    _tensor_map[tensor.id] = {parallel_dim: ((num_stack+1)//layer_each_stage) % range_}
-                    break
-            if "in_emb" in tensor.id:
-                _tensor_map[tensor.id] = {parallel_dim: 0}
-            elif "out_emb" in tensor.id:
-                _tensor_map[tensor.id] = {parallel_dim: ((num_stacks+1)//layer_each_stage) % range_}
-        return _tensor_map
-    pipeline_tensor_map = _create_pipeline_tensor_map(transformer_updated_grad.tensors, temporal_parallel_dims, symbol_map_value, args.layer_each_stage)
+    gpipe_symbol_map_value = symbol_map_value.copy()
+    gpipe_symbol_map_value[sp.symbols("MicroBatch")] = 2
+    merged = gpipe_pipeline_prepare(transformer, gpipe_symbol_map_value)
+    if args.templates in {"training"}:
+        transformer = GradUpdater.apply(transformer)
+        merged = GradUpdater.apply(merged)
+    merged.save_tensor_graph("merged.csv")
+    hook = 1
+    
+    _create_pipeline_tensor_map = naive_pipeline_emb_separate_n_layer_each_stage
+    
+    pipeline_tensor_map = _create_pipeline_tensor_map(transformer, temporal_parallel_dims, symbol_map_value, args.layer_each_stage)
     distributed_tensor_graph = GraphDistributer.apply(
-        transformer_updated_grad,
+        transformer,
         symbol_map_value,
         spatial_parallel_dims,
         temporal_parallel_dims,

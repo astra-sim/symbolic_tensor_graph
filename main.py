@@ -3,7 +3,7 @@ import argparse
 import sympy as sp
 from symbolic_tensor_graph.graph.graph import TensorGraph
 from symbolic_tensor_graph.graph.grad_updater import GradUpdater
-from symbolic_tensor_graph.graph.pipeline_parallel import GraphDistributer
+from symbolic_tensor_graph.graph.graph_distributer import GraphDistributer
 from symbolic_tensor_graph.graph.convert_chakra import BundledConvertChakra
 from models.transformer import (
     transformer_stack as transformer_stack_fn, 
