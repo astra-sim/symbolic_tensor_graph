@@ -144,18 +144,28 @@ def main():
     if args.templates in {"training"}:
         transformer = GradUpdater.apply(transformer)
         merged = GradUpdater.apply(merged)
-    merged.save_tensor_graph("merged.csv")
-    hook = 1
+    # merged = gpipe_pipeline_prepare(transformer, gpipe_symbol_map_value)
+    # merged.save_tensor_graph("merged.csv")
+    # hook = 1
     
     _create_pipeline_tensor_map = naive_pipeline_emb_separate_n_layer_each_stage
     
-    pipeline_tensor_map = _create_pipeline_tensor_map(transformer, temporal_parallel_dims, symbol_map_value, args.layer_each_stage)
+    transformer, pipeline_tensor_map = _create_pipeline_tensor_map(transformer, temporal_parallel_dims, symbol_map_value, args.num_stacks, args.layer_each_stage)
+    merged, pipeline_merged_tensor_map = _create_pipeline_tensor_map(merged, temporal_parallel_dims, gpipe_symbol_map_value, args.num_stacks, args.layer_each_stage)
+
     distributed_tensor_graph = GraphDistributer.apply(
         transformer,
         symbol_map_value,
         spatial_parallel_dims,
         temporal_parallel_dims,
         pipeline_tensor_map
+    )
+    distributed_gpipe_tensor_graph = GraphDistributer.apply(
+        merged,
+        gpipe_symbol_map_value,
+        spatial_parallel_dims,
+        temporal_parallel_dims,
+        pipeline_merged_tensor_map
     )
             
     if args.store_rank is not None:
@@ -170,6 +180,7 @@ def main():
         f.close()
     # readout to chakra
     distributed_chakra_graph = BundledConvertChakra.apply(distributed_tensor_graph, symbol_map_value, os.path.join(args.output_dir, args.comm_group_file), readable_rank_map_number_rank=readable_rank_map_number_rank)
+    distributed_gpipe_chakra_graph = BundledConvertChakra.apply(distributed_gpipe_tensor_graph, gpipe_symbol_map_value, os.path.join(args.output_dir, args.comm_group_file), readable_rank_map_number_rank=readable_rank_map_number_rank)
     if args.chakra_schema_version == "v0.0.1":
         from symbolic_tensor_graph.chakra.backends.chakra_00_1_backend import Chakra001Backend as ReadoutBackend
     elif args.chakra_schema_version == "v0.0.4":
@@ -178,7 +189,8 @@ def main():
         from symbolic_tensor_graph.chakra.backends.json_backend import JsonBackend as ReadoutBackend
     else:
         assert False
-    distributed_chakra_graph.readout(generated_filename, backend=ReadoutBackend)
+    # distributed_chakra_graph.readout(generated_filename, backend=ReadoutBackend)
+    distributed_gpipe_chakra_graph.readout(generated_filename, backend=ReadoutBackend)
 
 
 if __name__ == "__main__":

@@ -20,7 +20,7 @@ def naive_pipeline_emb_separate_n_layer_each_stage(graph, temporal_parallel_dims
             tensor_map[tensor.id] = {parallel_dim: 0}
         elif "out_emb" in tensor.id:
             tensor_map[tensor.id] = {parallel_dim: ((num_stacks+2)//layer_each_stage) % pp_size}
-    return tensor_map
+    return graph, tensor_map
 
 
 def naive_pipeline_emb_separate_evenly(graph, temporal_parallel_dims, symbol_map_value, num_stacks):
@@ -46,7 +46,7 @@ def naive_pipeline_n_layer_each_stage(graph, temporal_parallel_dims, symbol_map_
             tensor_map[tensor.id] = {parallel_dim: 0}
         elif "out_emb" in tensor.id:
             tensor_map[tensor.id] = {parallel_dim: 0}
-    return tensor_map
+    return graph, tensor_map
 
 def naive_pipeline_evenly(graph, temporal_parallel_dims, symbol_map_value, num_stacks):
     assert len(temporal_parallel_dims) == 1
@@ -62,6 +62,8 @@ def gpipe_pipeline_prepare(graph, symbol_map_value):
     assert batch_sym in symbol_map_value
     # micro_batches = (symbol_map_value[batch]+symbol_map_value[micro_batch]-1) // symbol_map_value[micro_batch]
     micro_batches = symbol_map_value[micro_batch_sym]
+    # TODO: here it modify batch value in the symbol_map_value, however, idealy should not because it might be used multiple times.
+    # symbol_map_value[batch_sym] = symbol_map_value[batch_sym] // micro_batches
     micro_batch_graphs = list()
     for i in range(micro_batches):
         micro_batch_graph = ReplicateGraph.apply(graph, f"mb{i}_%s")
@@ -106,10 +108,10 @@ def gpipe_pipeline_prepare(graph, symbol_map_value):
             new_tensor.op_type = Add.type_name
             new_tensor.x1 = from_
             new_tensor.x2 = sub_grads
-            new_tensor.x1_shape = from_.x1_shape
-            new_tensor.x2_shape = sub_grads.x1_shape
-            new_tensor.x1_hidden = from_.x1_hidden
-            new_tensor.x2_hidden = sub_grads.x1_hidden
+            new_tensor.x1_shape = from_.y_shape
+            new_tensor.x2_shape = sub_grads.y_shape
+            new_tensor.x1_hidden = from_.y_hidden
+            new_tensor.x2_hidden = sub_grads.y_hidden
             new_tensor.op_attr = None
             new_tensor.grad_of = None
             new_tensor._grad = None
@@ -120,3 +122,30 @@ def gpipe_pipeline_prepare(graph, symbol_map_value):
         from_.grad_of = tensor_id_map_tensor[tensor_id]
         tensor_id_map_tensor[tensor_id]._grad = from_
     return merged_graph
+
+
+def gpipe_n_layer_each_stage(graph, temporal_parallel_dims, symbol_map_value, num_stacks, layer_each_stage=1):
+    graph = gpipe_pipeline_prepare(graph, symbol_map_value)
+    tensors = graph.tensors
+    tensor_map = dict()
+    assert len(temporal_parallel_dims) == 1
+    parallel_dim = temporal_parallel_dims[0]
+    pp_size = symbol_map_value[parallel_dim]
+    for tensor in tensors:
+        for num_stack in range(num_stacks):
+            if f"stack_{num_stack}_" in tensor.id:
+                tensor_map[tensor.id] = {parallel_dim: (num_stack//layer_each_stage) % pp_size}
+                break
+        if "in_emb" in tensor.id:
+            tensor_map[tensor.id] = {parallel_dim: 0}
+        elif "out_emb" in tensor.id:
+            tensor_map[tensor.id] = {parallel_dim: 0}
+    return graph, tensor_map
+
+
+def gpipe_evenly(graph, temporal_parallel_dims, symbol_map_value, num_stacks):
+    assert len(temporal_parallel_dims) == 1
+    parallel_dim = temporal_parallel_dims[0]
+    pp_size = symbol_map_value[parallel_dim]
+    layer_each_stage = (num_stacks+pp_size-1) // pp_size
+    return gpipe_n_layer_each_stage(graph, temporal_parallel_dims, symbol_map_value, num_stacks, layer_each_stage)
