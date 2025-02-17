@@ -39,9 +39,9 @@ class ReplicateGraph:
         assert isinstance(graph, TensorGraph)
         for from_, to_ in old_symbol_map_new_symbol.items():
             if isinstance(from_, str):
-                from_ = sp.symbols(from_)
+                from_ = sp.parse_expr(from_)
             if isinstance(to_, str):
-                to_ = sp.symbols(to_)
+                to_ = sp.parse_expr(to_)
             for tensor in graph.tensors:
                 if not tensor.x1_shape is None:
                     for i, dim in enumerate(tensor.x1_shape):

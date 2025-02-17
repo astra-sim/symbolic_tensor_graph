@@ -8,7 +8,7 @@ from symbolic_tensor_graph.graph.convert_chakra import (
 )
 from symbolic_tensor_graph.graph.replicate_graph import ReplicateGraph
 from symbolic_tensor_graph.graph.connect_graph import ConnectGraph
-from symbolic_tensor_graph.graph.pipeline_parallel import GraphDistributer
+from symbolic_tensor_graph.graph.graph_distributer import GraphDistributer
 from symbolic_tensor_graph.chakra.node import Node
 from symbolic_tensor_graph.chakra.backends.json_backend import JsonBackend
 from models.transformer import (

@@ -1,0 +1,8 @@
+﻿id,require_grads,x1,x2,op_type,op_attr,x1_shape,x1_hidden,x2_shape,x2_hidden,grad_of
+x0,N,,,T,,"Batch/dp, 1/sp, Dmodel/mp",1,,,
+w1,Y,,,T,,"Dmodel, Dff/mp",1,,,
+x1,N,x0,w1,M,"bsm,mn->bsn","Batch/dp, 1/sp, Dmodel",1,"Dmodel, Dff/mp",1,
+w2,Y,,,T,,"Dff/mp, Dmodel",1,,,
+x2,N,x1,w2,M,"bsm,mn->bsn","Batch/dp, 1/sp, Dff/mp",1,"Dff/mp, Dmodel",1,
+res,N,x2,x0,A,,"Batch/dp, 1/sp, Dmodel/mp",1,"Batch/dp, 1/sp, Dmodel/mp",1,
+norm,N,res,,E,5,"Batch/dp, 1/sp, Dmodel/mp",1,,,

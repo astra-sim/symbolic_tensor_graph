@@ -162,7 +162,7 @@ class TensorGraph:
         copied_graph = None
         with tempfile.TemporaryDirectory() as tmp_dir:
             csv_file_path = os.path.join(tmp_dir, "graph.csv")
-            json_file_path = os.path.join(tmp_dir, "grpah.json")
+            json_file_path = os.path.join(tmp_dir, "graph.json")
             self.save_tensor_graph(csv_file_path, json_file_path)
             copied_graph = self.__class__.load_tensor_graph(
                 csv_file_path, json_file_path

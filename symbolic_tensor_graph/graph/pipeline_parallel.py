@@ -1,247 +1,151 @@
-import copy
-from ..graph.graph import TensorGraph, BundledTensorGraph
+import sympy as sp
 from ..tensor import Tensor
-from ..ops import Shadow
+from .replicate_graph import ReplicateGraph
+from .connect_graph import ConnectGraph
+from ..ops import Add
 
 
-class GraphDistributer:
-    @classmethod
-    def _sanity_check(
-        cls,
-        tensor_graph,
-        symbol_map_value,
-        spatial_parallel_dims,
-        temporal_parallel_dims,
-        tensor_id_temporal_map,
-    ):
-        for symbol in spatial_parallel_dims:
-            assert symbol in symbol_map_value
-        for symbol in temporal_parallel_dims:
-            assert symbol in symbol_map_value
-        assert len(tensor_id_temporal_map) == len(tensor_graph.tensors)
-        for tensor in tensor_id_temporal_map.keys():
-            position = tensor_id_temporal_map[tensor]
-            assert len(position.keys()) == len(temporal_parallel_dims)
-            for asked_dim in position.keys():
-                asked_rank = position[asked_dim]
-                assert asked_dim in temporal_parallel_dims
-                assert asked_rank < symbol_map_value[asked_dim] and asked_rank >= 0
+def naive_pipeline_emb_separate_n_layer_each_stage(graph, temporal_parallel_dims, symbol_map_value, num_stacks, layer_each_stage=1):
+    tensors = graph.tensors
+    tensor_map = dict()
+    assert len(temporal_parallel_dims) == 1
+    parallel_dim = temporal_parallel_dims[0]
+    pp_size = symbol_map_value[parallel_dim]
+    for tensor in tensors:
+        for num_stack in range(num_stacks):
+            if f"stack_{num_stack}_" in tensor.id:
+                tensor_map[tensor.id] = {parallel_dim: ((num_stack+1)//layer_each_stage) % pp_size}
+                break
+        if "in_emb" in tensor.id:
+            tensor_map[tensor.id] = {parallel_dim: 0}
+        elif "out_emb" in tensor.id:
+            tensor_map[tensor.id] = {parallel_dim: ((num_stacks+2)//layer_each_stage) % pp_size}
+    return graph, tensor_map
 
-    @classmethod
-    def _temporal_dispatch_tensors(cls, tensors, tensor_id_temporal_map):
-        buckets = dict()
-        for tensor in tensors:
-            tensor_id = tensor.id
-            position = tensor_id_temporal_map[tensor_id]
-            target_bucket_key = cls._mapping_dict_to_tuple(position)
-            if not target_bucket_key in buckets:
-                buckets[target_bucket_key] = list()
-            buckets[target_bucket_key].append(tensor)
-        return buckets
 
-    @classmethod
-    def _mapping_dict_to_tuple(cls, dict_):
-        ret = tuple()
-        for key in dict_:
-            ret += ((key, dict_[key]),)
-        return ret
+def naive_pipeline_emb_separate_evenly(graph, temporal_parallel_dims, symbol_map_value, num_stacks):
+    assert len(temporal_parallel_dims) == 1
+    parallel_dim = temporal_parallel_dims[0]
+    pp_size = symbol_map_value[parallel_dim]
+    layer_each_stage = (num_stacks+pp_size-1) // pp_size
+    return naive_pipeline_emb_separate_n_layer_each_stage(graph, temporal_parallel_dims, symbol_map_value, num_stacks, layer_each_stage)
 
-    @classmethod
-    def _fix_cross_bucket_data_dependancies(cls, buckets, tensor_id_temporal_map):
-        remote_parent_shadow_pairs = list()
-        for bucket_key in buckets:
-            remote_parent_map_shadow = dict()
-            bucket = buckets[bucket_key]
-            for tensor in bucket:
-                if not tensor.x1 is None:
-                    if not tensor.x1 in bucket:
-                        remote = tensor.x1
-                        child = tensor
-                        if not remote in remote_parent_map_shadow:
-                            shadow = cls._create_shadow(remote)
-                            remote_parent_map_shadow[remote] = shadow
-                        shadow = remote_parent_map_shadow[remote]
-                        child.x1 = shadow
-                if not tensor.x2 is None:
-                    if not tensor.x2 in bucket:
-                        remote = tensor.x2
-                        child = tensor
-                        if not remote in remote_parent_map_shadow:
-                            shadow = cls._create_shadow(remote)
-                            remote_parent_map_shadow[remote] = shadow
-                        shadow = remote_parent_map_shadow[remote]
-                        child.x2 = shadow
-            for remote in remote_parent_map_shadow:
-                remote_map = cls._mapping_dict_to_tuple(
-                    tensor_id_temporal_map[remote.id]
-                )
-                shadow = remote_parent_map_shadow[remote]
-                shadow_map = bucket_key
-                remote_parent_shadow_pairs.append(
-                    (
-                        (remote_map, remote.id),
-                        (shadow_map, shadow.id),
-                    )
-                )
-                bucket.append(shadow)
-        return buckets, remote_parent_shadow_pairs
 
-    @classmethod
-    def _spatial_copy_graphs(
-        cls,
-        buckets,
-        remote_parent_shadow_pairs,
-        spatial_parallel_dims,
-        symbol_map_value,
-    ):
-        if len(spatial_parallel_dims) == 0:
-            return buckets, remote_parent_shadow_pairs
-        dim = spatial_parallel_dims[0]
-        spatial_parallel_dims = spatial_parallel_dims[1:]
-        buckets, remote_parent_shadow_pairs = cls._spatial_copy_graphs(
-            buckets, remote_parent_shadow_pairs, spatial_parallel_dims, symbol_map_value
-        )
-        new_buckets = dict()
-        for key in buckets.keys():
-            for rank in range(symbol_map_value[dim]):
-                new_key = key + ((dim, rank),)
-                stub_graph = TensorGraph(buckets[key])
-                stub_graph_copied = copy.deepcopy(stub_graph)
-                new_buckets[new_key] = stub_graph_copied.tensors
-        new_remote_parent_shadow_pairs = list()
-        for item in remote_parent_shadow_pairs:
-            for rank in range(symbol_map_value[dim]):
-                (remote_map, remote_id), (shadow_map, shadow_id) = item
-                remote_map = remote_map + ((dim, rank),)
-                shadow_map = shadow_map + ((dim, rank),)
-                new_item = (remote_map, remote_id), (shadow_map, shadow_id)
-                new_remote_parent_shadow_pairs.append(new_item)
-        return new_buckets, new_remote_parent_shadow_pairs
+def naive_pipeline_n_layer_each_stage(graph, temporal_parallel_dims, symbol_map_value, num_stacks, layer_each_stage=1):
+    tensors = graph.tensors
+    tensor_map = dict()
+    assert len(temporal_parallel_dims) == 1
+    parallel_dim = temporal_parallel_dims[0]
+    pp_size = symbol_map_value[parallel_dim]
+    for tensor in tensors:
+        for num_stack in range(num_stacks):
+            if f"stack_{num_stack}_" in tensor.id:
+                tensor_map[tensor.id] = {parallel_dim: (num_stack//layer_each_stage) % pp_size}
+                break
+        if "in_emb" in tensor.id:
+            tensor_map[tensor.id] = {parallel_dim: 0}
+        elif "out_emb" in tensor.id:
+            tensor_map[tensor.id] = {parallel_dim: 0}
+    return graph, tensor_map
 
-    @classmethod
-    def _create_shadow(cls, remote):
-        shadow = Tensor(create_empty=True)
-        shadow.name = f"shadow_{remote.name}"
-        shadow.revision = remote.revision
-        shadow.op_type = Shadow.type_name
-        shadow.require_grads = False
-        shadow.x1_shape = remote.y_shape
-        shadow.x1_hidden = remote.y_hidden
-        return shadow
+def naive_pipeline_evenly(graph, temporal_parallel_dims, symbol_map_value, num_stacks):
+    assert len(temporal_parallel_dims) == 1
+    parallel_dim = temporal_parallel_dims[0]
+    pp_size = symbol_map_value[parallel_dim]
+    layer_each_stage = (num_stacks+pp_size-1) // pp_size
+    return naive_pipeline_n_layer_each_stage(graph, temporal_parallel_dims, symbol_map_value, num_stacks, layer_each_stage)
 
-    @classmethod
-    def _create_comm_groups(cls, spatial_parallel_dims, temporal_parallel_dims, symbol_map_value):
-        def _create_keys(parallel_dims, symbol_map_value, comm_groups_idx_dicts):
-            dim = parallel_dims[0]
-            ret = list()
-            assert len(parallel_dims) > 0
-            if len(parallel_dims) == 1:
-                for rank in range(symbol_map_value[dim]):
-                    idx = {dim: rank}
-                    ret.append(idx)
-                return ret
-            parallel_dims = parallel_dims[1:]
-            comm_groups_idx_dicts = _create_keys(parallel_dims, symbol_map_value, comm_groups_idx_dicts)
-            for rank in range(symbol_map_value[dim]):
-                for idx in comm_groups_idx_dicts:
-                    idx = copy.deepcopy(idx)
-                    idx[dim] = rank
-                    ret.append(idx)
-            return ret
-        def _dict_to_tuple(dict_):
-            ret = tuple()
-            for key in dict_:
-                value = dict_[key]
-                ret += ((key, value),)
-            return ret
-        comm_groups_idx_dicts = list()
-        for spatial_parallel_dim in spatial_parallel_dims:
-            parallel_dims = list()
-            parallel_dims.extend(temporal_parallel_dims)
-            parallel_dims.extend(spatial_parallel_dims)
-            parallel_dims.remove(spatial_parallel_dim)
-            comm_groups_idx_dicts.extend(_create_keys(parallel_dims, symbol_map_value, list()))
-        comm_groups = dict()
-        for i, comm_groups_idx_dict in enumerate(comm_groups_idx_dicts):
-            group_dim = None
-            for dim in spatial_parallel_dims:
-                if not dim in comm_groups_idx_dict.keys():
-                    group_dim = dim
-                    break
-            assert group_dim is not None
-            comm_groups_idx_tuple = _dict_to_tuple(comm_groups_idx_dict)
-            in_group_machines = list()
-            in_group_machines.append(i+1)
-            for rank in range(symbol_map_value[group_dim]):
-                machine_idx_dict = copy.deepcopy(comm_groups_idx_dict)
-                machine_idx_dict[group_dim] = rank
-                in_group_machines.append(_dict_to_tuple(machine_idx_dict))
-            comm_groups[comm_groups_idx_tuple] = in_group_machines
-        return comm_groups
+def gpipe_pipeline_prepare(graph, symbol_map_value):
+    micro_batch_sym = sp.symbols("MicroBatch")
+    batch_sym = sp.symbols("Batch")
+    assert micro_batch_sym in symbol_map_value
+    assert batch_sym in symbol_map_value
+    # micro_batches = (symbol_map_value[batch]+symbol_map_value[micro_batch]-1) // symbol_map_value[micro_batch]
+    micro_batches = symbol_map_value[micro_batch_sym]
+    # TODO: here it modify batch value in the symbol_map_value, however, idealy should not because it might be used multiple times.
+    # symbol_map_value[batch_sym] = symbol_map_value[batch_sym] // micro_batches
+    micro_batch_graphs = list()
+    for i in range(micro_batches):
+        micro_batch_graph = ReplicateGraph.apply(graph, f"mb{i}_%s")
+        micro_batch_graphs.append(micro_batch_graph)
+    no_microbatch_tensors = {"in_emb", "out_emb", "mha_wq", "mha_wk", "mha_wv", "mha_wo", "ffn_w1", "ffn_w2", "ffn_wo"}
+    for i, graph in enumerate(micro_batch_graphs):
+        for tensor in graph.tensors:
+            no_microbatch = False
+            for no_microbatch_layer in no_microbatch_tensors:
+                if no_microbatch_layer in tensor.id:
+                    no_microbatch = True
+            if not no_microbatch:
+                continue
+            tensor.name = tensor.name.replace(f"mb{i}_", "")
+    merged_graph = ConnectGraph.apply(micro_batch_graphs, dict())
+    merged_graph = ReplicateGraph.apply(merged_graph, "%s", old_symbol_map_new_symbol={batch_sym: batch_sym/micro_batch_sym})
+    
+    tensor_id_map_tensor = merged_graph.get_tensor_id_map_tensor()
+    microbatch_grads = dict()
+    for tensor_id in tensor_id_map_tensor:
+        tensor = tensor_id_map_tensor[tensor_id]
+        if tensor.grad_of is not None and tensor.grad_of.require_grads:
+            grad_of_id = tensor.grad_of.id
+            if grad_of_id.startswith("mb"):
+                foo = grad_of_id[grad_of_id.find("mb")+len("mb"):]
+                foo = foo[foo.find("_")+1:]
+                grad_of_id = grad_of_id[:grad_of_id.find("mb")] + foo
+                assert grad_of_id in tensor_id_map_tensor
+            tensor.grad_of._grad = None
+            tensor.grad_of = None
+            if not grad_of_id in microbatch_grads:
+                microbatch_grads[grad_of_id] = list()
+            microbatch_grads[grad_of_id].append(tensor)
+    for tensor_id in microbatch_grads:
+        from_ = microbatch_grads[tensor_id][0]
+        for i, sub_grads in enumerate(microbatch_grads[tensor_id]):
+            if i == 0:
+                continue
+            new_tensor = Tensor(create_empty=True)
+            new_tensor.name = f"{sub_grads.name}_add_mb{i}"
+            new_tensor.revision = sub_grads.revision
+            new_tensor.op_type = Add.type_name
+            new_tensor.x1 = from_
+            new_tensor.x2 = sub_grads
+            new_tensor.x1_shape = from_.y_shape
+            new_tensor.x2_shape = sub_grads.y_shape
+            new_tensor.x1_hidden = from_.y_hidden
+            new_tensor.x2_hidden = sub_grads.y_hidden
+            new_tensor.op_attr = None
+            new_tensor.grad_of = None
+            new_tensor._grad = None
+            merged_graph.tensors.append(new_tensor)
+            from_ = new_tensor
+        if len(microbatch_grads[tensor_id]) > 1:
+            merged_graph.out_tensors.append(from_)
+        from_.grad_of = tensor_id_map_tensor[tensor_id]
+        tensor_id_map_tensor[tensor_id]._grad = from_
+    return merged_graph
 
-    @classmethod
-    def _distribute_comm_groups(cls, graphs, comm_groups, spatial_parallel_dims):
-        def _tuple_to_dict(tuple_):
-            ret = dict()
-            for key, value in tuple_:
-                ret[key] = value
-            return ret
-        for graph_key in graphs.keys():
-            graph_key_dict = _tuple_to_dict(graph_key)
-            graph_comm_groups = dict()
-            for dim in spatial_parallel_dims:
-                comm_group_key_dict = copy.deepcopy(graph_key_dict)
-                del comm_group_key_dict[dim]
-                matched_comm_groups = None
-                for comm_group_key_tuple in comm_groups.keys():
-                    if comm_group_key_dict == _tuple_to_dict(comm_group_key_tuple):
-                        matched_comm_groups = comm_groups[comm_group_key_tuple]
-                        break
-                assert matched_comm_groups is not None
-                graph_comm_groups[dim] = matched_comm_groups
-            graphs[graph_key].comm_groups = graph_comm_groups
 
-    @classmethod
-    def apply(
-        cls,
-        tensor_graph,
-        symbol_map_value,
-        spatial_parallel_dims,
-        temporal_parallel_dims,
-        tensor_id_temporal_map,
-        inplace=False,
-    ):
-        if not inplace:
-            tensor_graph = copy.deepcopy(tensor_graph)
-        cls._sanity_check(
-            tensor_graph,
-            symbol_map_value,
-            spatial_parallel_dims,
-            temporal_parallel_dims,
-            tensor_id_temporal_map,
-        )
+def gpipe_n_layer_each_stage(graph, temporal_parallel_dims, symbol_map_value, num_stacks, layer_each_stage=1):
+    graph = gpipe_pipeline_prepare(graph, symbol_map_value)
+    tensors = graph.tensors
+    tensor_map = dict()
+    assert len(temporal_parallel_dims) == 1
+    parallel_dim = temporal_parallel_dims[0]
+    pp_size = symbol_map_value[parallel_dim]
+    for tensor in tensors:
+        for num_stack in range(num_stacks):
+            if f"stack_{num_stack}_" in tensor.id:
+                tensor_map[tensor.id] = {parallel_dim: (num_stack//layer_each_stage) % pp_size}
+                break
+        if "in_emb" in tensor.id:
+            tensor_map[tensor.id] = {parallel_dim: 0}
+        elif "out_emb" in tensor.id:
+            tensor_map[tensor.id] = {parallel_dim: 0}
+    return graph, tensor_map
 
-        buckets = cls._temporal_dispatch_tensors(
-            tensor_graph.tensors, tensor_id_temporal_map
-        )
-        buckets, remote_parent_shadow_pairs = cls._fix_cross_bucket_data_dependancies(
-            buckets, tensor_id_temporal_map
-        )
-        buckets, remote_parent_shadow_pairs = cls._spatial_copy_graphs(
-            buckets, remote_parent_shadow_pairs, spatial_parallel_dims, symbol_map_value
-        )
-        graphs = dict()
-        for key in buckets.keys():
-            graphs[key] = TensorGraph(buckets[key])
 
-        bundled_tensor_graph = BundledTensorGraph(
-            graphs,
-            remote_parent_shadow_pairs,
-            spatial_parallel_dims,
-            temporal_parallel_dims,
-            symbol_map_value,
-        )
-        comm_groups = cls._create_comm_groups(spatial_parallel_dims, temporal_parallel_dims, symbol_map_value)
-        cls._distribute_comm_groups(bundled_tensor_graph.graphs, comm_groups, spatial_parallel_dims)
-        bundled_tensor_graph.comm_groups = comm_groups
-        return bundled_tensor_graph
+def gpipe_evenly(graph, temporal_parallel_dims, symbol_map_value, num_stacks):
+    assert len(temporal_parallel_dims) == 1
+    parallel_dim = temporal_parallel_dims[0]
+    pp_size = symbol_map_value[parallel_dim]
+    layer_each_stage = (num_stacks+pp_size-1) // pp_size
+    return gpipe_n_layer_each_stage(graph, temporal_parallel_dims, symbol_map_value, num_stacks, layer_each_stage)

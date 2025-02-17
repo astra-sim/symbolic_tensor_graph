@@ -2,6 +2,7 @@ import copy
 
 
 class CommunicationMatcher:
+
     class EndType:
         PARTITION = "partition"
         REDUCED = "reduced"
@@ -13,16 +14,16 @@ class CommunicationMatcher:
         REDUCE_SCATTER = "reduce_scatter"
 
     @classmethod
-    def match_comms(
-        cls, from_shape, from_hidden, to_shape, to_hidden, parallel_symbols
-    ):
-        from_parallel_dims = cls.get_parallel_dims(
-            from_shape, from_hidden, parallel_symbols
-        )
-        to_parallel_dims = cls.get_parallel_dims(to_shape, to_hidden, parallel_symbols)
+    def match_comms(cls, from_shape, from_hidden, to_shape, to_hidden,
+                    parallel_symbols):
+        from_parallel_dims = cls.get_parallel_dims(from_shape, from_hidden,
+                                                   parallel_symbols)
+        to_parallel_dims = cls.get_parallel_dims(to_shape, to_hidden,
+                                                 parallel_symbols)
         matched_comm_pair = list()
         for parallel_symbol in parallel_symbols:
-            if (not parallel_symbol in from_parallel_dims.keys()) and (not parallel_symbol in to_parallel_dims.keys()):
+            if (not parallel_symbol in from_parallel_dims.keys()) and (
+                    not parallel_symbol in to_parallel_dims.keys()):
                 continue
             if parallel_symbol in from_parallel_dims.keys():
                 from_comm = from_parallel_dims[parallel_symbol]
@@ -39,27 +40,25 @@ class CommunicationMatcher:
                 if to_comm[0] == cls.EndType.PARTITION:
                     if not from_comm[1] == to_comm[1]:
                         # TODO: need some clever way to examine if there two dims contains each other and no a2a required
-                        comms.append(
-                            (cls.CommType.ALL_TO_ALL, from_comm[1], to_comm[1], parallel_symbol)
-                        )
+                        comms.append((cls.CommType.ALL_TO_ALL, from_comm[1],
+                                      to_comm[1], parallel_symbol))
                     else:
                         # do nothing
                         pass
                 elif to_comm[0] == cls.EndType.REDUCED:
                     assert to_comm[1] is None  # shouldnt dim on reduced dim
-                    comms.append((cls.CommType.ALL_GATHER, from_comm[1], to_comm[1], parallel_symbol))
+                    comms.append((cls.CommType.ALL_GATHER, from_comm[1],
+                                  to_comm[1], parallel_symbol))
                 else:
                     assert False
             elif from_comm[0] == cls.EndType.REDUCED:
                 if to_comm[0] == cls.EndType.PARTITION:
-                    comms.append(
-                        (cls.CommType.REDUCE_SCATTER, from_comm[1], to_comm[1], parallel_symbol)
-                    )
+                    comms.append((cls.CommType.REDUCE_SCATTER, from_comm[1],
+                                  to_comm[1], parallel_symbol))
                 elif to_comm[0] == cls.EndType.REDUCED:
                     if to_comm[1] is None:
-                        comms.append(
-                            (cls.CommType.ALL_REDUCE, from_comm[1], to_comm[1], parallel_symbol)
-                        )
+                        comms.append((cls.CommType.ALL_REDUCE, from_comm[1],
+                                      to_comm[1], parallel_symbol))
                     else:
                         # do nothing
                         pass
@@ -100,6 +99,5 @@ class CommunicationMatcher:
                 parallel_dims[matched] = cls.EndType.REDUCED, dim
 
         assert len(parallel_dims) + len(remaining_parallel_symbols) == len(
-            parallel_symbols
-        )
+            parallel_symbols)
         return parallel_dims
