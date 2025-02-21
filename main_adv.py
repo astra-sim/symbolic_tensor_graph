@@ -51,7 +51,7 @@ def main():
 
     os.makedirs(args.output_dir, exist_ok=True)
     if not "%d" in args.output_name:
-        args.output_name = f"{args.output_name}.%d.eg"
+        args.output_name = f"{args.output_name}.%d.et"
     generated_filename = os.path.join(args.output_dir, args.output_name)
     dp, tp, pp, spp = sp.symbols("dp tp pp sp")
     Din, Dout, Dmodel, Dff, Batch, Seq, Head = sp.symbols(
@@ -189,8 +189,8 @@ def main():
         from symbolic_tensor_graph.chakra.backends.json_backend import JsonBackend as ReadoutBackend
     else:
         assert False
-    # distributed_chakra_graph.readout(generated_filename, backend=ReadoutBackend)
-    distributed_gpipe_chakra_graph.readout(generated_filename, backend=ReadoutBackend)
+    distributed_chakra_graph.readout(generated_filename, backend=ReadoutBackend)
+    # distributed_gpipe_chakra_graph.readout(generated_filename, backend=ReadoutBackend)
 
 
 if __name__ == "__main__":

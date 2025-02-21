@@ -40,7 +40,7 @@ def main():
 
     os.makedirs(args.output_dir, exist_ok=True)
     if not "%d" in args.output_name:
-        args.output_name = f"{args.output_name}.%d.eg"
+        args.output_name = f"{args.output_name}.%d.et"
     generated_filename = os.path.join(args.output_dir, args.output_name)
     dp, tp, pp, spp = sp.symbols("dp tp pp sp")
     Din, Dout, Dmodel, Dff, Batch, Seq, Head = sp.symbols(
