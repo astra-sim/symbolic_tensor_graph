@@ -269,9 +269,45 @@ class HybridGraph(TensorGraph):
                 assert node.id not in node_id_map_tensor
                 node_id_map_tensor[node.id] = tensor
         return node_id_map_tensor
+    
+    def comm_add_ctrl_dep(self, nodes):
+        node_dependencies = {}
+        ready_nodes = []
+        for node in nodes:
+            unique_deps = set(node.ctrl_deps + node.data_deps)
+            dependencies = len(unique_deps)
+            node_dependencies[node.id] = dependencies
+            if dependencies == 0:
+                ready_nodes.append(node)
+                
+        while ready_nodes:
+            current_layer = ready_nodes
+            ready_nodes = []
+            coll_comm_count = sum(1 for node in current_layer if node.node_type in {Node.NodeType.COLL_COMM_NODE, Node.NodeType.COMM_SEND_NODE})
+            
+            if coll_comm_count > 2:
+                old_node = None
+                for node in current_layer:
+                    if node.node_type in {Node.NodeType.COLL_COMM_NODE, Node.NodeType.COMM_SEND_NODE}:
+                        new_node = node
+                        if old_node is None:
+                            old_node = new_node
+                            continue
+                        print(f"added {old_node.id}->{new_node.id}")
+                        new_node.ctrl_deps.append(old_node.id)
+                        old_node = new_node
+            
+            for node in current_layer:
+                for dependent in nodes:
+                    if node in dependent.ctrl_deps or node in dependent.data_deps:
+                        node_dependencies[dependent.id] -= 1
+                        if node_dependencies[dependent.id] == 0:
+                            ready_nodes.append(dependent)
+        return nodes
 
     def readout(self, filename, backend=None):
         nodes = self.get_nodes()
+        nodes = self.comm_add_ctrl_dep(nodes)
         Node.readout_nodes(nodes, filename, backend=backend)
 
 

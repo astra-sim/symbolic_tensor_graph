@@ -55,9 +55,6 @@ class Chakra004Backend(NodeBackendBase):
         backend_node.id = id
         backend_node.name = name
         backend_node.type = _get_backend_node_type(node_type)
-        backend_node.attr.append(
-            ChakraAttr(name="y_tensor_size", int64_val=int(y_tensor_size))
-        )
 
     @classmethod
     def set_data_deps(cls, data_deps, backend_node):
@@ -101,7 +98,7 @@ class Chakra004Backend(NodeBackendBase):
             ChakraAttr(name="comm_type", int64_val=_get_backend_comm_type(comm_type))
         )
         backend_node.attr.append(
-            ChakraAttr(name="comm_group", int32_val=int(comm_group))
+            ChakraAttr(name="pg_name", string_val=str(comm_group))
         )
         backend_node.attr.append(
             ChakraAttr(name="is_cpu_op", int32_val=int(0))
