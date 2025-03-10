@@ -6,10 +6,27 @@ from ..tensor import Tensor
 from .graph import HybridGraph, TensorGraph, BundledTensorGraph, BundledHybridGraph
 from .coll_comm_matcher import CommunicationMatcher
 from ..chakra.node import Node
-from ..ops import Shadow
+from ..ops import Shadow, Identical
 
 
 class ConvertChakra:
+    with_comm_info = False
+
+    @classmethod
+    def _create_IOInfo(cls, tensor, symbol_map_value):
+        if tensor.op_type == Identical.type_name:
+            tensor = tensor.x1
+        name = tensor.id
+        shape = tensor.y_shape
+        shape_str = Tensor.stringfy_shape(shape)
+        name = name + shape_str
+        size = Tensor.eval_expr(Tensor.eval_size(shape), symbol_map_value)
+        IOInfo = {
+            "name": name,
+            "size": size
+        }
+        return IOInfo
+
     @classmethod
     def _insert_comp(cls, tensor, symbol_map_value, nodes_this_tensor):
         tensor_ops = Tensor.eval_expr(tensor.ops, symbol_map_value)
@@ -271,9 +288,54 @@ class ConvertChakra:
                     node.comm_group = tensor_graph.comm_groups[parallel_dim][0]
             tensor_map_nodes[tensor] = nodes_this_tensor
         cls._connect_tensors_node(tensor_map_nodes)
+        cls._comm_info_post_process(tensor_map_nodes, symbol_map_value)
         graph = HybridGraph(tensor_graph.tensors, tensor_map_nodes, symbol_map_value)
         cls._clean_empty_comp(graph)
         return graph
+    
+    @classmethod
+    def _comm_info_post_process(cls, tensor_map_nodes, symbol_map_value):
+        if not cls.with_comm_info:
+            return
+        for tensor in tensor_map_nodes.keys():
+            nodes_this_tensor = tensor_map_nodes[tensor]
+            for node_type in nodes_this_tensor.keys():
+                if node_type == HybridGraph.NodeType.COMP:
+                    inputs = list()
+                    if tensor.x1 is not None:
+                        inputs.append(cls._create_IOInfo(tensor.x1, symbol_map_value))
+                    if tensor.x2 is not None:
+                        inputs.append(cls._create_IOInfo(tensor.x2, symbol_map_value))
+                    outputs = list()
+                    outputs.append(cls._create_IOInfo(tensor, symbol_map_value))
+                    nodes_this_tensor[node_type].inputs = inputs
+                    nodes_this_tensor[node_type].outputs = outputs
+                elif HybridGraph.NodeType.X1_COMM in node_type:
+                    inputs = list()
+                    inputs.append(cls._create_IOInfo(tensor.x1, symbol_map_value))
+                    outputs = list()
+                    nodes_this_tensor[node_type].inputs = inputs
+                    nodes_this_tensor[node_type].outputs = outputs
+                elif HybridGraph.NodeType.X2_COMM in node_type:
+                    inputs = list()
+                    inputs.append(cls._create_IOInfo(tensor.x2, symbol_map_value))
+                    outputs = list()
+                    nodes_this_tensor[node_type].inputs = inputs
+                    nodes_this_tensor[node_type].outputs = outputs
+                elif node_type == HybridGraph.NodeType.Y_RECV:
+                    inputs = list()
+                    outputs = list()
+                    outputs.append(cls._create_IOInfo(tensor, symbol_map_value))
+                    nodes_this_tensor[node_type].inputs = inputs
+                    nodes_this_tensor[node_type].outputs = outputs
+                elif HybridGraph.NodeType.Y_SEND in node_type:
+                    inputs = list()
+                    outputs = list()
+                    inputs.append(cls._create_IOInfo(tensor, symbol_map_value))
+                    nodes_this_tensor[node_type].inputs = inputs
+                    nodes_this_tensor[node_type].outputs = outputs
+                else:
+                    assert False
 
 
 class BundledConvertChakra:
@@ -339,6 +401,7 @@ class BundledConvertChakra:
         @classmethod
         def apply_after_cross_bucket_comms(cls, tensor_map_nodes, symbol_map_value):
             cls._connect_tensors_node(tensor_map_nodes)
+            cls._comm_info_post_process(tensor_map_nodes, symbol_map_value)
             graph = HybridGraph(
                 tensor_map_nodes.keys(), tensor_map_nodes, symbol_map_value
             )

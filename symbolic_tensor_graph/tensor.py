@@ -92,7 +92,7 @@ class Tensor:
             # already value
             return expr
         if not OPTIMIZE:
-            return expr.evalf(subs=target_symbol_value_dict)
+            return float(expr.evalf(subs=target_symbol_value_dict))
         target_eval_expr_cache = None
         for (
             target_symbol_value_dict_,
@@ -107,7 +107,7 @@ class Tensor:
             )
 
         if not expr in target_eval_expr_cache:
-            target_eval_expr_cache[expr] = expr.evalf(subs=target_symbol_value_dict)
+            target_eval_expr_cache[expr] = float(expr.evalf(subs=target_symbol_value_dict))
         return target_eval_expr_cache[expr]
 
     @staticmethod

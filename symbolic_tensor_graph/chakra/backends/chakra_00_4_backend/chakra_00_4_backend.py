@@ -35,7 +35,7 @@ class Chakra004Backend(NodeBackendBase):
         return Node()
 
     @classmethod
-    def set_node_common_attrs(cls, id, name, node_type, y_tensor_size, backend_node):
+    def set_node_common_attrs(cls, id, name, node_type, y_tensor_size, backend_node, inputs, outputs):
         def _get_backend_node_type(_frontend_node_type):
             if _frontend_node_type == FrontendNode.NodeType.COLL_COMM_NODE:
                 return NodeType.COMM_COLL_NODE
@@ -52,9 +52,26 @@ class Chakra004Backend(NodeBackendBase):
             else:
                 assert False
 
+        def _frontend_IOs_to_backend(_frontend_IOs, chakra_attr):
+            for frontend_IO in _frontend_IOs:
+                name = frontend_IO["name"]
+                value = str(frontend_IO["size"])
+                chakra_attr.string_list.values.append(name)
+                chakra_attr.string_list.values.append(value)
+            return chakra_attr
+
         backend_node.id = id
         backend_node.name = name
         backend_node.type = _get_backend_node_type(node_type)
+
+        if inputs is not None:
+            assert outputs is not None
+            input_attr = ChakraAttr(name="inputs")
+            _frontend_IOs_to_backend(inputs, input_attr)
+            backend_node.attr.append(input_attr)
+            output_attr = ChakraAttr(name="outputs")
+            _frontend_IOs_to_backend(outputs, output_attr)
+            backend_node.attr.append(output_attr)
 
     @classmethod
     def set_data_deps(cls, data_deps, backend_node):
