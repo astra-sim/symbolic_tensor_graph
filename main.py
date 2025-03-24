@@ -26,6 +26,7 @@ def main():
     parser.add_argument("--sp", type=int, help="sequence parallel degree", required=False, default=1)
     parser.add_argument("--pp", type=int, default=1, help="pipeline parallel degree", required=False)
     parser.add_argument("--weight_sharded", type=str_to_bool, help="whether weight sharded", required=False, default=False)
+    parser.add_argument("--activation_recompute", type=str_to_bool, help="whether recompute activation", required=False, default=False)
     parser.add_argument("--din", type=int, default=51200, required=False)
     parser.add_argument("--dout", type=int, default=25600, required=False)
     parser.add_argument("--dmodel", type=int, default=25600, required=False)
@@ -63,19 +64,36 @@ def main():
     spatial_parallel_dims = [dp, tp, spp]
     temporal_parallel_dims = [pp]
     
-    module_template_dir = os.path.join(
-            os.path.split(
-                os.path.abspath(__file__)
-            )[0],
-            "./sharding_spreadsheets/module/fullset"  
-    )
-    if args.weight_sharded:
-        module_template_dir = os.path.join(
-                os.path.split(
-                    os.path.abspath(__file__)
-                )[0],
-                "./sharding_spreadsheets/module/fully_sharded_fullset"
-        )
+    if not args.activation_recompute:
+        if not args.weight_sharded:
+            module_template_dir = os.path.join(
+                    os.path.split(
+                        os.path.abspath(__file__)
+                    )[0],
+                    "./sharding_spreadsheets/module/fullset"  
+            )
+        else:
+            module_template_dir = os.path.join(
+                    os.path.split(
+                        os.path.abspath(__file__)
+                    )[0],
+                    "./sharding_spreadsheets/module/fully_sharded_fullset"
+            )
+    else:
+        if not args.weight_sharded:
+            module_template_dir = os.path.join(
+                    os.path.split(
+                        os.path.abspath(__file__)
+                    )[0],
+                    "./sharding_spreadsheets/module/fullset_recomp"  
+            )
+        else:
+            module_template_dir = os.path.join(
+                    os.path.split(
+                        os.path.abspath(__file__)
+                    )[0],
+                    "./sharding_spreadsheets/module/fully_sharded_fullset_recomp"
+            )
         
     # build the tensor graph
     mha = TensorGraph.load_tensor_graph(
@@ -93,6 +111,8 @@ def main():
     stack = transformer_stack_fn(mha, ffn)
     transformer = transformer_fn(in_emb, out_emb, stack, num_stacks)
     transformer_updated_grad = GradUpdater.apply(transformer)
+    
+    # transformer.visualize(os.path.join(args.output_dir, "transformer"), format="pdf")
     
     # distribute tensor graph to machines
     def _create_pipeline_tensor_map(_tensors, _temporal_parallel_dims, _symbol_map_value):

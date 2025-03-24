@@ -111,7 +111,13 @@ class TensorGraph:
         for symbol in meta_data["symbols"]:
             symbols.add(sp.parse_expr(symbol))
         assert symbols == graph.get_symbols()
+        graph.sanity_check()
         return graph
+    
+    def sanity_check(self):
+        if "ctrl_deps" in self.extra_attr.keys():
+            for tensor in self.in_tensors:
+                assert isinstance(tensor, Tensor)
 
     def save_tensor_graph(self, csv_filename, json_filename=None):
         Tensor.to_records(self.tensors, csv_filename)

@@ -406,7 +406,18 @@ class BundledConvertChakra:
                 tensor_map_nodes.keys(), tensor_map_nodes, symbol_map_value
             )
             cls._clean_empty_comp(graph)
+            cls.add_ctrl_deps(graph.tensor_map_nodes)
             return graph
+        
+        @classmethod
+        def add_ctrl_deps(cls, tensor_map_nodes):
+            for tensor in tensor_map_nodes.keys():
+                if not "ctrl_deps" in tensor.extra_attr.keys():
+                    continue
+                for parent in tensor.extra_attr["ctrl_deps"]:
+                    parent_node = cls._get_output_node(tensor_map_nodes[parent])
+                    child_node = cls._get_x1_input_node(tensor_map_nodes[tensor])
+                    child_node.ctrl_deps.append(parent_node.id)
 
         # @classmethod
         # def _clean_empty_comp(cls, graph):

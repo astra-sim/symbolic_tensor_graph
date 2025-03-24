@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import graphviz
 import copy
+import json
 from .ops.op_handler import OPHandler
 
 OPTIMIZE = True
@@ -24,6 +25,7 @@ class Tensor:
         "x2_shape",
         "x2_hidden",
         "grad_of",
+        "extra_attr",
     ]
 
     def __init__(self, create_empty=False):
@@ -44,6 +46,8 @@ class Tensor:
         self._grad = None
 
         self.revision = None
+        
+        self.extra_attr = dict()
 
         self._op_token = None
         self._op_results = None
@@ -162,9 +166,21 @@ class Tensor:
             self._op_results = OPHandler.eval(self)
         return self._op_results[2]
 
+    def add_control_dependancy(self, parents):
+        if not "ctrl_deps" in self.extra_attr.keys():
+            self.extra_attr["ctrl_deps"] = list()
+        for parent in parents:
+            if not parent in self.extra_attr["ctrl_deps"]:
+                self.extra_attr["ctrl_deps"].append(parent)
+                
+    def get_control_dependancy(self):
+        if "ctrl_deps" in self.extra_attr.keys():
+            return self.extra_attr["ctrl_deps"]
+        return list()
+
     @staticmethod
     def _parse_record(terms):
-        assert len(terms) == len(Tensor.CSV_HEADER)
+        assert len(terms) == len(Tensor.CSV_HEADER) or len(terms) == len(Tensor.CSV_HEADER) - 1
         tensor = Tensor(create_empty=True)
         tensor_name, tensor_revision = Tensor.parse_id(terms[0])
         tensor.name = tensor_name
@@ -196,6 +212,11 @@ class Tensor:
             tensor.grad_of = Tensor.stringfy_id(grad_of_name, grad_of_revision)
         else:
             tensor.grad_of = None
+        
+        if len(terms) > 11 and (not terms[11] is None):
+            tensor.extra_attr = json.loads(terms[11])
+        else:
+            tensor.extra_attr = dict()
 
         return tensor
 
@@ -228,13 +249,24 @@ class Tensor:
             else ""
         )
         terms.append(tensor.grad_of.id if not tensor.grad_of is None else "")
+        extra_attr = copy.copy(tensor.extra_attr)
+        if "ctrl_deps" in extra_attr.keys():
+            ctrl_deps = list()
+            for tensor in extra_attr["ctrl_deps"]:
+                ctrl_deps.append(tensor.id)
+            extra_attr["ctrl_deps"] = ctrl_deps
+        terms.append(
+            json.dumps(extra_attr) 
+            if not len(extra_attr) == 0
+            else ""
+        )
         return terms
 
     @staticmethod
     def parse_records(csv_filename):
         df = pd.read_csv(csv_filename, encoding="utf-8")
         df = df.replace({np.nan: None})
-        assert list(df.columns) == Tensor.CSV_HEADER
+        assert list(df.columns) == Tensor.CSV_HEADER or list(df.columns) == Tensor.CSV_HEADER[:-1]
         tensors = list()
         for i in range(df.shape[0]):
             data = np.array(df[i : i + 1]).reshape(-1)
@@ -255,6 +287,14 @@ class Tensor:
                 assert tensor.grad_of in tensor_id_map_tensor
                 tensor.grad_of = tensor_id_map_tensor[tensor.grad_of]
                 tensor.grad_of._grad = tensor
+        
+            if "ctrl_deps" in tensor.extra_attr.keys():
+                ctrl_deps = list()
+                for tensor_id in tensor.extra_attr["ctrl_deps"]:
+                    if not "@" in tensor_id:
+                        tensor_id = f"{tensor_id}@0"
+                    ctrl_deps.append(tensor_id_map_tensor[tensor_id])
+                tensor.extra_attr["ctrl_deps"] = ctrl_deps
         return tensors
 
     @staticmethod
@@ -288,3 +328,4 @@ class Tensor:
 
     def __str__(self):
         return self.__repr__()
+
