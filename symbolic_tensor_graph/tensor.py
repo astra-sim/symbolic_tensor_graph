@@ -46,7 +46,7 @@ class Tensor:
         self._grad = None
 
         self.revision = None
-        
+
         self.extra_attr = dict()
 
         self._op_token = None
@@ -111,7 +111,9 @@ class Tensor:
             )
 
         if not expr in target_eval_expr_cache:
-            target_eval_expr_cache[expr] = float(expr.evalf(subs=target_symbol_value_dict))
+            target_eval_expr_cache[expr] = float(
+                expr.evalf(subs=target_symbol_value_dict)
+            )
         return target_eval_expr_cache[expr]
 
     @staticmethod
@@ -172,7 +174,7 @@ class Tensor:
         for parent in parents:
             if not parent in self.extra_attr["ctrl_deps"]:
                 self.extra_attr["ctrl_deps"].append(parent)
-                
+
     def get_control_dependancy(self):
         if "ctrl_deps" in self.extra_attr.keys():
             return self.extra_attr["ctrl_deps"]
@@ -180,7 +182,10 @@ class Tensor:
 
     @staticmethod
     def _parse_record(terms):
-        assert len(terms) == len(Tensor.CSV_HEADER) or len(terms) == len(Tensor.CSV_HEADER) - 1
+        assert (
+            len(terms) == len(Tensor.CSV_HEADER)
+            or len(terms) == len(Tensor.CSV_HEADER) - 1
+        )
         tensor = Tensor(create_empty=True)
         tensor_name, tensor_revision = Tensor.parse_id(terms[0])
         tensor.name = tensor_name
@@ -212,7 +217,7 @@ class Tensor:
             tensor.grad_of = Tensor.stringfy_id(grad_of_name, grad_of_revision)
         else:
             tensor.grad_of = None
-        
+
         if len(terms) > 11 and (not terms[11] is None):
             tensor.extra_attr = json.loads(terms[11])
         else:
@@ -255,18 +260,17 @@ class Tensor:
             for tensor in extra_attr["ctrl_deps"]:
                 ctrl_deps.append(tensor.id)
             extra_attr["ctrl_deps"] = ctrl_deps
-        terms.append(
-            json.dumps(extra_attr) 
-            if not len(extra_attr) == 0
-            else ""
-        )
+        terms.append(json.dumps(extra_attr) if not len(extra_attr) == 0 else "")
         return terms
 
     @staticmethod
     def parse_records(csv_filename):
         df = pd.read_csv(csv_filename, encoding="utf-8")
         df = df.replace({np.nan: None})
-        assert list(df.columns) == Tensor.CSV_HEADER or list(df.columns) == Tensor.CSV_HEADER[:-1]
+        assert (
+            list(df.columns) == Tensor.CSV_HEADER
+            or list(df.columns) == Tensor.CSV_HEADER[:-1]
+        )
         tensors = list()
         for i in range(df.shape[0]):
             data = np.array(df[i : i + 1]).reshape(-1)
@@ -287,7 +291,7 @@ class Tensor:
                 assert tensor.grad_of in tensor_id_map_tensor
                 tensor.grad_of = tensor_id_map_tensor[tensor.grad_of]
                 tensor.grad_of._grad = tensor
-        
+
             if "ctrl_deps" in tensor.extra_attr.keys():
                 ctrl_deps = list()
                 for tensor_id in tensor.extra_attr["ctrl_deps"]:
@@ -315,6 +319,8 @@ class Tensor:
                 f.edge(tensor.x1.id, tensor.id)
             if tensor.x2 is not None:
                 f.edge(tensor.x2.id, tensor.id)
+            for parent in Tensor.get_control_dependancy(tensor):
+                f.edge(parent.id, tensor.id, style="dashed")
         f.render(filename, format=format, cleanup=True)
 
     # def __eq__(one, another):
@@ -328,4 +334,3 @@ class Tensor:
 
     def __str__(self):
         return self.__repr__()
-
