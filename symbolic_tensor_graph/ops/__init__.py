@@ -6,3 +6,5 @@ from .place_holder import PlaceHolder
 from .identical import Identical
 from .reshape import Reshape
 from .shadow import Shadow
+from .broadcast_reduce import BroadcastReduce
+from .slice import Slice
