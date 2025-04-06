@@ -4,13 +4,13 @@ import json
 import sympy as sp
 from ..tensor import Tensor
 from .graph import HybridGraph, TensorGraph, BundledTensorGraph, BundledHybridGraph
-from .coll_comm_matcher import CommunicationMatcher
+from .coll_comm_matcher import CommunicationMatcherV2
 from ..chakra.node import Node
-from ..ops import Shadow, Identical
+from ..ops import Shadow, Identical, PlaceHolder
 
 
 class ConvertChakra:
-    with_comm_info = False
+    with_comm_info = True
 
     @classmethod
     def _create_IOInfo(cls, tensor, symbol_map_value):
@@ -21,10 +21,7 @@ class ConvertChakra:
         shape_str = Tensor.stringfy_shape(shape)
         name = name + shape_str
         size = Tensor.eval_expr(Tensor.eval_size(shape), symbol_map_value)
-        IOInfo = {
-            "name": name,
-            "size": size
-        }
+        IOInfo = {"name": name, "size": size}
         return IOInfo
 
     @classmethod
@@ -57,13 +54,13 @@ class ConvertChakra:
             comp_node.tensor_size = tensor_size
             comp_node.y_tensor_size = y_tensor_size
             nodes_this_tensor[HybridGraph.NodeType.COMP] = comp_node
-    
+
     @classmethod
     def _insert_comm_x1(
         cls, tensor, symbol_map_value, parallel_syms, nodes_this_tensor
     ):
         if tensor.x1 is not None:
-            matched_comms = CommunicationMatcher.match_comms(
+            matched_comms = CommunicationMatcherV2.match_comms(
                 tensor.x1.y_shape,
                 tensor.x1.y_hidden,
                 tensor.x1_shape,
@@ -84,13 +81,13 @@ class ConvertChakra:
                 x1_comm_node.name = f"{tensor.id}_X1COMM"
                 x1_comm_node.comm_size = comm_size
                 x1_comm_node._comm_meta_data = comm
-                if comm[0] == CommunicationMatcher.CommType.ALL_REDUCE:
+                if comm[0] == CommunicationMatcherV2.CommType.ALL_REDUCE:
                     x1_comm_node.comm_type = Node.CollectiveType.ALL_REDUCE
-                elif comm[0] == CommunicationMatcher.CommType.ALL_GATHER:
+                elif comm[0] == CommunicationMatcherV2.CommType.ALL_GATHER:
                     x1_comm_node.comm_type = Node.CollectiveType.ALL_GATHER
-                elif comm[0] == CommunicationMatcher.CommType.ALL_TO_ALL:
+                elif comm[0] == CommunicationMatcherV2.CommType.ALL_TO_ALL:
                     x1_comm_node.comm_type = Node.CollectiveType.ALL_TO_ALL
-                elif comm[0] == CommunicationMatcher.CommType.REDUCE_SCATTER:
+                elif comm[0] == CommunicationMatcherV2.CommType.REDUCE_SCATTER:
                     x1_comm_node.comm_type = Node.CollectiveType.REDUCE_SCATTER
                 else:
                     assert False
@@ -116,7 +113,7 @@ class ConvertChakra:
         cls, tensor, symbol_map_value, parallel_syms, nodes_this_tensor
     ):
         if tensor.x2 is not None:
-            matched_comms = CommunicationMatcher.match_comms(
+            matched_comms = CommunicationMatcherV2.match_comms(
                 tensor.x2.y_shape,
                 tensor.x2.y_hidden,
                 tensor.x2_shape,
@@ -137,13 +134,13 @@ class ConvertChakra:
                 x2_comm_node.name = f"{tensor.id}_X2_COMM"
                 x2_comm_node.comm_size = comm_size
                 x2_comm_node._comm_meta_data = comm
-                if comm[0] == CommunicationMatcher.CommType.ALL_REDUCE:
+                if comm[0] == CommunicationMatcherV2.CommType.ALL_REDUCE:
                     x2_comm_node.comm_type = Node.CollectiveType.ALL_REDUCE
-                elif comm[0] == CommunicationMatcher.CommType.ALL_GATHER:
+                elif comm[0] == CommunicationMatcherV2.CommType.ALL_GATHER:
                     x2_comm_node.comm_type = Node.CollectiveType.ALL_GATHER
-                elif comm[0] == CommunicationMatcher.CommType.ALL_TO_ALL:
+                elif comm[0] == CommunicationMatcherV2.CommType.ALL_TO_ALL:
                     x2_comm_node.comm_type = Node.CollectiveType.ALL_TO_ALL
-                elif comm[0] == CommunicationMatcher.CommType.REDUCE_SCATTER:
+                elif comm[0] == CommunicationMatcherV2.CommType.REDUCE_SCATTER:
                     x2_comm_node.comm_type = Node.CollectiveType.REDUCE_SCATTER
                 else:
                     assert False
@@ -213,6 +210,7 @@ class ConvertChakra:
         cls._insert_comp(tensor, symbol_map_value, nodes_this_tensor)
         cls._insert_comm_x1(tensor, symbol_map_value, parallel_syms, nodes_this_tensor)
         cls._insert_comm_x2(tensor, symbol_map_value, parallel_syms, nodes_this_tensor)
+
         return nodes_this_tensor
 
     @classmethod
@@ -239,6 +237,7 @@ class ConvertChakra:
 
     @classmethod
     def _clean_empty_comp(cls, hybrid_graph):
+        # TODO: might buggy when there are multiple nodes with 0 ops.
         while True:
             nodes = hybrid_graph.get_nodes()
             assert all(len(node.ctrl_deps) == 0 for node in nodes)
@@ -252,7 +251,19 @@ class ConvertChakra:
                         empty_comp_nodes.append(node)
             if len(empty_comp_nodes) == 0:
                 break
+            print(f"empty_comp_nodes: {len(empty_comp_nodes)}")
             for empty_comp_node in empty_comp_nodes:
+                if len(empty_comp_node.data_deps) >= 2:
+                    assert False
+                elif len(empty_comp_node.data_deps) != 0:
+                    parent_id = empty_comp_node.data_deps[0]
+
+                    # if the empty comp node's parent is also another empty node, give up this round and try another
+                    # otherwise its child will to connected to another empty node, which will be deleted this round again.
+                    parent_node = node_id_map_node[parent_id]
+                    if parent_node in empty_comp_nodes:
+                        continue
+
                 tensor = node_id_map_tensor[empty_comp_node.id]
                 nodes_this_tensor = hybrid_graph.tensor_map_nodes[tensor]
                 nodes_this_tensor_keys = copy.copy(list(nodes_this_tensor.keys()))
@@ -262,12 +273,8 @@ class ConvertChakra:
                 for child_id in node_parent_to_child_link[empty_comp_node.id]:
                     child = node_id_map_node[child_id]
                     child.data_deps.remove(empty_comp_node.id)
-                    if len(empty_comp_node.data_deps) == 0:
-                        continue
-                    elif len(empty_comp_node.data_deps) >= 2:
-                        assert False
-                    parent_id = empty_comp_node.data_deps[0]
-                    child.data_deps.append(parent_id)
+                    if len(empty_comp_node.data_deps) != 0:
+                        child.data_deps.append(parent_id)
 
     @classmethod
     def apply(cls, tensor_graph, symbol_map_value, parallel_syms):
@@ -292,7 +299,7 @@ class ConvertChakra:
         graph = HybridGraph(tensor_graph.tensors, tensor_map_nodes, symbol_map_value)
         cls._clean_empty_comp(graph)
         return graph
-    
+
     @classmethod
     def _comm_info_post_process(cls, tensor_map_nodes, symbol_map_value):
         if not cls.with_comm_info:
@@ -408,13 +415,18 @@ class BundledConvertChakra:
             cls._clean_empty_comp(graph)
             cls.add_ctrl_deps(graph.tensor_map_nodes)
             return graph
-        
+
         @classmethod
         def add_ctrl_deps(cls, tensor_map_nodes):
             for tensor in tensor_map_nodes.keys():
                 if not "ctrl_deps" in tensor.extra_attr.keys():
                     continue
                 for parent in tensor.extra_attr["ctrl_deps"]:
+                    if parent.op_type == PlaceHolder.type_name:
+                        continue
+                    while len(tensor_map_nodes[parent]) == 0:
+                        assert parent.op_type == Identical.type_name
+                        parent = parent.x1
                     parent_node = cls._get_output_node(tensor_map_nodes[parent])
                     child_node = cls._get_x1_input_node(tensor_map_nodes[tensor])
                     child_node.ctrl_deps.append(parent_node.id)
@@ -429,13 +441,17 @@ class BundledConvertChakra:
         #                 node.tensor_size = 10
 
     @classmethod
-    def _get_comm_group_id_map_num_comm_group(cls, readable_comm_groups, readable_rank_map_number_rank):
+    def _get_comm_group_id_map_num_comm_group(
+        cls, readable_comm_groups, readable_rank_map_number_rank
+    ):
         comm_group_id_map_number_comm_group = dict()
+
         def _tuple_to_dict(tuple_):
             ret = dict()
             for key, value in tuple_:
                 ret[key] = value
             return ret
+
         for readable_comm_group in readable_comm_groups.values():
             comm_group_id = readable_comm_group[0]
             readable_comm_group = readable_comm_group[1:]
@@ -451,7 +467,7 @@ class BundledConvertChakra:
                 num_comm_group.append(matched_rank)
             comm_group_id_map_number_comm_group[comm_group_id] = num_comm_group
         return comm_group_id_map_number_comm_group
-    
+
     @classmethod
     def _readout_comm_group(cls, comm_group_file, comm_group):
         f = open(comm_group_file, "w")
@@ -459,7 +475,13 @@ class BundledConvertChakra:
         f.close()
 
     @classmethod
-    def apply(cls, bundled_graph, symbol_map_value, comm_group_file, readable_rank_map_number_rank=None):
+    def apply(
+        cls,
+        bundled_graph,
+        symbol_map_value,
+        comm_group_file,
+        readable_rank_map_number_rank=None,
+    ):
         for symbol in bundled_graph.symbol_map_value:
             assert bundled_graph.symbol_map_value[symbol] == symbol_map_value[symbol]
         for sym in copy.copy(bundled_graph.spatial_parallel_dims):
@@ -470,9 +492,11 @@ class BundledConvertChakra:
             for num_rank, asked_readable_rank in enumerate(bundled_graph.graphs.keys()):
                 readable_rank_map_number_rank[asked_readable_rank] = num_rank
         assert hasattr(bundled_graph, "comm_groups")
-        comm_group = cls._get_comm_group_id_map_num_comm_group(bundled_graph.comm_groups, readable_rank_map_number_rank)
+        comm_group = cls._get_comm_group_id_map_num_comm_group(
+            bundled_graph.comm_groups, readable_rank_map_number_rank
+        )
         cls._readout_comm_group(comm_group_file, comm_group)
-        
+
         buckets = dict()
         for asked_readable_rank in bundled_graph.graphs.keys():
             tensor_graph = bundled_graph.graphs[asked_readable_rank]
