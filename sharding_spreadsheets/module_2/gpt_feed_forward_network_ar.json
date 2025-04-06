@@ -1,0 +1,23 @@
+{
+    "symbols": [
+        "Batch",
+        "Seq",
+        "Dmodel",
+        "Dff",
+        "dp",
+        "tp",
+        "sp"
+    ],
+    "in_tensors": [
+        "x0",
+        "w1",
+        "w2",
+        "dnorm"
+    ],
+    "out_tensors": [
+        "norm",
+        "dw2",
+        "dw1",
+        "dx0"
+    ]
+}

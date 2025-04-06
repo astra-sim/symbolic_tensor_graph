@@ -1,0 +1,31 @@
+﻿id,require_grads,x1,x2,op_type,op_attr,x1_shape,x1_hidden,x2_shape,x2_hidden,grad_of
+x,N,,,T,,"Batch/dp, Seq/sp, Dmodel/tp",1,,,
+wq,Y,,,T,,"Dmodel, Dmodel/Head, Head/tp",1,,,
+wk,Y,,,T,,"Dmodel, Dmodel/Head, Head/tp",1,,,
+wv,Y,,,T,,"Dmodel, Dmodel/Head, Head/tp",1,,,
+q,N,x,wq,M,"bsm,mnh->bsnh","Batch/dp, Seq/sp, Dmodel",1,"Dmodel, Dmodel/Head, Head/tp",1,
+k,N,x,wk,M,"bsm,mnh->bsnh","Batch/dp, Seq/sp, Dmodel",1,"Dmodel, Dmodel/Head, Head/tp",1,
+v,N,x,wv,M,"bsm,mnh->bsnh","Batch/dp, Seq/sp, Dmodel",1,"Dmodel, Dmodel/Head, Head/tp",1,
+qk,N,q,k,M,"bsnh,bwnh->bswh","Batch/dp, Seq, Dmodel/Head, Head/tp",1,"Batch/dp, Seq/sp, Dmodel/Head, Head/tp",1,
+qkv,N,qk,v,M,"bswh,bwnh->bsnh","Batch/dp, Seq, Seq/sp, Head/tp",1,"Batch/dp, Seq/sp, Dmodel/Head, Head/tp",1,
+qkv_reshape,N,qkv,,R,,"Batch/dp, Seq/sp, Dmodel/Head, Head/tp",1,"Batch/dp, Seq/sp, Dmodel/tp",1,
+res,N,qkv_reshape,x,A,,"Batch/dp, Seq/sp, Dmodel/tp",1,"Batch/dp, Seq/sp, Dmodel/tp",1,
+norm,N,res,,E,5,"Batch/dp, Seq/sp, Dmodel/tp",1,,,
+d_norm,N,,,T,,"Batch/dp, Seq/sp, Dmodel/tp",1,,,norm
+d_res,N,d_norm,,E,5,"Batch/dp, Seq/sp, Dmodel/tp",1,,,res
+d_qkv_reshape,N,d_res,,I,,"Batch/dp, Seq/sp, Dmodel/tp",1,,,qkv_reshape
+d_qkv,N,d_qkv_reshape,,R,,"Batch/dp, Seq/sp, Dmodel/tp",1,"Batch/dp, Seq/sp, Dmodel/Head, Head/tp",1,qkv
+d_qk,N,d_qkv,v,M,"bsnh,bwnh->bswh","Batch/dp, Seq, Dmodel/Head, Head/tp",1,"Batch/dp, Seq/sp, Dmodel/Head, Head/tp",1,qk
+d_v,N,d_qkv,qk,M,"bsnh,bswh->bwnh","Batch/dp, Seq, Dmodel/Head, Head/tp",1,"Batch/dp, Seq, Seq/sp, Head/tp",1,v
+d_q,N,d_qk,k,M,"bswh,bwnh->bsnh","Batch/dp, Seq, Seq/sp, Head/tp",1,"Batch/dp, Seq/sp, Dmodel/Head, Head/tp",1,q
+d_k,N,d_qk,q,M,"bswh,bsnh->bwnh","Batch/dp, Seq, Seq/sp, Head/tp",1,"Batch/dp, Seq, Dmodel/Head, Head/tp",1,k
+d_wq,N,d_q,x,M,"bsnh,bsm->mnh","Batch/dp, Seq/sp, Dmodel/Head, Head/tp",1,"Batch/dp, Seq/sp, Dmodel",1,wq
+d_wk,N,d_k,x,M,"bsnh,bsm->mnh","Batch/dp, Seq/sp, Dmodel/Head, Head/tp",1,"Batch/dp, Seq/sp, Dmodel",1,wk
+d_wv,N,d_v,x,M,"bsnh,bsm->mnh","Batch/dp, Seq/sp, Dmodel/Head, Head/tp",1,"Batch/dp, Seq/sp, Dmodel",1,wv
+d_x1,N,d_q,wq,M,"bsnh,mnh->bsm","Batch/dp, Seq/sp, Dmodel/Head, Head/tp",1,"Dmodel, Dmodel/Head, Head/tp",1,
+d_x2,N,d_k,wk,M,"bsnh,mnh->bsm","Batch/dp, Seq/sp, Dmodel/Head, Head/tp",1,"Dmodel, Dmodel/Head, Head/tp",1,
+d_x3,N,d_v,wv,M,"bsnh,mnh->bsm","Batch/dp, Seq/sp, Dmodel/Head, Head/tp",1,"Dmodel, Dmodel/Head, Head/tp",1,
+d_x4,N,d_res,,I,,"Batch/dp, Seq/sp, Dmodel/tp",1,,,
+d_x12,N,d_x1,d_x2,A,,"Batch/dp, Seq/sp, Dmodel/tp",1,"Batch/dp, Seq/sp, Dmodel/tp",1,
+d_x34,N,d_x3,d_x4,A,,"Batch/dp, Seq/sp, Dmodel/tp",1,"Batch/dp, Seq/sp, Dmodel/tp",1,
+d_x,N,d_x12,d_x34,A,,"Batch/dp, Seq/sp, Dmodel/tp",1,"Batch/dp, Seq/sp, Dmodel/tp",1,x
