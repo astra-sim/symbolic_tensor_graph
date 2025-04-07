@@ -101,7 +101,7 @@ def main():
         ep: args.ep,
     }
     num_stacks = args.num_stacks
-    spatial_parallel_dims = [dp, tp, spp]
+    spatial_parallel_dims = [dp, tp, spp, ep]
     temporal_parallel_dims = [pp]
 
     def group_query_attention():

@@ -53,6 +53,7 @@ class ConvertChakra:
             tensor_size = y_tensor_size + x1_tensor_size + x2_tensor_size
             comp_node.tensor_size = tensor_size
             comp_node.y_tensor_size = y_tensor_size
+            comp_node.op_type = tensor.op_type
             nodes_this_tensor[HybridGraph.NodeType.COMP] = comp_node
 
     @classmethod
