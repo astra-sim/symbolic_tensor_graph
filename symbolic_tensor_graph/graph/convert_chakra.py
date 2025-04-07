@@ -50,7 +50,8 @@ class ConvertChakra:
                 x2_tensor_size = Tensor.eval_expr(
                     Tensor.eval_size(tensor.x2_shape), symbol_map_value
                 )
-            tensor_size = y_tensor_size + x1_tensor_size + x2_tensor_size
+            # tensor_size = y_tensor_size + x1_tensor_size + x2_tensor_size     # if you use old roofline that dont count input tensor size, use this.
+            tensor_size = y_tensor_size
             comp_node.tensor_size = tensor_size
             comp_node.y_tensor_size = y_tensor_size
             comp_node.op_type = tensor.op_type
