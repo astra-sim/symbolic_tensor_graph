@@ -1,0 +1,25 @@
+{
+    "symbols": [
+        "Batch",
+        "Seq",
+        "Dmodel",
+        "KExperts",
+        "Experts",
+        "dp",
+        "tp",
+        "sp",
+        "ep"
+    ],
+    "in_tensors": [
+        "x",
+        "dx_expert",
+        "y_expert",
+        "dy"
+    ],
+    "out_tensors": [
+        "x_expert",
+        "dx",
+        "y",
+        "dy_expert"
+    ]
+}
