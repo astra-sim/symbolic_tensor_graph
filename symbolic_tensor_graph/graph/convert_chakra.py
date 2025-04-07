@@ -253,17 +253,21 @@ class ConvertChakra:
                 break
             print(f"empty_comp_nodes: {len(empty_comp_nodes)}")
             for empty_comp_node in empty_comp_nodes:
-                if len(empty_comp_node.data_deps) >= 2:
+                # if len(empty_comp_node.data_deps) >= 2:
+                if False:  # hotfix: reduce chain
                     assert False
                 elif len(empty_comp_node.data_deps) != 0:
-                    parent_id = empty_comp_node.data_deps[0]
-
                     # if the empty comp node's parent is also another empty node, give up this round and try another
                     # otherwise its child will to connected to another empty node, which will be deleted this round again.
-                    parent_node = node_id_map_node[parent_id]
-                    if parent_node in empty_comp_nodes:
+                    has_empty_parent = False
+                    for parent_id in empty_comp_node.data_deps:
+                        parent_node = node_id_map_node[parent_id]
+                        if parent_node in empty_comp_nodes:
+                            has_empty_parent = True
+                            break
+                            # continue
+                    if has_empty_parent:
                         continue
-
                 tensor = node_id_map_tensor[empty_comp_node.id]
                 nodes_this_tensor = hybrid_graph.tensor_map_nodes[tensor]
                 nodes_this_tensor_keys = copy.copy(list(nodes_this_tensor.keys()))
@@ -273,7 +277,8 @@ class ConvertChakra:
                 for child_id in node_parent_to_child_link[empty_comp_node.id]:
                     child = node_id_map_node[child_id]
                     child.data_deps.remove(empty_comp_node.id)
-                    if len(empty_comp_node.data_deps) != 0:
+                    # if len(empty_comp_node.data_deps) != 0:
+                    for parent_id in empty_comp_node.data_deps:
                         child.data_deps.append(parent_id)
 
     @classmethod
