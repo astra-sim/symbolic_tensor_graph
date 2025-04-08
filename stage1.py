@@ -61,7 +61,7 @@ def main():
     parser.add_argument("--dvocal", type=int, default=32000, required=False)
     parser.add_argument("--dmodel", type=int, default=8192, required=False)
     parser.add_argument("--dff", type=int, default=28672, required=False)
-    parser.add_argument("--batch", type=int, default=1024, required=False)
+    parser.add_argument("--batch", type=int, default=16, required=False)
     parser.add_argument("--seq", type=int, default=1024, required=False)
     parser.add_argument("--head", type=int, default=64, required=False)
     parser.add_argument("--kvhead", type=int, default=8, required=False)
@@ -71,6 +71,7 @@ def main():
     parser.add_argument(
         "--chakra_schema_version", type=str, default="v0.0.4", required=False
     )
+    parser.add_argument("--model_type", type=str, default="dense", required=False)
 
     args = parser.parse_args()
 
@@ -117,65 +118,68 @@ def main():
 
     hook = 1
 
-    # dense model
-    pipeline_tensor_map = dict()
-    for tensor in transformer_dense.tensors:
-        pipeline_tensor_map[tensor.id] = {pp: 0}
+    if args.model_type == "dense":
+        symbol_map_value[tp] *= symbol_map_value[ep]
+        # dense model
+        pipeline_tensor_map = dict()
+        for tensor in transformer_dense.tensors:
+            pipeline_tensor_map[tensor.id] = {pp: 0}
 
-    print("Dense model: Distributing")
-    distributed_tensor_graph_dense = GraphDistributer.apply(
-        transformer_dense,
-        symbol_map_value,
-        spatial_parallel_dims_dense,
-        temporal_parallel_dims,
-        pipeline_tensor_map,
-    )
+        print("Dense model: Distributing")
+        distributed_tensor_graph_dense = GraphDistributer.apply(
+            transformer_dense,
+            symbol_map_value,
+            spatial_parallel_dims_dense,
+            temporal_parallel_dims,
+            pipeline_tensor_map,
+        )
 
-    print("Dense model: Converting Chakra")
-    args.output_name = "testdense.%d.et"
-    comm_group_file = args.output_name.replace(".%d", "").replace(".et", ".json")
-    distributed_chakra_graph_dense = BundledConvertChakra.apply(
-        distributed_tensor_graph_dense,
-        symbol_map_value,
-        os.path.join(args.output_dir, comm_group_file),
-    )
+        print("Dense model: Converting Chakra")
+        comm_group_file = args.output_name.replace(".%d", "").replace(".et", ".json")
+        distributed_chakra_graph_dense = BundledConvertChakra.apply(
+            distributed_tensor_graph_dense,
+            symbol_map_value,
+            os.path.join(args.output_dir, comm_group_file),
+        )
 
-    from symbolic_tensor_graph.chakra.backends.chakra_00_4_backend import (
-        Chakra004Backend as ReadoutBackend,
-    )
+        from symbolic_tensor_graph.chakra.backends.chakra_00_4_backend import (
+            Chakra004Backend as ReadoutBackend,
+        )
 
-    print("Dense model: reading out")
-    distributed_chakra_graph_dense.readout(generated_filename, backend=ReadoutBackend)
+        print("Dense model: reading out")
+        distributed_chakra_graph_dense.readout(
+            generated_filename, backend=ReadoutBackend
+        )
 
-    # moe model
-    pipeline_tensor_map = dict()
-    for tensor in transformer_moe.tensors:
-        pipeline_tensor_map[tensor.id] = {pp: 0}
+    elif args.model_type == "moe":
+        # moe model
+        pipeline_tensor_map = dict()
+        for tensor in transformer_moe.tensors:
+            pipeline_tensor_map[tensor.id] = {pp: 0}
 
-    print("MoE model: Distributing")
-    distributed_tensor_graph_moe = GraphDistributer.apply(
-        transformer_moe,
-        symbol_map_value,
-        spatial_parallel_dims_moe,
-        temporal_parallel_dims,
-        pipeline_tensor_map,
-    )
+        print("MoE model: Distributing")
+        distributed_tensor_graph_moe = GraphDistributer.apply(
+            transformer_moe,
+            symbol_map_value,
+            spatial_parallel_dims_moe,
+            temporal_parallel_dims,
+            pipeline_tensor_map,
+        )
 
-    print("MoE model: Converting Chakra")
-    args.output_name = "moe.%d.et"
-    comm_group_file = args.output_name.replace(".%d", "").replace(".et", ".json")
-    distributed_chakra_graph_moe = BundledConvertChakra.apply(
-        distributed_tensor_graph_moe,
-        symbol_map_value,
-        os.path.join(args.output_dir, comm_group_file),
-    )
+        print("MoE model: Converting Chakra")
+        comm_group_file = args.output_name.replace(".%d", "").replace(".et", ".json")
+        distributed_chakra_graph_moe = BundledConvertChakra.apply(
+            distributed_tensor_graph_moe,
+            symbol_map_value,
+            os.path.join(args.output_dir, comm_group_file),
+        )
 
-    from symbolic_tensor_graph.chakra.backends.chakra_00_4_backend import (
-        Chakra004Backend as ReadoutBackend,
-    )
+        from symbolic_tensor_graph.chakra.backends.chakra_00_4_backend import (
+            Chakra004Backend as ReadoutBackend,
+        )
 
-    print("MoE model: reading out")
-    distributed_chakra_graph_moe.readout(generated_filename, backend=ReadoutBackend)
+        print("MoE model: reading out")
+        distributed_chakra_graph_moe.readout(generated_filename, backend=ReadoutBackend)
 
 
 if __name__ == "__main__":
