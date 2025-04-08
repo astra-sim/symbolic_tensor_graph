@@ -58,8 +58,7 @@ def main():
         required=False,
         default=False,
     )
-    parser.add_argument("--din", type=int, default=32000, required=False)
-    parser.add_argument("--dout", type=int, default=32000, required=False)
+    parser.add_argument("--dvocal", type=int, default=32000, required=False)
     parser.add_argument("--dmodel", type=int, default=8192, required=False)
     parser.add_argument("--dff", type=int, default=28672, required=False)
     parser.add_argument("--batch", type=int, default=1024, required=False)
@@ -80,12 +79,11 @@ def main():
         args.output_name = f"{args.output_name}.%d.et"
     generated_filename = os.path.join(args.output_dir, args.output_name)
     dp, tp, pp, spp, ep = sp.symbols("dp tp pp sp ep")
-    Din, Dout, Dmodel, Dff, Batch, Seq, Head, KVHead, Experts, KExperts = sp.symbols(
-        "Din Dout Dmodel Dff Batch Seq Head KVHead Experts KExperts"
+    Din, Dout, Dmodel, Dff, Batch, Seq, Head, KVHead, Experts, KExperts, Dvocal = (
+        sp.symbols("Din Dout Dmodel Dff Batch Seq Head KVHead Experts KExperts Dvocal")
     )
     symbol_map_value = {
-        Din: args.din,
-        Dout: args.dout,
+        Dvocal: args.dvocal,
         Dmodel: args.dmodel,
         Dff: args.dff,
         Batch: args.batch,
@@ -101,312 +99,43 @@ def main():
         ep: args.ep,
     }
     num_stacks = args.num_stacks
-    spatial_parallel_dims = [dp, tp, spp, ep]
     temporal_parallel_dims = [pp]
 
-    def group_query_attention():
-        GQA_surrounding_path = (
-            "./sharding_spreadsheets/module3/group_query_attention_surrounding.csv"
-        )
-        GQA_kernel_path = (
-            "./sharding_spreadsheets/module3/group_query_attention_kernel.csv"
-        )
-        GQA_surrounding = TensorGraph.load_tensor_graph(GQA_surrounding_path)
-        GQA_kernel = TensorGraph.load_tensor_graph(GQA_kernel_path)
-        GQA_kernel = ReplicateGraph.apply(GQA_kernel, "attn_kernel_%s")
-        links = dict()
-        links["q"] = "attn_kernel_q"
-        links["k"] = "attn_kernel_k"
-        links["v"] = "attn_kernel_v"
-        links["attn_kernel_dq"] = "dq"
-        links["attn_kernel_dk"] = "dk"
-        links["attn_kernel_dv"] = "dv"
+    from models.stage1.dense_model import transformer as transformer_dense
 
-        links["attn_kernel_qkv"] = "attn"
-        links["dattn"] = "attn_kernel_dqkv"
+    print("Assembling dense model")
+    transformer_dense = transformer_dense(num_stacks)
+    transformer_dense = GradUpdater.apply(transformer_dense, inplace=True)
+    spatial_parallel_dims_dense = [dp, tp, spp]
 
-        GQA = ConnectGraph.apply([GQA_surrounding, GQA_kernel], links)
-        return GQA
+    from models.stage1.moe_model import transformer as transformer_moe
 
-    def transformer_decoder_block():
-        ffn_path = "./sharding_spreadsheets/module3/llama_feed_forward_network.csv"
-        layernorm_path = "./sharding_spreadsheets/module3/layer_norm.csv"
-        residual_path = "./sharding_spreadsheets/module3/residual.csv"
-        loss_path = "./sharding_spreadsheets/module3/loss.csv"
+    print("Assembling moe model")
+    transformer_moe = transformer_moe(num_stacks, symbol_map_value)
+    transformer_moe = GradUpdater.apply(transformer_moe, inplace=True)
+    spatial_parallel_dims_moe = [dp, tp, spp, ep]
 
-        input_layernorm = ReplicateGraph.apply(
-            TensorGraph.load_tensor_graph(layernorm_path), "input_norm_%s"
-        )
-        mha = ReplicateGraph.apply(group_query_attention(), "mha_%s")
-        mha_res = ReplicateGraph.apply(
-            TensorGraph.load_tensor_graph(residual_path), "mha_res_%s"
-        )
-
-        post_layernorm = ReplicateGraph.apply(
-            TensorGraph.load_tensor_graph(layernorm_path), "post_attn_norm_%s"
-        )
-        ffn = ReplicateGraph.apply(TensorGraph.load_tensor_graph(ffn_path), "ffn_%s")
-        ffn_res = ReplicateGraph.apply(
-            TensorGraph.load_tensor_graph(residual_path), "ffn_res_%s"
-        )
-
-        links = dict()
-        # input_layernorm
-        links["input_norm_y"] = "mha_x"
-        # links["mha_dx"] = "input_norm_dy"
-
-        # mha
-        links["mha_o"] = "mha_res_x1"
-        links["input_norm_x"] = "mha_res_x2"
-        links["mha_res_dx1"] = "mha_do"
-        # links["mha_res_dx2"] = "input_norm_dy"
-
-        # mha res
-        links["mha_res_y"] = "post_attn_norm_x"
-        links["post_attn_norm_dx"] = "mha_res_dy"
-
-        # post_layer_norm
-        links["post_attn_norm_y"] = "ffn_x0"
-        # links["ffn_dx0"] = "post_layer_norm_dy"
-
-        # ffn
-        links["ffn_xdown"] = "ffn_res_x1"
-        links["post_attn_norm_x"] = "ffn_res_x2"
-        links["ffn_res_dx1"] = "ffn_dxdown"
-        # links["ffn_res_dx2"] = "post_layer_norm_dy"
-
-        decoder_block = ConnectGraph.apply(
-            [input_layernorm, mha, mha_res, post_layernorm, ffn, ffn_res], links
-        )
-
-        tensor_id_map_tensor = decoder_block.get_tensor_id_map_tensor()
-
-        input_norm_dy = tensor_id_map_tensor["input_norm_dy@0"]
-        assert input_norm_dy.op_type == PlaceHolder.type_name
-        input_norm_dy.op_type = Add.type_name
-        input_norm_dy.x1 = tensor_id_map_tensor["mha_dx@0"]
-        input_norm_dy.x2 = tensor_id_map_tensor["mha_res_dx2@0"]
-        input_norm_dy.x2_shape = copy.deepcopy(input_norm_dy.x1_shape)
-        input_norm_dy.x2_hidden = copy.deepcopy(input_norm_dy.x1_hidden)
-        decoder_block.in_tensors.remove(input_norm_dy)
-        decoder_block.out_tensors.remove(input_norm_dy.x1)
-        decoder_block.out_tensors.remove(input_norm_dy.x2)
-
-        post_attn_norm_dy = tensor_id_map_tensor["post_attn_norm_dy@0"]
-        assert post_attn_norm_dy.op_type == PlaceHolder.type_name
-        post_attn_norm_dy.op_type = Add.type_name
-        post_attn_norm_dy.x1 = tensor_id_map_tensor["ffn_dx0@0"]
-        post_attn_norm_dy.x2 = tensor_id_map_tensor["ffn_res_dx2@0"]
-        post_attn_norm_dy.x2_shape = copy.deepcopy(post_attn_norm_dy.x1_shape)
-        post_attn_norm_dy.x2_hidden = copy.deepcopy(post_attn_norm_dy.x1_hidden)
-        decoder_block.in_tensors.remove(post_attn_norm_dy)
-        decoder_block.out_tensors.remove(post_attn_norm_dy.x1)
-        decoder_block.out_tensors.remove(post_attn_norm_dy.x2)
-
-        loss = ReplicateGraph.apply(TensorGraph.load_tensor_graph(loss_path), "loss_%s")
-        links = dict()
-        links["ffn_res_y"] = "loss_y"
-        links["loss_dy"] = "ffn_res_dy"
-        decoder_block = ConnectGraph.apply([decoder_block, loss], links)
-
-        return decoder_block
-
-    def expert_branch():
-        ffn_path = "./sharding_spreadsheets/module3/llama_feed_forward_network.csv"
-        moe_wrapper_path = "./sharding_spreadsheets/module3/expert_wrapper.csv"
-
-        ffn = ReplicateGraph.apply(
-            TensorGraph.load_tensor_graph(ffn_path),
-            "ffn_%s",
-            old_symbol_map_new_symbol={"Seq": "Seq*KExperts/(Experts*ep)"},
-        )
-        moe_wrapper = ReplicateGraph.apply(
-            TensorGraph.load_tensor_graph(moe_wrapper_path),
-            "ldis_%s",
-        )
-
-        expert = ConnectGraph.apply(
-            [moe_wrapper, ffn],
-            {
-                "ldis_x_expert": "ffn_x0",
-                "ffn_xdown": "ldis_y_expert",
-                "ldis_dy_expert": "ffn_dxdown",
-                "ffn_dx0": "ldis_dx_expert",
-            },
-        )
-        return expert
-
-    def reduce_chain(inputs, name, amp=None):
-        if amp is None:
-            amp = 1
-        if not "%d" in name:
-            name = name + "_%d"
-        last = inputs[0]
-        new_nodes = list()
-        shape = inputs[0].y_shape
-        hidden = inputs[0].y_hidden
-        for i, input in enumerate(inputs):
-            if i == 0:
-                continue
-            new_node = Tensor(True)
-            new_node.name = name % (i,)
-            new_node.require_grads = False
-            new_node.x1 = last
-            new_node.x2 = input
-            new_node.op_type = Element2.type_name
-            new_node.op_attr = str(amp)
-            new_node.x1_shape = copy.deepcopy(shape)
-            new_node.x1_hidden = copy.deepcopy(hidden)
-            new_node.x2_shape = copy.deepcopy(shape)
-            new_node.x2_hidden = copy.deepcopy(hidden)
-            new_node.revision = last.revision
-
-            Element2._sanity_check(new_node)
-
-            last = new_node
-            new_nodes.append(new_node)
-
-        return new_nodes
-
-    def expert_clusters(experts_each_cluster):
-        moe_frame_path = "./sharding_spreadsheets/module3/moe_frame.csv"
-        moe_frame = ReplicateGraph.apply(
-            TensorGraph.load_tensor_graph(moe_frame_path), "moe_%s"
-        )
-
-        links = dict()
-
-        expert = expert_branch()
-        branches = list()
-
-        for i in range(experts_each_cluster):
-            branches.append(ReplicateGraph.apply(expert, f"branch{i}_%s"))
-            # links["moe_xrouted"] = f"branch{i}_ldis_x"        # one to multiple, need link multiple times
-            # links["moe_dyrouted"] = f"branch{i}_ldis_dy"
-            # links[f"branch{i}_ldis_dx"] = "moe_dxrouted"      # multiple to one, need reduce nodes
-            # links[f"branch{i}_ldis_y"] = "moe_yrouted"
-
-        moe = ConnectGraph.apply([moe_frame] + branches, links)
-
-        to_be_reduce_moe_dxrouted = list()
-        to_be_reduce_moe_yrouted = list()
-
-        tensor_id_map_tensor = moe.get_tensor_id_map_tensor()
-        for i in range(experts_each_cluster):
-            branch_ldis_dx = tensor_id_map_tensor[f"branch{i}_ldis_dx@0"]
-            to_be_reduce_moe_dxrouted.append(branch_ldis_dx)
-            moe.out_tensors.remove(branch_ldis_dx)
-
-            branch_ldis_y = tensor_id_map_tensor[f"branch{i}_ldis_y@0"]
-            to_be_reduce_moe_yrouted.append(branch_ldis_y)
-            moe.out_tensors.remove(branch_ldis_y)
-
-        # merge those reduce in a chain with 0 ops, which equavilent to a single node
-        merged_dxrouted = reduce_chain(
-            to_be_reduce_moe_dxrouted, "moe_dxrouted_%d", amp=0
-        )
-        moe.tensors.extend(merged_dxrouted)
-        moe.out_tensors.append(
-            merged_dxrouted[-1]
-        )  # add last node as output for future linkage
-        merged_dxrouted[-1].op_attr = (
-            "1"  # last node counts a whole elementwise op, which equalient to a single node
-        )
-
-        merged_yrouted = reduce_chain(to_be_reduce_moe_yrouted, "moe_yrouted_%d", amp=0)
-        moe.tensors.extend(merged_yrouted)
-        moe.out_tensors.append(merged_yrouted[-1])
-        merged_yrouted[-1].op_attr = "1"
-
-        links = {
-            merged_dxrouted[-1].name: "moe_dxrouted",
-            merged_yrouted[-1].name: "moe_yrouted",
-        }
-        moe = ConnectGraph.apply([moe], links)
-
-        moe_xrouted = tensor_id_map_tensor["moe_xrouted@0"]
-        moe_dyrouted = tensor_id_map_tensor["moe_dyrouted@0"]
-        for i in range(experts_each_cluster):
-            links = dict()
-            links["moe_xrouted"] = f"branch{i}_ldis_x"
-            links["moe_dyrouted"] = f"branch{i}_ldis_dy"
-            moe = ConnectGraph.apply([moe], links)
-            moe.out_tensors.append(moe_xrouted)
-            moe.out_tensors.append(moe_dyrouted)
-
-        moe.out_tensors.remove(moe_xrouted)
-        moe.out_tensors.remove(moe_dyrouted)
-
-        return moe
-
-    # expert = expert_branch()
-    # loss = ReplicateGraph.apply(
-    #     TensorGraph.load_tensor_graph("./sharding_spreadsheets/module3/loss.csv"),
-    #     "loss_%s",
-    # )
-    # expert = ConnectGraph.apply(
-    #     [expert, loss], {"moe_y": "loss_y", "loss_dy": "moe_dy"}
-    # )
-    # expert.save_tensor_graph("expert2.csv")
-    # expert.visualize("expert2")
-    moe = expert_clusters(8)
-    moe.save_tensor_graph("moe.csv")
-    moe.visualize("moe")
-    loss = ReplicateGraph.apply(
-        TensorGraph.load_tensor_graph("./sharding_spreadsheets/module3/loss.csv"),
-        "loss_%s",
-    )
-    moe = ConnectGraph.apply([moe, loss], {"moe_y": "loss_y", "loss_dy": "moe_dy"})
-    moe.save_tensor_graph("moe2.csv")
-    moe.visualize("moe2")
-
-    pipeline_tensor_map = dict()
-    for tensor in moe.tensors:
-        pipeline_tensor_map[tensor.id] = {pp: 0}
-
-    distributed_tensor_graph = GraphDistributer.apply(
-        moe,
-        symbol_map_value,
-        spatial_parallel_dims,
-        temporal_parallel_dims,
-        pipeline_tensor_map,
-    )
-
-    comm_group_file = args.output_name.replace(".%d", "").replace(".et", "")
-    distributed_chakra_graph = BundledConvertChakra.apply(
-        distributed_tensor_graph,
-        symbol_map_value,
-        os.path.join(args.output_dir, comm_group_file),
-    )
-
-    from symbolic_tensor_graph.chakra.backends.chakra_00_4_backend import (
-        Chakra004Backend as ReadoutBackend,
-    )
-
-    distributed_chakra_graph.readout(generated_filename, backend=ReadoutBackend)
-
-    raise NotImplementedError()
-
-    decode_block = transformer_decoder_block()
-    decode_block.visualize("decoder")
-    decode_block.save_tensor_graph("decoder.csv")
     hook = 1
 
+    # dense model
     pipeline_tensor_map = dict()
-    for tensor in decode_block.tensors:
+    for tensor in transformer_dense.tensors:
         pipeline_tensor_map[tensor.id] = {pp: 0}
 
-    distributed_tensor_graph = GraphDistributer.apply(
-        decode_block,
+    print("Dense model: Distributing")
+    distributed_tensor_graph_dense = GraphDistributer.apply(
+        transformer_dense,
         symbol_map_value,
-        spatial_parallel_dims,
+        spatial_parallel_dims_dense,
         temporal_parallel_dims,
         pipeline_tensor_map,
     )
 
-    comm_group_file = args.output_name.replace(".%d", "").replace(".et", "")
-    distributed_chakra_graph = BundledConvertChakra.apply(
-        distributed_tensor_graph,
+    print("Dense model: Converting Chakra")
+    args.output_name = "testdense.%d.et"
+    comm_group_file = args.output_name.replace(".%d", "").replace(".et", ".json")
+    distributed_chakra_graph_dense = BundledConvertChakra.apply(
+        distributed_tensor_graph_dense,
         symbol_map_value,
         os.path.join(args.output_dir, comm_group_file),
     )
@@ -415,7 +144,38 @@ def main():
         Chakra004Backend as ReadoutBackend,
     )
 
-    distributed_chakra_graph.readout(generated_filename, backend=ReadoutBackend)
+    print("Dense model: reading out")
+    distributed_chakra_graph_dense.readout(generated_filename, backend=ReadoutBackend)
+
+    # moe model
+    pipeline_tensor_map = dict()
+    for tensor in transformer_moe.tensors:
+        pipeline_tensor_map[tensor.id] = {pp: 0}
+
+    print("MoE model: Distributing")
+    distributed_tensor_graph_moe = GraphDistributer.apply(
+        transformer_moe,
+        symbol_map_value,
+        spatial_parallel_dims_moe,
+        temporal_parallel_dims,
+        pipeline_tensor_map,
+    )
+
+    print("MoE model: Converting Chakra")
+    args.output_name = "moe.%d.et"
+    comm_group_file = args.output_name.replace(".%d", "").replace(".et", ".json")
+    distributed_chakra_graph_moe = BundledConvertChakra.apply(
+        distributed_tensor_graph_moe,
+        symbol_map_value,
+        os.path.join(args.output_dir, comm_group_file),
+    )
+
+    from symbolic_tensor_graph.chakra.backends.chakra_00_4_backend import (
+        Chakra004Backend as ReadoutBackend,
+    )
+
+    print("MoE model: reading out")
+    distributed_chakra_graph_moe.readout(generated_filename, backend=ReadoutBackend)
 
 
 if __name__ == "__main__":

@@ -15,7 +15,7 @@ dy1,N,dy2,yrouter2,M,"bsn,bs->bsn","Batch/dp, Seq*KExperts/sp, Dmodel/(tp*ep)",1
 dyrouter2,N,dy2,y1,M,"bsn,bsn->bs","Batch/dp, Seq*KExperts/sp, Dmodel/(tp*ep)",1,"Batch/dp, Seq*KExperts/sp, Dmodel/(tp*ep)",1,,
 dyrouted,N,dy1,,I,,"Batch/dp, Seq*KExperts/(sp*ep), Dmodel/tp",1,,,,
 dyrouter,N,dyrouter2,,R,,"Batch/dp, Seq*KExperts/sp",1,"Batch/dp, Seq/sp, KExperts",1,,
-dwrouter,N,dyrouter,x,M,"bsn,bsm->mn","Batch/dp, Seq/sp, KExperts",1,"Batch/dp, Seq/sp, Dmodel/(ep*tp)",1,,
+dwrouter,N,dyrouter,x,M,"bsn,bsm->mn","Batch/dp, Seq/sp, KExperts",1,"Batch/dp, Seq/sp, Dmodel/(ep*tp)",1,wrouter,
 dx01,N,dyrouter,wrouter,M,"bsn,mn->bsm","Batch/dp, Seq/sp, KExperts",1,"Dmodel/(ep*tp), KExperts",1,,
 dxrouted,N,,,T,,"Batch/dp, Seq*KExperts/(sp*ep), Dmodel/tp",1,,,,
 dx1,N,dxrouted,,I,,"Batch/dp, Seq*KExperts/sp, Dmodel/(tp*ep)",1,,,,
