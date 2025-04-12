@@ -155,14 +155,17 @@ class CommunicationMatcherV2:
         for dim in shape:
             if isinstance(dim, int) or isinstance(dim, float):
                 continue
-            matched = None
-            for parallel_symbol in remaining_parallel_symbols:
-                if parallel_symbol in dim.free_symbols:
-                    matched = parallel_symbol
+            while True:
+                matched = None
+                for parallel_symbol in remaining_parallel_symbols:
+                    if parallel_symbol in dim.free_symbols:
+                        matched = parallel_symbol
+                        break
+                if not matched is None:
+                    remaining_parallel_symbols.remove(matched)
+                    parallel_dims[matched] = cls.EndType.PARTITIONED, dim
+                else:
                     break
-            if not matched is None:
-                remaining_parallel_symbols.remove(matched)
-                parallel_dims[matched] = cls.EndType.PARTITIONED, dim
 
         for dim in hidden:
             if isinstance(dim, int) or isinstance(dim, float):

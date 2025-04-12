@@ -6,7 +6,7 @@ from ..tensor import Tensor
 from .graph import HybridGraph, TensorGraph, BundledTensorGraph, BundledHybridGraph
 from .coll_comm_matcher import CommunicationMatcherV2
 from ..chakra.node import Node
-from ..ops import Shadow, Identical, PlaceHolder
+from ..ops import Shadow, Identical, PlaceHolder, Customized
 
 
 class ConvertChakra:
@@ -62,6 +62,8 @@ class ConvertChakra:
         cls, tensor, symbol_map_value, parallel_syms, nodes_this_tensor
     ):
         if tensor.x1 is not None:
+            if tensor.name == "transformer.0.mha.qkv":
+                pass
             matched_comms = CommunicationMatcherV2.match_comms(
                 tensor.x1.y_shape,
                 tensor.x1.y_hidden,
@@ -228,6 +230,15 @@ class ConvertChakra:
                 x2_from = cls._get_output_node(tensor_map_nodes[tensor.x2])
                 if not x2_from is None:
                     x2_to.data_deps.append(x2_from.id)
+
+            data_deps = tensor.get_extra_data_dependancy()
+            comp_node = tensor_map_nodes[tensor][HybridGraph.NodeType.COMP]
+            for data_dep in data_deps:
+                assert tensor.op_type == Customized.type_name
+                output_node = cls._get_output_node(tensor_map_nodes[data_dep])
+                if output_node is None:
+                    continue
+                comp_node.data_deps.append(output_node.id)
 
     @classmethod
     def _sanity_check(cls, tensor_graph, symbol_map_value, parallel_syms):

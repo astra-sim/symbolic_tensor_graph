@@ -79,7 +79,7 @@ def main():
     if not "%d" in args.output_name:
         args.output_name = f"{args.output_name}.%d.et"
     generated_filename = os.path.join(args.output_dir, args.output_name)
-    dp, tp, pp, spp, ep = sp.symbols("dp tp pp sp ep")
+    dp, tp, pp, spp, ep = sp.symbols("dp tp pp cp ep")
     Din, Dout, Dmodel, Dff, Batch, Seq, Head, KVHead, Experts, KExperts, Dvocal = (
         sp.symbols("Din Dout Dmodel Dff Batch Seq Head KVHead Experts KExperts Dvocal")
     )
@@ -102,23 +102,16 @@ def main():
     num_stacks = args.num_stacks
     temporal_parallel_dims = [pp]
 
-    from models.stage1.dense_model import transformer as transformer_dense
-
-    print("Assembling dense model")
-    transformer_dense = transformer_dense(num_stacks)
-    transformer_dense = GradUpdater.apply(transformer_dense, inplace=True)
-    spatial_parallel_dims_dense = [dp, tp, spp]
-
-    from models.stage1.moe_model import transformer as transformer_moe
-
-    print("Assembling moe model")
-    transformer_moe = transformer_moe(num_stacks, symbol_map_value)
-    transformer_moe = GradUpdater.apply(transformer_moe, inplace=True)
-    spatial_parallel_dims_moe = [dp, tp, spp, ep]
-
     hook = 1
 
     if args.model_type == "dense":
+        from models.stage1.dense_model import transformer as transformer_dense
+
+        print("Assembling dense model")
+        transformer_dense = transformer_dense(num_stacks, regenerate=True)
+        transformer_dense = GradUpdater.apply(transformer_dense, inplace=True)
+        spatial_parallel_dims_dense = [dp, tp, spp]
+
         symbol_map_value[tp] *= symbol_map_value[ep]
         # dense model
         pipeline_tensor_map = dict()
@@ -152,6 +145,13 @@ def main():
         )
 
     elif args.model_type == "moe":
+        from models.stage1.moe_model import transformer as transformer_moe
+
+        print("Assembling moe model")
+        transformer_moe = transformer_moe(num_stacks, symbol_map_value, regenerate=True)
+        transformer_moe = GradUpdater.apply(transformer_moe, inplace=True)
+        spatial_parallel_dims_moe = [dp, tp, spp, ep]
+
         # moe model
         pipeline_tensor_map = dict()
         for tensor in transformer_moe.tensors:

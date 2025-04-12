@@ -8,6 +8,9 @@ from ..ops import PlaceHolder
 from ..chakra.node import Node
 
 
+TMP_DIR_ROOT = "/home/changhai/code/symbolic_tensor_graph/generated/.tmp"
+
+
 class TensorGraph:
     def __init__(self, tensors, in_tensors=None, out_tensors=None):
         if in_tensors is None:
@@ -113,7 +116,7 @@ class TensorGraph:
         assert symbols == graph.get_symbols()
         graph.sanity_check()
         return graph
-    
+
     def sanity_check(self):
         if "ctrl_deps" in self.extra_attr.keys():
             for tensor in self.in_tensors:
@@ -166,7 +169,7 @@ class TensorGraph:
 
     def __deepcopy__(self, memo):
         copied_graph = None
-        with tempfile.TemporaryDirectory() as tmp_dir:
+        with tempfile.TemporaryDirectory(dir=TMP_DIR_ROOT) as tmp_dir:
             csv_file_path = os.path.join(tmp_dir, "graph.csv")
             json_file_path = os.path.join(tmp_dir, "graph.json")
             self.save_tensor_graph(csv_file_path, json_file_path)
@@ -275,7 +278,7 @@ class HybridGraph(TensorGraph):
                 assert node.id not in node_id_map_tensor
                 node_id_map_tensor[node.id] = tensor
         return node_id_map_tensor
-    
+
     def comm_add_ctrl_dep(self, nodes):
         node_dependencies = {}
         ready_nodes = []
@@ -285,16 +288,24 @@ class HybridGraph(TensorGraph):
             node_dependencies[node.id] = dependencies
             if dependencies == 0:
                 ready_nodes.append(node)
-                
+
         while ready_nodes:
             current_layer = ready_nodes
             ready_nodes = []
-            coll_comm_count = sum(1 for node in current_layer if node.node_type in {Node.NodeType.COLL_COMM_NODE, Node.NodeType.COMM_SEND_NODE})
-            
+            coll_comm_count = sum(
+                1
+                for node in current_layer
+                if node.node_type
+                in {Node.NodeType.COLL_COMM_NODE, Node.NodeType.COMM_SEND_NODE}
+            )
+
             if coll_comm_count > 2:
                 old_node = None
                 for node in current_layer:
-                    if node.node_type in {Node.NodeType.COLL_COMM_NODE, Node.NodeType.COMM_SEND_NODE}:
+                    if node.node_type in {
+                        Node.NodeType.COLL_COMM_NODE,
+                        Node.NodeType.COMM_SEND_NODE,
+                    }:
                         new_node = node
                         if old_node is None:
                             old_node = new_node
@@ -302,7 +313,7 @@ class HybridGraph(TensorGraph):
                         print(f"added {old_node.id}->{new_node.id}")
                         new_node.ctrl_deps.append(old_node.id)
                         old_node = new_node
-            
+
             for node in current_layer:
                 for dependent in nodes:
                     if node in dependent.ctrl_deps or node in dependent.data_deps:

@@ -11,9 +11,9 @@ from .utils import reduce_chain
 
 def expert_branch(ffn_path=None, moe_wrapper_path=None):
     if ffn_path is None:
-        ffn_path = "./sharding_spreadsheets/module3/llama_feed_forward_network.csv"
+        ffn_path = "./sharding_spreadsheets/module3/tpsp/llama_feed_forward_network.csv"
     if moe_wrapper_path is None:
-        moe_wrapper_path = "./sharding_spreadsheets/module3/expert_wrapper.csv"
+        moe_wrapper_path = "./sharding_spreadsheets/module3/tpsp/expert_wrapper.csv"
 
     ffn = ReplicateGraph.apply(
         TensorGraph.load_tensor_graph(ffn_path),
@@ -41,7 +41,7 @@ def feed_forward_network(
     symbol_map_value, ffn_path=None, expert_wrapper_path=None, moe_frame_path=None
 ):
     if moe_frame_path is None:
-        moe_frame_path = "./sharding_spreadsheets/module3/moe_frame.csv"
+        moe_frame_path = "./sharding_spreadsheets/module3/tpsp/moe_frame.csv"
     experts, kexperts, ep = sp.symbols("Experts KExperts ep")
     experts = symbol_map_value[experts]
     kexperts = symbol_map_value[kexperts]
@@ -98,21 +98,31 @@ def feed_forward_network(
     # merge those reduce in a chain with 0 ops, which equavilent to a single node
     merged_dxrouted = reduce_chain(to_be_reduce_moe_dxrouted, "moe.dxrouted_r%d", amp=0)
     moe.tensors.extend(merged_dxrouted)
+    if len(merged_dxrouted) > 0:
+        merged_dxrouted[-1].op_attr = (
+            "1"  # last node counts a whole elementwise op, which equalient to a single node
+        )
+        merged_dxrouted_last = merged_dxrouted[-1]
+    else:
+        assert len(to_be_reduce_moe_dxrouted) == 1
+        merged_dxrouted_last = to_be_reduce_moe_dxrouted[0]
     moe.out_tensors.append(
-        merged_dxrouted[-1]
+        merged_dxrouted_last
     )  # add last node as output for future linkage
-    merged_dxrouted[-1].op_attr = (
-        "1"  # last node counts a whole elementwise op, which equalient to a single node
-    )
 
     merged_yrouted = reduce_chain(to_be_reduce_moe_yrouted, "moe.yrouted_r%d", amp=0)
     moe.tensors.extend(merged_yrouted)
-    moe.out_tensors.append(merged_yrouted[-1])
-    merged_yrouted[-1].op_attr = "1"
+    if len(merged_yrouted) > 0:
+        merged_yrouted[-1].op_attr = "1"
+        merged_yrouted_last = merged_yrouted[-1]
+    else:
+        assert len(to_be_reduce_moe_yrouted) == 1
+        merged_yrouted_last = to_be_reduce_moe_yrouted[0]
+    moe.out_tensors.append(merged_yrouted_last)
 
     links = {
-        merged_dxrouted[-1].name: "moe.dxrouted",
-        merged_yrouted[-1].name: "moe.yrouted",
+        merged_dxrouted_last.name: "moe.dxrouted",
+        merged_yrouted_last.name: "moe.yrouted",
     }
     moe = ConnectGraph.apply([moe], links)
     return moe
@@ -122,9 +132,9 @@ def transformer_decoder_block(
     symbol_map_value, layernorm_path=None, residual_path=None
 ):
     if layernorm_path is None:
-        layernorm_path = "./sharding_spreadsheets/module3/layer_norm.csv"
+        layernorm_path = "./sharding_spreadsheets/module3/tpsp/layer_norm.csv"
     if residual_path is None:
-        residual_path = "./sharding_spreadsheets/module3/residual.csv"
+        residual_path = "./sharding_spreadsheets/module3/tpsp/residual.csv"
 
     input_layernorm = ReplicateGraph.apply(
         TensorGraph.load_tensor_graph(layernorm_path),
@@ -226,7 +236,7 @@ def transformer(num_layers, symbol_map_value, embedding_path=None, regenerate=Fa
         return TensorGraph.load_tensor_graph(cache_filename)
 
     if embedding_path is None:
-        embedding_path = "./sharding_spreadsheets/module3/embedding.csv"
+        embedding_path = "./sharding_spreadsheets/module3/tpsp/embedding.csv"
     in_emb = ReplicateGraph.apply(
         TensorGraph.load_tensor_graph(embedding_path),
         "in_emb.%s",

@@ -11,6 +11,7 @@ class GradUpdater:
 
     @classmethod
     def _update_grad(cls, tensor, grad, new_revision_fn):
+        print(f"{tensor.name}: {grad.y_shape} @ {grad.y_hidden}")
         updated_tensor = Tensor(create_empty=True)
         updated_tensor.name = tensor.name
         updated_tensor.require_grads = tensor.require_grads

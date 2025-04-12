@@ -180,6 +180,18 @@ class Tensor:
             return self.extra_attr["ctrl_deps"]
         return list()
 
+    def add_extra_data_dependancy(self, parents):
+        if not "data_deps" in self.extra_attr.keys():
+            self.extra_attr["data_deps"] = list()
+        for parent in parents:
+            if not parent in self.extra_attr["data_deps"]:
+                self.extra_attr["data_deps"].append(parent)
+
+    def get_extra_data_dependancy(self):
+        if "data_deps" in self.extra_attr.keys():
+            return self.extra_attr["data_deps"]
+        return list()
+
     @staticmethod
     def _parse_record(terms):
         assert (
@@ -260,6 +272,11 @@ class Tensor:
             for tensor in extra_attr["ctrl_deps"]:
                 ctrl_deps.append(tensor.id)
             extra_attr["ctrl_deps"] = ctrl_deps
+        if "data_deps" in extra_attr.keys():
+            data_deps = list()
+            for tensor in extra_attr["data_deps"]:
+                data_deps.append(tensor.id)
+            extra_attr["data_deps"] = data_deps
         terms.append(json.dumps(extra_attr) if not len(extra_attr) == 0 else "")
         return terms
 
@@ -299,6 +316,13 @@ class Tensor:
                         tensor_id = f"{tensor_id}@0"
                     ctrl_deps.append(tensor_id_map_tensor[tensor_id])
                 tensor.extra_attr["ctrl_deps"] = ctrl_deps
+            if "data_deps" in tensor.extra_attr.keys():
+                extra_data_deps = list()
+                for tensor_id in tensor.extra_attr["data_deps"]:
+                    if not "@" in tensor_id:
+                        tensor_id = f"{tensor_id}@0"
+                    extra_data_deps.append(tensor_id_map_tensor[tensor_id])
+                tensor.extra_attr["data_deps"] = extra_data_deps
         return tensors
 
     @staticmethod

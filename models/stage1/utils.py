@@ -1,6 +1,6 @@
 import copy
 from symbolic_tensor_graph.tensor import Tensor
-from symbolic_tensor_graph.ops import Element2
+from symbolic_tensor_graph.ops import Element2, Reshape
 
 
 def reduce_chain(inputs, name, amp=None):

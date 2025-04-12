@@ -9,12 +9,13 @@ from symbolic_tensor_graph.ops import Add, PlaceHolder
 def group_query_attention(GQA_surrounding_path=None, GQA_kernel_path=None):
     if GQA_surrounding_path is None:
         GQA_surrounding_path = (
-            "./sharding_spreadsheets/module3/group_query_attention_surrounding.csv"
+            "./sharding_spreadsheets/module3/tpsp/group_query_attention_surrounding.csv"
         )
     if GQA_kernel_path is None:
-        GQA_kernel_path = (
-            "./sharding_spreadsheets/module3/group_query_attention_kernel.csv"
-        )
+        # GQA_kernel_path = (
+        #     "./sharding_spreadsheets/module3/group_query_attention_kernel.csv"
+        # )
+        GQA_kernel_path = "./sharding_spreadsheets/module3/tpsp/group_query_attention_kernel_fused.csv"
     GQA_surrounding = TensorGraph.load_tensor_graph(GQA_surrounding_path)
     GQA_kernel = TensorGraph.load_tensor_graph(GQA_kernel_path)
     GQA_kernel = ReplicateGraph.apply(GQA_kernel, "attn_kernel.%s")
@@ -35,16 +36,16 @@ def group_query_attention(GQA_surrounding_path=None, GQA_kernel_path=None):
 
 def feed_forward_network(ffn_path=None):
     if ffn_path is None:
-        ffn_path = "./sharding_spreadsheets/module3/llama_feed_forward_network.csv"
+        ffn_path = "./sharding_spreadsheets/module3/tpsp/llama_feed_forward_network.csv"
     ffn = ReplicateGraph.apply(TensorGraph.load_tensor_graph(ffn_path), "ffn.%s")
     return ffn
 
 
 def transformer_decoder_block(ffn_path=None, layernorm_path=None, residual_path=None):
     if layernorm_path is None:
-        layernorm_path = "./sharding_spreadsheets/module3/layer_norm.csv"
+        layernorm_path = "./sharding_spreadsheets/module3/tpsp/layer_norm.csv"
     if residual_path is None:
-        residual_path = "./sharding_spreadsheets/module3/residual.csv"
+        residual_path = "./sharding_spreadsheets/module3/tpsp/residual.csv"
 
     input_layernorm = ReplicateGraph.apply(
         TensorGraph.load_tensor_graph(layernorm_path), "input_norm.%s"
@@ -143,7 +144,7 @@ def transformer(num_layers, embedding_path=None, regenerate=False):
         return TensorGraph.load_tensor_graph(cache_filename)
 
     if embedding_path is None:
-        embedding_path = "./sharding_spreadsheets/module3/embedding.csv"
+        embedding_path = "./sharding_spreadsheets/module3/tpsp/embedding.csv"
     in_emb = ReplicateGraph.apply(
         TensorGraph.load_tensor_graph(embedding_path),
         "in_emb.%s",
