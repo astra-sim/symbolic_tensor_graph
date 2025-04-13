@@ -6,7 +6,7 @@ from symbolic_tensor_graph.graph.replicate_graph import ReplicateGraph
 from symbolic_tensor_graph.graph.graph import TensorGraph
 from symbolic_tensor_graph.graph.grad_updater import FSDPWeightGradManager
 from symbolic_tensor_graph.ops import Add, PlaceHolder
-from .dense_model import group_query_attention, transformer_decoders
+from .llama_model import group_query_attention, transformer_decoders
 from .utils import reduce_chain
 
 
@@ -261,7 +261,7 @@ def transformer(num_layers, symbol_map_value, embedding_path=None, regenerate=Fa
     links["out_emb.dx"] = f"transformer.{num_layers-1}.ffn_res.dy"
 
     transformer = ConnectGraph.apply([decoders, in_emb, out_emb], links)
-    
+
     loss = ReplicateGraph.apply(
         TensorGraph.load_tensor_graph("./sharding_spreadsheets/module3/tpsp/loss.csv"),
         "loss.%s",

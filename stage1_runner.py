@@ -3,6 +3,7 @@ import multiprocessing
 import os
 import time
 import psutil
+import re
 
 commands = [
     "python stage1.py --output_dir generated/ --num_stacks 2 --output_name dense_2_2_2_2 --dp 2 --tp 2 --sp 2 --ep 2 --model_type dense --batch 16",
@@ -47,49 +48,18 @@ commands = [
 def run_command(command):
     start_time = time.time()
 
-    # shell_process = psutil.Popen(
-    #     command, shell=True
-    # )  # This tracks the shell, not Python
-    
     shell_process = subprocess.Popen(
-        command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        f"/usr/bin/time -v {command}", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
     )
 
-    # Wait a moment for the shell to spawn the Python process
-    time.sleep(0.1)
-
-    # Find the Python child process
-    python_process = None
-    for child in psutil.Process(shell_process.pid).children(recursive=True):
-        if "python" in child.name().lower():
-            python_process = child
-            break
-
-    if not python_process:
-        raise RuntimeError("Could not find Python child process!")
-
-    # Now monitor the Python process instead of the shell
-    peak_memory = 0
-    try:
-        while True:
-            try:
-                mem = python_process.memory_info().rss
-                peak_memory = max(peak_memory, mem)
-            except psutil.NoSuchProcess:
-                break  # Python process exited
-
-            if not python_process.is_running():
-                break  # Process finished
-
-            time.sleep(0.1)  # Reduce CPU usage
-    finally:
-        # Clean up
-        if shell_process.poll() is None:
-            shell_process.terminate()
-        if python_process.is_running():
-            python_process.terminate()
-
+    stdout, stderr = shell_process.communicate()
     runtime = time.time() - start_time
+
+    peak_memory = 0
+    match_ = re.search(r"Maximum resident set size \(kbytes\): (\d+)", stderr)
+
+    if match_:
+        peak_memory = int(match_.group(1))*1024
 
     with open("results.txt", "a") as f:
         f.write(f"Command: {command}\n")
@@ -100,15 +70,17 @@ def run_command(command):
     filename = command[command.find("--output_name")+len("--output_name"):].split()[0] + ".stdout"
     with open(filename, "w") as f:
         f.write(f"Command: {command}\n")
-        f.write(shell_process.stdout.read())
-        f.write(shell_process.stderr.read())
+        f.write(stdout)
+        f.write(stderr)
 
     return command, runtime, peak_memory
 
 
 def main():
-    with multiprocessing.Pool(processes=int(os.cpu_count() * 0.5)) as pool:
+    # with multiprocessing.Pool(processes=int(os.cpu_count() * 0.8)) as pool:
+    with multiprocessing.Pool(processes=4) as pool:
         results = pool.map(run_command, commands)
+        # results = map(run_command, commands)
 
     with open("results_full.txt", "w") as f:
         for command, runtime, peak_memory in results:

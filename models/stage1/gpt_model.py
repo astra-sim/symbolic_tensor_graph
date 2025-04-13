@@ -9,14 +9,12 @@ from symbolic_tensor_graph.ops import Add, PlaceHolder
 
 def group_query_attention(GQA_surrounding_path=None, GQA_kernel_path=None):
     if GQA_surrounding_path is None:
-        GQA_surrounding_path = (
-            "./sharding_spreadsheets/module3/tpsp/group_query_attention_surrounding.csv"
-        )
+        GQA_surrounding_path = "./sharding_spreadsheets/module3/tpsp_gpt/group_query_attention_surrounding.csv"
     if GQA_kernel_path is None:
         # GQA_kernel_path = (
         #     "./sharding_spreadsheets/module3/group_query_attention_kernel.csv"
         # )
-        GQA_kernel_path = "./sharding_spreadsheets/module3/tpsp/group_query_attention_kernel_fused.csv"
+        GQA_kernel_path = "./sharding_spreadsheets/module3/tpsp_gpt/group_query_attention_kernel_fused.csv"
     GQA_surrounding = TensorGraph.load_tensor_graph(GQA_surrounding_path)
     GQA_kernel = TensorGraph.load_tensor_graph(GQA_kernel_path)
     GQA_kernel = ReplicateGraph.apply(GQA_kernel, "attn_kernel.%s")
@@ -37,16 +35,18 @@ def group_query_attention(GQA_surrounding_path=None, GQA_kernel_path=None):
 
 def feed_forward_network(ffn_path=None):
     if ffn_path is None:
-        ffn_path = "./sharding_spreadsheets/module3/tpsp/llama_feed_forward_network.csv"
+        ffn_path = (
+            "./sharding_spreadsheets/module3/tpsp_gpt/llama_feed_forward_network.csv"
+        )
     ffn = ReplicateGraph.apply(TensorGraph.load_tensor_graph(ffn_path), "ffn.%s")
     return ffn
 
 
 def transformer_decoder_block(ffn_path=None, layernorm_path=None, residual_path=None):
     if layernorm_path is None:
-        layernorm_path = "./sharding_spreadsheets/module3/tpsp/layer_norm.csv"
+        layernorm_path = "./sharding_spreadsheets/module3/tpsp_gpt/layer_norm.csv"
     if residual_path is None:
-        residual_path = "./sharding_spreadsheets/module3/tpsp/residual.csv"
+        residual_path = "./sharding_spreadsheets/module3/tpsp_gpt/residual.csv"
 
     input_layernorm = ReplicateGraph.apply(
         TensorGraph.load_tensor_graph(layernorm_path), "input_norm.%s"
@@ -138,16 +138,16 @@ def transformer_decoders(num_layers, decoder_template):
     return decoders
 
 
-def transformer(num_layers, embedding_path=None, regenerate=False):
+def gpt(num_layers, embedding_path=None, regenerate=False):
     from . import CACHE_DIR
     import os
 
-    cache_filename = os.path.join(CACHE_DIR, f"dense_{num_layers}.csv")
+    cache_filename = os.path.join(CACHE_DIR, f"gpt_{num_layers}.csv")
     if os.path.exists(cache_filename) and not regenerate:
         return TensorGraph.load_tensor_graph(cache_filename)
 
     if embedding_path is None:
-        embedding_path = "./sharding_spreadsheets/module3/tpsp/embedding.csv"
+        embedding_path = "./sharding_spreadsheets/module3/tpsp_gpt/embedding.csv"
     in_emb = ReplicateGraph.apply(
         TensorGraph.load_tensor_graph(embedding_path),
         "in_emb.%s",
@@ -171,7 +171,9 @@ def transformer(num_layers, embedding_path=None, regenerate=False):
     transformer = ConnectGraph.apply([decoders, in_emb, out_emb], links)
 
     loss = ReplicateGraph.apply(
-        TensorGraph.load_tensor_graph("./sharding_spreadsheets/module3/tpsp/loss.csv"),
+        TensorGraph.load_tensor_graph(
+            "./sharding_spreadsheets/module3/tpsp_gpt/loss.csv"
+        ),
         "loss.%s",
     )
     links = dict()
