@@ -3,6 +3,14 @@ import time
 import re
 import subprocess
 import multiprocessing
+from symbolic_tensor_graph.chakra.backends.chakra_00_4_backend.et_def.et_def_pb2 import (
+    Node,
+    AttributeProto as ChakraAttr,
+    NodeType,
+    CollectiveCommType,
+    GlobalMetadata
+)
+from symbolic_tensor_graph.chakra.backends.chakra_00_4_backend.protolib import *
 
 gpt_5b = {
     "seq": 2048,
@@ -246,6 +254,85 @@ def generate_stage_validation_workloads():
             f.write(f"Peak Memory: {peak_memory / (1024 * 1024):.2f} MB\n")
             f.write("\n")
 
+def extract_nodes_from_chakra(chakra_trace_filename):
+    freq = {
+        "gemm": 0,
+        "attn": 0,
+        "elementWise": 0,
+        "others": 0,
+        "p2p": 0,
+        "AR": 0,
+        "A2A": 0,
+        "AG": 0,
+        "RS": 0
+    }
+    f = open(chakra_trace_filename, "rb")
+    global_metadata = GlobalMetadata()
+    decodeMessage(f, global_metadata)
+    node = Node()
+    while decodeMessage(f, node):
+        if node.type == NodeType.COMM_COLL_NODE:
+            comm_type = None
+            for attr in node.attr:
+                if attr.name == "comm_type":
+                    comm_type = attr.int64_val
+                    break
+            if comm_type is None:
+                assert False
+            elif comm_type == CollectiveCommType.ALL_REDUCE:
+                freq['AR'] += 1
+            elif comm_type == CollectiveCommType.ALL_GATHER:
+                freq['AG'] += 1
+            elif comm_type == CollectiveCommType.REDUCE_SCATTER:
+                freq['RS'] += 1
+            elif comm_type == CollectiveCommType.ALL_TO_ALL:
+                freq['A2A'] += 1
+            else:
+                assert False
+        elif node.type == NodeType.COMM_SEND_NODE:
+            freq['p2p'] += 1
+        elif node.type == NodeType.COMM_RECV_NODE:
+            freq['p2p'] += 1
+        elif node.type == NodeType.COMP_NODE:
+            if "mha.attn_kernel" in node.name:
+                freq["attn"] += 1
+                continue
+            op_type = None
+            for attr in node.attr:
+                if attr.name == "op_type":
+                    op_type = attr.string_val
+            if op_type == 'M':
+                freq['gemm'] += 1
+            elif op_type == 'A':
+                freq['elementWise'] += 1
+            elif op_type == 'E':
+                freq['elementWise'] += 1
+            elif op_type in {"SLICE", "B", "CUSTOM"}:
+                continue
+            else:
+                print(op_type)
+                assert False
+    return freq
+
+
+def extract_chakras_freqs():
+    files = [
+        "./validation/gpt_5b_fsdp.0.et",
+        "./validation/gpt_5b_cp.0.et",
+        "./validation/gpt_5b_pp.0.et",
+        "./validation/gpt_5b_tpsp.0.et",
+        "./validation/llama3_4tp2pp.0.et",
+        "./validation/llama3_8tp2pp.0.et",
+    ]
+
+    freqs = dict()
+    for file in files:
+        freqs[file] = extract_nodes_from_chakra(file)
+    print(freqs)
+    import json
+    with open("freqs.04131705.json", "w") as f:
+        json.dump(freqs, f)
 
 if __name__ == "__main__":
     generate_stage_validation_workloads()
+    # extract_chakras_freqs()

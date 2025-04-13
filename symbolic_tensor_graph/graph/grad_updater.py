@@ -3,7 +3,7 @@ import typing
 import sympy as sp
 from ..ops import Add, PlaceHolder, Customized, Identical
 from ..tensor import Tensor
-from ..graph.graph import TensorGraph
+from ..graph.graph import TensorGraph, BundledHybridGraph, HybridGraph
 from ..graph.replicate_graph import ReplicateGraph
 from ..graph.connect_graph import ConnectGraph
 
@@ -67,7 +67,7 @@ class FSDPWeightGradManager:
         reduce_expr = sp.parse_expr("1")
         total_weight_size = 0
         for weight in weights:
-            total_weight_size += Tensor.eval_size(weight.y_shape)   
+            total_weight_size += Tensor.eval_size(weight.y_shape)
 
         sharded_weight = Tensor(create_empty=True)
         sharded_weight.name = f"{name}_sharded_weight"
@@ -101,14 +101,24 @@ class FSDPWeightGradManager:
         return sharded_weight, assembled_weight
 
     @classmethod
-    def fsdp_backward_weight_shadow(cls, tensors, sharded_weight, assembled_weight, weights, name=None, grad_filter=None):
+    def fsdp_backward_weight_shadow(
+        cls,
+        tensors,
+        sharded_weight,
+        assembled_weight,
+        weights,
+        name=None,
+        grad_filter=None,
+    ):
         if grad_filter is None:
+
             def grad_filter(_t):
                 return _t.name.split(".")[-1].startswith("d")
+
         if name is None:
             name = ""
         backward_weights = list()
-    
+
         assembled_weight_backward = Tensor(create_empty=True)
         assembled_weight_backward.name = f"{name}_assembled_weight_backward"
         assembled_weight_backward.revision = sharded_weight.revision
@@ -117,8 +127,7 @@ class FSDPWeightGradManager:
         assembled_weight_backward.x1 = sharded_weight
         assembled_weight_backward.x1_shape = assembled_weight.x1_shape
         assembled_weight_backward.x1_hidden = assembled_weight.x1_hidden
-    
-    
+
         for weight in weights:
             backward_weight = Tensor(create_empty=True)
             backward_weight.name = f"{name}_{weight.name}_backward"
@@ -132,11 +141,11 @@ class FSDPWeightGradManager:
             backward_weight.x2_shape = weight.x1_shape
             backward_weight.x2_hidden = weight.x1_hidden
             backward_weights.append(backward_weight)
-        
+
         weight_map_backward_weight = dict()
         for weight, backward_weight in zip(weights, backward_weights):
             weight_map_backward_weight[weight] = backward_weight
-    
+
         for tensor in filter(grad_filter, tensors):
             if tensor.x1 in weight_map_backward_weight:
                 tensor.x1 = weight_map_backward_weight[tensor.x1]
@@ -180,7 +189,7 @@ class FSDPWeightGradManager:
         sharded_weight._grad = sharded_grad
 
         return sharded_grad, assembled_grad
-    
+
     @classmethod
     def apply(cls, graph, inplace=False):
         if not inplace:
@@ -195,9 +204,7 @@ class FSDPWeightGradManager:
                 graph.in_tensors.remove(tensor)
                 graph.out_tensors.remove(tensor._grad)
         sharded_weight, assembled_weight = cls.fsdp_weight_distributor(weights)
-        sharded_grad, assembled_grad = cls.fsdp_grad_gatherer(
-            grads, assembled_weight
-        )
+        sharded_grad, assembled_grad = cls.fsdp_grad_gatherer(grads, assembled_weight)
         graph.tensors.append(sharded_weight)
         graph.tensors.append(assembled_weight)
         graph.tensors.append(sharded_grad)
@@ -209,9 +216,9 @@ class FSDPWeightGradManager:
         )
         graph.tensors.extend(backward_weights)
         graph.tensors.append(assembled_weight_backward)
-        
+
         return graph
-        
+
 
 class MicroBatchReplicator:
     @classmethod
@@ -228,51 +235,51 @@ class MicroBatchReplicator:
         for grad in grads:
             others.remove(grad)
         return weights, grads, others
-    
+
     @classmethod
     def apply(cls, graph, symbol_map_value, inplace=False):
+        raise NotImplementedError("Too slow, use the postprocess instead")
         batch, microbatch = sp.symbols("Batch MicroBatch")
         assert microbatch in symbol_map_value
         assert batch in symbol_map_value
         num_batches = symbol_map_value[batch] / symbol_map_value[microbatch]
         assert int(num_batches) == num_batches
         num_batches = int(num_batches)
-        
+
         if not inplace:
             graph = copy.deepcopy(graph)
         weights, grads, others = cls.get_weights_grads_others(graph)
-        
+
         microbatch_graphs = list()
-        
+
         for i in range(num_batches):
             microbatch_graph = ReplicateGraph.apply(
-                graph, f"mb{i}.%s",
-                old_symbol_map_new_symbol={batch: microbatch}
+                graph, f"mb{i}.%s", old_symbol_map_new_symbol={batch: microbatch}
             )
             microbatch_graphs.append(microbatch_graph)
-            
+
         merged_graph = ConnectGraph.apply(microbatch_graphs, dict())
-        
+
         new_weight_map_old_weight = dict()
         old_grad_map_new_grads = dict()
         for tensor in merged_graph.tensors:
             for weight in weights:
-                if tensor.name[tensor.name.find(".")+1:] == weight.name:
-                    new_weight_map_old_weight[tensor] = (weight)
+                if tensor.name[tensor.name.find(".") + 1 :] == weight.name:
+                    new_weight_map_old_weight[tensor] = weight
                     break
             for grad in grads:
-                if tensor.name[tensor.name.find(".")+1:] == grad.name:
+                if tensor.name[tensor.name.find(".") + 1 :] == grad.name:
                     if not grad in old_grad_map_new_grads:
                         old_grad_map_new_grads[grad] = list()
                     old_grad_map_new_grads[grad].append(tensor)
                     break
-        
+
         for tensor in merged_graph.tensors:
             if tensor.x1 in new_weight_map_old_weight:
                 tensor.x1 = new_weight_map_old_weight[tensor.x1]
             if tensor.x2 in new_weight_map_old_weight:
                 tensor.x2 = new_weight_map_old_weight[tensor.x2]
-                
+
         old_grad_map_merged_grad = dict()
         for old_grad in old_grad_map_new_grads:
             merged_grad = Tensor(create_empty=True)
@@ -296,8 +303,7 @@ class MicroBatchReplicator:
             merged_graph.out_tensors.append(merged_grad)
             for new_grad in old_grad_map_new_grads[old_grad]:
                 merged_graph.out_tensors.remove(new_grad)
-            
-        
+
         for old_grad in old_grad_map_new_grads:
             for new_grad in old_grad_map_new_grads[old_grad]:
                 new_weight = new_grad.grad_of
@@ -309,8 +315,55 @@ class MicroBatchReplicator:
         for old_weight in weights:
             merged_graph.in_tensors.append(old_weight)
             merged_graph.tensors.append(old_weight)
-            
+
         merged_graph.sanity_check()
         return merged_graph
-        
-        
+
+
+class MicroBatchReplicatorPostProcess:
+    OFFSET = 1000000000
+
+    @classmethod
+    def find_weights_grads(cls, graph: HybridGraph):
+        weights_map_grads = dict()
+        for tensor in graph.tensors:
+            if tensor.op_type == PlaceHolder.type_name and tensor.require_grads:
+                weights_map_grads[tensor] = tensor._grad
+        return weights_map_grads
+
+    @classmethod
+    def replicate_micro_batches(cls, graph: HybridGraph, num_micro_batches):
+        if num_micro_batches == 1:
+            return graph
+        # this is not accurate, but works.
+        for tensor in graph.tensor_map_nodes.keys():
+            nodes_this_tensor = graph.tensor_map_nodes[tensor]
+            old_keys = list(nodes_this_tensor.keys())
+            for mb in range(num_micro_batches):
+                for key in old_keys:
+                    old_node = nodes_this_tensor[key]
+                    new_key = f"mb{mb}_{key}"
+                    new_node = copy.deepcopy(old_node)
+                    new_node.name = f"mb{mb}.{old_node.name}"
+                    new_node.id = old_node.id + cls.OFFSET * mb
+                    data_deps = old_node.data_deps
+                    new_node.data_deps = list()
+                    for data_dep in data_deps:
+                        new_node.data_deps.append(data_dep + cls.OFFSET * mb)
+                    ctrl_deps = old_node.ctrl_deps
+                    new_node.ctrl_deps = list()
+                    for ctrl_dep in ctrl_deps:
+                        new_node.ctrl_deps.append(ctrl_dep + cls.OFFSET * mb)
+                    nodes_this_tensor[new_key] = new_node
+            graph.tensor_map_nodes[tensor] = nodes_this_tensor
+
+    @classmethod
+    def apply(cls, bundled_graph: BundledHybridGraph, num_micro_batches, inplace=True):
+        assert inplace
+        print("Replicating micro batches")
+        for readable_rank in bundled_graph.graphs.keys():
+            # print(f"Rank {readable_rank}")
+            hybrid_graph = bundled_graph.graphs[readable_rank]
+            cls.replicate_micro_batches(hybrid_graph, num_micro_batches)
+        print("Replicate micro batches done")
+        return bundled_graph

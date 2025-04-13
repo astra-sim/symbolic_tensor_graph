@@ -5,7 +5,11 @@ import sympy as sp
 from symbolic_tensor_graph.tensor import Tensor
 from symbolic_tensor_graph.ops import Add, PlaceHolder, Element2
 from symbolic_tensor_graph.graph.graph import TensorGraph
-from symbolic_tensor_graph.graph.grad_updater import GradUpdater, MicroBatchReplicator
+from symbolic_tensor_graph.graph.grad_updater import (
+    GradUpdater,
+    MicroBatchReplicator,
+    MicroBatchReplicatorPostProcess,
+)
 from symbolic_tensor_graph.graph.replicate_graph import ReplicateGraph
 from symbolic_tensor_graph.graph.connect_graph import ConnectGraph
 from symbolic_tensor_graph.graph.graph_distributer import GraphDistributer
@@ -168,8 +172,13 @@ def main():
 
         print("Assembling dense model")
         transformer_dense = transformer_dense(num_stacks, regenerate=True)
-        transformer_dense = MicroBatchReplicator.apply(
-            transformer_dense, symbol_map_value
+        # transformer_dense = MicroBatchReplicator.apply(
+        # transformer_dense, symbol_map_value
+        # )
+        transformer_dense = ReplicateGraph.apply(
+            transformer_dense,
+            inplace=True,
+            old_symbol_map_new_symbol={"Batch": "MicroBatch"},
         )
 
         if args.weight_sharded:
@@ -219,6 +228,10 @@ def main():
             Chakra004Backend as ReadoutBackend,
         )
 
+        distributed_chakra_graph_dense = MicroBatchReplicatorPostProcess.apply(
+            distributed_chakra_graph_dense, args.batch // args.micro_batch
+        )
+
         print("Dense model: reading out")
         distributed_chakra_graph_dense.readout(
             generated_filename, backend=ReadoutBackend
@@ -228,8 +241,13 @@ def main():
 
         print("Assembling dense model")
         transformer_dense = transformer_dense(num_stacks, regenerate=True)
-        transformer_dense = MicroBatchReplicator.apply(
-            transformer_dense, symbol_map_value
+        # transformer_dense = MicroBatchReplicator.apply(
+        # transformer_dense, symbol_map_value
+        # )
+        transformer_dense = ReplicateGraph.apply(
+            transformer_dense,
+            inplace=True,
+            old_symbol_map_new_symbol={"Batch": "MicroBatch"},
         )
 
         if args.weight_sharded:
@@ -280,6 +298,9 @@ def main():
         )
 
         print("Dense model: reading out")
+        distributed_chakra_graph_dense = MicroBatchReplicatorPostProcess.apply(
+            distributed_chakra_graph_dense, args.batch // args.micro_batch
+        )
         distributed_chakra_graph_dense.readout(
             generated_filename, backend=ReadoutBackend
         )
@@ -289,7 +310,13 @@ def main():
 
         print("Assembling moe model")
         transformer_moe = transformer_moe(num_stacks, symbol_map_value, regenerate=True)
-        transformer_moe = MicroBatchReplicator.apply(transformer_moe, symbol_map_value)
+        # transformer_moe = MicroBatchReplicator.apply(transformer_moe, symbol_map_value)
+        transformer_dense = ReplicateGraph.apply(
+            transformer_dense,
+            inplace=True,
+            old_symbol_map_new_symbol={"Batch": "MicroBatch"},
+        )
+
         if args.weight_sharded:
             transformer_moe = ReplicateGraph.apply(
                 transformer_moe,
@@ -336,6 +363,9 @@ def main():
         )
 
         print("MoE model: reading out")
+        distributed_chakra_graph_moe = MicroBatchReplicatorPostProcess.apply(
+            distributed_chakra_graph_moe, args.batch // args.micro_batch
+        )
         distributed_chakra_graph_moe.readout(generated_filename, backend=ReadoutBackend)
 
 
