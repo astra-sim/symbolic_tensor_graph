@@ -324,7 +324,7 @@ class HybridGraph(TensorGraph):
 
     def readout(self, filename, backend=None):
         nodes = self.get_nodes()
-        nodes = self.comm_add_ctrl_dep(nodes)
+        # nodes = self.comm_add_ctrl_dep(nodes)
         Node.readout_nodes(nodes, filename, backend=backend)
 
 

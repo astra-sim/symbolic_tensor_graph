@@ -62,7 +62,7 @@ class ConvertChakra:
         cls, tensor, symbol_map_value, parallel_syms, nodes_this_tensor
     ):
         if tensor.x1 is not None:
-            if tensor.name == "transformer.0.mha.qkv":
+            if tensor.name == "transformer.1.mha.dv":
                 pass
             matched_comms = CommunicationMatcherV2.match_comms(
                 tensor.x1.y_shape,
@@ -210,6 +210,8 @@ class ConvertChakra:
 
     @classmethod
     def _tensor_to_nodes(cls, tensor, symbol_map_value, parallel_syms):
+        if tensor.name == "mb0.transformer.0.mha.o":
+            pass
         nodes_this_tensor = dict()
         cls._insert_comp(tensor, symbol_map_value, nodes_this_tensor)
         cls._insert_comm_x1(tensor, symbol_map_value, parallel_syms, nodes_this_tensor)

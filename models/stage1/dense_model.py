@@ -2,6 +2,7 @@ import copy
 
 from symbolic_tensor_graph.graph.connect_graph import ConnectGraph
 from symbolic_tensor_graph.graph.replicate_graph import ReplicateGraph
+from symbolic_tensor_graph.graph.grad_updater import FSDPWeightGradManager
 from symbolic_tensor_graph.graph.graph import TensorGraph
 from symbolic_tensor_graph.ops import Add, PlaceHolder
 
@@ -118,6 +119,8 @@ def transformer_decoder_block(ffn_path=None, layernorm_path=None, residual_path=
     decoder_block.out_tensors.remove(post_attn_norm_dy.x1)
     decoder_block.out_tensors.remove(post_attn_norm_dy.x2)
 
+    decoder_block = FSDPWeightGradManager.apply(decoder_block)
+
     return decoder_block
 
 
@@ -166,6 +169,15 @@ def transformer(num_layers, embedding_path=None, regenerate=False):
     links["out_emb.dx"] = f"transformer.{num_layers-1}.ffn_res.dy"
 
     transformer = ConnectGraph.apply([decoders, in_emb, out_emb], links)
+
+    loss = ReplicateGraph.apply(
+        TensorGraph.load_tensor_graph("./sharding_spreadsheets/module3/tpsp/loss.csv"),
+        "loss.%s",
+    )
+    links = dict()
+    links["out_emb.y"] = "loss.y"
+    links["loss.dy"] = "out_emb.dy"
+    transformer = ConnectGraph.apply([transformer, loss], links)
 
     transformer.save_tensor_graph(cache_filename)
     return transformer

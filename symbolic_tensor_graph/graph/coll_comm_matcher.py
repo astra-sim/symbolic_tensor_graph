@@ -170,14 +170,17 @@ class CommunicationMatcherV2:
         for dim in hidden:
             if isinstance(dim, int) or isinstance(dim, float):
                 continue
-            matched = None
-            for parallel_symbol in remaining_parallel_symbols:
-                if parallel_symbol in dim.free_symbols:
-                    matched = parallel_symbol
+            while True:
+                matched = None
+                for parallel_symbol in remaining_parallel_symbols:
+                    if parallel_symbol in dim.free_symbols:
+                        matched = parallel_symbol
+                        break
+                if not matched is None:
+                    remaining_parallel_symbols.remove(parallel_symbol)
+                    parallel_dims[matched] = cls.EndType.PARTIALSUM, dim
+                else:
                     break
-            if not matched is None:
-                remaining_parallel_symbols.remove(parallel_symbol)
-                parallel_dims[matched] = cls.EndType.PARTIALSUM, dim
 
         for symbol in remaining_parallel_symbols:
             parallel_dims[symbol] = cls.EndType.DUPLICATED, None

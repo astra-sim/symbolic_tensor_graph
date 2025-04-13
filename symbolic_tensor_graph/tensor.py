@@ -219,6 +219,8 @@ class Tensor:
 
         tensor.op_type = terms[4]
         tensor.op_attr = terms[5]
+        if "dwo" in tensor.name:
+            pass
         tensor.x1_shape = Tensor.parse_shape(terms[6])
         tensor.x1_hidden = Tensor.parse_shape(terms[7])
         tensor.x2_shape = Tensor.parse_shape(terms[8])
@@ -338,11 +340,13 @@ class Tensor:
     def visualize(tensors, filename, format="pdf"):
         f = graphviz.Digraph()
         for tensor in tensors:
-            f.node(name=tensor.id, lable=tensor.id, id=tensor.id, shape="box")
+            f.node(name=tensor.id, lable=f"{tensor.id} {str(tensor.y_shape)}", id=tensor.id, shape="box")
             if tensor.x1 is not None:
                 f.edge(tensor.x1.id, tensor.id)
             if tensor.x2 is not None:
                 f.edge(tensor.x2.id, tensor.id)
+            for parent in Tensor.get_extra_data_dependancy(tensor):
+                f.edge(parent.id, tensor.id)
             for parent in Tensor.get_control_dependancy(tensor):
                 f.edge(parent.id, tensor.id, style="dashed")
         f.render(filename, format=format, cleanup=True)

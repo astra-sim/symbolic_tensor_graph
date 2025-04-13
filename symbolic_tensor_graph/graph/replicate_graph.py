@@ -2,7 +2,7 @@ import copy
 import typing
 import sympy as sp
 from .graph import TensorGraph
-from ..ops import Slice, BroadcastReduce
+from ..ops import Slice, BroadcastReduce, Customized
 
 
 class ReplicateGraph:
@@ -56,7 +56,7 @@ class ReplicateGraph:
                 if not tensor.x2_hidden is None:
                     for i, dim in enumerate(tensor.x2_hidden):
                         tensor.x2_hidden[i] = dim.replace(from_, to_)
-                if tensor.op_type in {Slice.type_name, BroadcastReduce.type_name}:
+                if tensor.op_type in {Slice.type_name, BroadcastReduce.type_name, Customized.type_name}:
                     tensor.op_attr = tensor.op_attr.replace(
                         f"{str(from_)}", f"({str(to_)})"
                     )
