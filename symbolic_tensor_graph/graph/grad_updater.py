@@ -364,6 +364,14 @@ class MicroBatchReplicatorPostProcess:
         assert inplace
         print("Replicating micro batches")
         for readable_rank in bundled_graph.graphs.keys():
+            # optimize
+            is_zero_rank = True
+            for sym, rank in readable_rank:
+                if sym in bundled_graph.spatial_parallel_dims and rank != 0:
+                    is_zero_rank = False
+                    break
+            if not is_zero_rank:
+                continue
             # print(f"Rank {readable_rank}")
             hybrid_graph = bundled_graph.graphs[readable_rank]
             cls.replicate_micro_batches(hybrid_graph, num_micro_batches)

@@ -2,6 +2,7 @@ import random
 import copy
 import json
 import sympy as sp
+from functools import lru_cache
 from ..tensor import Tensor
 from .graph import HybridGraph, TensorGraph, BundledTensorGraph, BundledHybridGraph
 from .coll_comm_matcher import CommunicationMatcherV2
@@ -62,6 +63,8 @@ class ConvertChakra:
         cls, tensor, symbol_map_value, parallel_syms, nodes_this_tensor
     ):
         if tensor.x1 is not None:
+            if tensor.name == "transformer.0.mha.o":
+                pass
             matched_comms = CommunicationMatcherV2.match_comms(
                 tensor.x1.y_shape,
                 tensor.x1.y_hidden,
@@ -188,7 +191,8 @@ class ConvertChakra:
             else:
                 return nodes_this_tensor[f"{HybridGraph.NodeType.X1_COMM}{x1_comm_id}"]
         else:
-            assert False
+            # assert False
+            return None
 
     @classmethod
     def _get_x1_input_node(cls, nodes_this_tensor):
@@ -221,23 +225,34 @@ class ConvertChakra:
 
     @classmethod
     def _connect_tensors_node(cls, tensor_map_nodes):
+        # optimize
+        tensor_id_map_nodes = dict()
+        for tensor in tensor_map_nodes.keys():
+            tensor_id_map_nodes[tensor.id] = tensor_map_nodes[tensor]
+        
         for tensor in tensor_map_nodes.keys():
             if not tensor.x1 is None:
-                x1_to = cls._get_x1_input_node(tensor_map_nodes[tensor])
-                x1_from = cls._get_output_node(tensor_map_nodes[tensor.x1])
+                tensor_nodes = tensor_id_map_nodes[tensor.id]
+                x1_nodes = tensor_id_map_nodes[tensor.x1.id]
+                x1_to = cls._get_x1_input_node(tensor_nodes)
+                x1_from = cls._get_output_node(x1_nodes)
                 if not x1_from is None:
                     x1_to.data_deps.append(x1_from.id)
             if not tensor.x2 is None:
-                x2_to = cls._get_x2_input_node(tensor_map_nodes[tensor])
-                x2_from = cls._get_output_node(tensor_map_nodes[tensor.x2])
+                tensor_nodes = tensor_id_map_nodes[tensor.id]
+                x2_nodes = tensor_id_map_nodes[tensor.x2.id]
+                x2_to = cls._get_x2_input_node(tensor_nodes)
+                x2_from = cls._get_output_node(x2_nodes)
                 if not x2_from is None:
                     x2_to.data_deps.append(x2_from.id)
 
             data_deps = tensor.get_extra_data_dependancy()
-            comp_node = tensor_map_nodes[tensor][HybridGraph.NodeType.COMP]
+            if not HybridGraph.NodeType.COMP in tensor_id_map_nodes[tensor.id]:
+                continue
+            comp_node = tensor_id_map_nodes[tensor.id][HybridGraph.NodeType.COMP]
             for data_dep in data_deps:
                 assert tensor.op_type == Customized.type_name
-                output_node = cls._get_output_node(tensor_map_nodes[data_dep])
+                output_node = cls._get_output_node(tensor_id_map_nodes[data_dep.id])
                 if output_node is None:
                     continue
                 comp_node.data_deps.append(output_node.id)
@@ -466,11 +481,15 @@ class BundledConvertChakra:
     ):
         comm_group_id_map_number_comm_group = dict()
 
+        @lru_cache(maxsize=None)  # You can specify a max size if needed
         def _tuple_to_dict(tuple_):
-            ret = dict()
-            for key, value in tuple_:
-                ret[key] = value
-            return ret
+            # return tuple_
+            return {key: value for key, value in tuple_}
+        # def _tuple_to_dict(tuple_):
+        #     ret = dict()
+        #     for key, value in tuple_:
+        #         ret[key] = value
+        #     return ret
 
         for readable_comm_group in readable_comm_groups.values():
             comm_group_id = readable_comm_group[0]
@@ -517,14 +536,52 @@ class BundledConvertChakra:
         )
         cls._readout_comm_group(comm_group_file, comm_group)
 
+        # hotfix: optimization
+        # buckets = dict()
+        # for asked_readable_rank in bundled_graph.graphs.keys():
+        #     tensor_graph = bundled_graph.graphs[asked_readable_rank]
+        #     tensor_map_nodes = cls._ConvertChakra.apply_before_cross_bucket_comms(
+        #         tensor_graph, symbol_map_value, bundled_graph.spatial_parallel_dims
+        #     )
+        #     tensor_id_map_tensor = tensor_graph.get_tensor_id_map_tensor()
+        #     buckets[asked_readable_rank] = [tensor_map_nodes, tensor_id_map_tensor]
+            
         buckets = dict()
         for asked_readable_rank in bundled_graph.graphs.keys():
+            non_zero_rank = False
+            for symbol, rank in asked_readable_rank:
+                if symbol in bundled_graph.spatial_parallel_dims and rank != 0:
+                    non_zero_rank = True
+                    break
+            if non_zero_rank:
+                buckets[asked_readable_rank] = [None, None]
+                continue
+            print(f"processing zero rank before cross bucket {asked_readable_rank}")
             tensor_graph = bundled_graph.graphs[asked_readable_rank]
             tensor_map_nodes = cls._ConvertChakra.apply_before_cross_bucket_comms(
                 tensor_graph, symbol_map_value, bundled_graph.spatial_parallel_dims
             )
             tensor_id_map_tensor = tensor_graph.get_tensor_id_map_tensor()
             buckets[asked_readable_rank] = [tensor_map_nodes, tensor_id_map_tensor]
+            
+        for asked_readable_rank in bundled_graph.graphs.keys():
+            non_zero_rank = False
+            for symbol, rank in asked_readable_rank:
+                if symbol in bundled_graph.spatial_parallel_dims and rank != 0:
+                    non_zero_rank = True
+                    break
+            if not non_zero_rank:
+                continue
+            corresponding_zero_rank = list()
+            for symbol, rank in asked_readable_rank:
+                if symbol in bundled_graph.spatial_parallel_dims and rank != 0:
+                    corresponding_zero_rank.append((symbol, 0))
+                else:
+                    corresponding_zero_rank.append((symbol, rank))
+            corresponding_zero_rank = tuple(corresponding_zero_rank)
+            assert corresponding_zero_rank in buckets
+            print(f"copying from {corresponding_zero_rank} to {asked_readable_rank} before cross bucket")
+            buckets[asked_readable_rank] = buckets[corresponding_zero_rank]
 
         tag_cnt = random.randint(0, int(1e6))
         for link in bundled_graph.remote_parent_shadow_pairs:
@@ -538,25 +595,48 @@ class BundledConvertChakra:
             cls._ConvertChakra._insert_send_node(
                 remote_tensor,
                 remote_tensor_nodes,
-                shadow_num_rank,
+                shadow_readable_rank,
                 tag_cnt,
                 symbol_map_value,
             )
             cls._ConvertChakra._insert_recv_node(
                 shadow_tensor,
                 shadow_tensor_nodes,
-                remote_num_rank,
+                remote_readable_rank,
                 tag_cnt,
                 symbol_map_value,
             )
             tag_cnt += 1
-
+            
+        # optimize
         for asked_readable_rank in bundled_graph.graphs.keys():
+            is_zero_rank = True
+            for symbol, rank in asked_readable_rank:
+                if symbol in bundled_graph.spatial_parallel_dims and rank != 0:
+                    is_zero_rank = False
+                    break
+            if not is_zero_rank:
+                buckets[asked_readable_rank] = None
+                continue
+            print(f"processing zero rank after cross bucket{asked_readable_rank}")
             hybrid_graph = cls._ConvertChakra.apply_after_cross_bucket_comms(
                 buckets[asked_readable_rank][0], symbol_map_value
             )
             buckets[asked_readable_rank] = hybrid_graph
-        return BundledHybridGraph(
+
+        for asked_readable_rank in bundled_graph.graphs.keys():
+            # optimize
+            corresponding_zero_rank = list()
+            for symbol, rank in asked_readable_rank:
+                if symbol in bundled_graph.spatial_parallel_dims and rank != 0:
+                    corresponding_zero_rank.append((symbol, 0))
+                else:
+                    corresponding_zero_rank.append((symbol, rank))
+            corresponding_zero_rank = tuple(corresponding_zero_rank)
+            assert corresponding_zero_rank in buckets
+            print(f"copying from {corresponding_zero_rank} to {asked_readable_rank} after cross bucket")
+            buckets[asked_readable_rank] = buckets[corresponding_zero_rank]
+        bundled_hybrid_graph = BundledHybridGraph(
             buckets,
             bundled_graph.remote_parent_shadow_pairs,
             bundled_graph.spatial_parallel_dims,
@@ -564,3 +644,6 @@ class BundledConvertChakra:
             symbol_map_value,
             readable_rank_map_number_rank,
         )
+        setattr(bundled_hybrid_graph, "comm_groups", bundled_graph.comm_groups)
+        return bundled_hybrid_graph
+        

@@ -1,4 +1,5 @@
 import copy
+from functools import lru_cache
 from .graph import TensorGraph, BundledTensorGraph
 from ..tensor import Tensor
 from ..ops import Shadow
@@ -105,12 +106,17 @@ class GraphDistributer:
         for key in buckets.keys():
             for rank in range(symbol_map_value[dim]):
                 new_key = key + ((dim, rank),)
-                stub_graph = TensorGraph(buckets[key])
-                stub_graph_copied = copy.deepcopy(stub_graph)
-                new_buckets[new_key] = stub_graph_copied.tensors
+                # hotfix: optimize
+                # stub_graph = TensorGraph(buckets[key])
+                # stub_graph_copied = copy.deepcopy(stub_graph)
+                # new_buckets[new_key] = stub_graph_copied.tensors
+                print(f"optimize: spatial copying {key} to {new_key}")
+                new_buckets[new_key] = buckets[key]
         new_remote_parent_shadow_pairs = list()
-        for item in remote_parent_shadow_pairs:
-            for rank in range(symbol_map_value[dim]):
+        for rank in range(symbol_map_value[dim]):
+            if rank != 0:
+                break                # optimize
+            for item in remote_parent_shadow_pairs:
                 (remote_map, remote_id), (shadow_map, shadow_id) = item
                 remote_map = remote_map + ((dim, rank),)
                 shadow_map = shadow_map + ((dim, rank),)
@@ -181,11 +187,15 @@ class GraphDistributer:
 
     @classmethod
     def _distribute_comm_groups(cls, graphs, comm_groups, spatial_parallel_dims):
+        # def _tuple_to_dict(tuple_):
+        #     ret = dict()
+        #     for key, value in tuple_:
+        #         ret[key] = value
+        #     return ret
+        @lru_cache(maxsize=None)  # You can specify a max size if needed
         def _tuple_to_dict(tuple_):
-            ret = dict()
-            for key, value in tuple_:
-                ret[key] = value
-            return ret
+            # return tuple_
+            return {key: value for key, value in tuple_}
         for graph_key in graphs.keys():
             graph_key_dict = _tuple_to_dict(graph_key)
             graph_comm_groups = dict()
@@ -211,6 +221,7 @@ class GraphDistributer:
         tensor_id_temporal_map,
         inplace=False,
     ):
+
         if not inplace:
             tensor_graph = copy.deepcopy(tensor_graph)
         cls._sanity_check(

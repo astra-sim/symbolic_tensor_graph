@@ -93,6 +93,7 @@ class CommunicationMatcher:
                     assert False
             else:
                 assert False
+        
         return comms
 
     @classmethod
@@ -160,20 +161,22 @@ class CommunicationMatcherV2:
             while True:
                 matched = None
                 for parallel_symbol in remaining_parallel_symbols:
+                    if parallel_symbol == sp.symbols("ep"):
+                        pass
                     if parallel_symbol in dim.free_symbols:
                         matched = parallel_symbol
                         break
                 if not matched is None:
-                    dim = copy.deepcopy(dim)
-                    if dim == sp.parse_expr("Seq/(cp*tp)"):
+                    dim2 = copy.deepcopy(dim)
+                    if dim2 == sp.parse_expr("Seq/(cp*tp)"):
                         pass
                     for symbol in parallel_symbols:
                         if symbol == matched:
                             continue
-                        if symbol in dim.free_symbols:
-                            dim = dim.replace(symbol, 1)
+                        if symbol in dim2.free_symbols:
+                            dim2 = dim2.replace(symbol, 1)
                     remaining_parallel_symbols.remove(matched)
-                    parallel_dims[matched] = cls.EndType.PARTITIONED, dim
+                    parallel_dims[matched] = cls.EndType.PARTITIONED, dim2
                 else:
                     break
 
@@ -187,14 +190,14 @@ class CommunicationMatcherV2:
                         matched = parallel_symbol
                         break
                 if not matched is None:
-                    dim = copy.deepcopy(dim)
+                    dim2 = copy.deepcopy(dim)
                     for symbol in parallel_symbols:
                         if symbol == matched:
                             continue
-                        if symbol in dim.free_symbols:
-                            dim = dim.replace(symbol, 1)
+                        if symbol in dim2.free_symbols:
+                            dim2 = dim2.replace(symbol, 1)
                     remaining_parallel_symbols.remove(matched)
-                    parallel_dims[matched] = cls.EndType.PARTIALSUM, dim
+                    parallel_dims[matched] = cls.EndType.PARTIALSUM, dim2
                 else:
                     break
 

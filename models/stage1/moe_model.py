@@ -12,9 +12,9 @@ from .utils import reduce_chain
 
 def expert_branch(ffn_path=None, moe_wrapper_path=None):
     if ffn_path is None:
-        ffn_path = "./sharding_spreadsheets/module3/tpsp/llama_feed_forward_network.csv"
+        ffn_path = "./sharding_spreadsheets/module3/tpsp_moe/llama_feed_forward_network.csv"
     if moe_wrapper_path is None:
-        moe_wrapper_path = "./sharding_spreadsheets/module3/tpsp/expert_wrapper.csv"
+        moe_wrapper_path = "./sharding_spreadsheets/module3/tpsp_moe/expert_wrapper.csv"
 
     ffn = ReplicateGraph.apply(
         TensorGraph.load_tensor_graph(ffn_path),
@@ -42,7 +42,7 @@ def feed_forward_network(
     symbol_map_value, ffn_path=None, expert_wrapper_path=None, moe_frame_path=None
 ):
     if moe_frame_path is None:
-        moe_frame_path = "./sharding_spreadsheets/module3/tpsp/moe_frame.csv"
+        moe_frame_path = "./sharding_spreadsheets/module3/tpsp_moe/moe_frame.csv"
     experts, kexperts, ep = sp.symbols("Experts KExperts ep")
     experts = symbol_map_value[experts]
     kexperts = symbol_map_value[kexperts]
@@ -133,9 +133,9 @@ def transformer_decoder_block(
     symbol_map_value, layernorm_path=None, residual_path=None
 ):
     if layernorm_path is None:
-        layernorm_path = "./sharding_spreadsheets/module3/tpsp/layer_norm.csv"
+        layernorm_path = "./sharding_spreadsheets/module3/tpsp_moe/layer_norm.csv"
     if residual_path is None:
-        residual_path = "./sharding_spreadsheets/module3/tpsp/residual.csv"
+        residual_path = "./sharding_spreadsheets/module3/tpsp_moe/residual.csv"
 
     input_layernorm = ReplicateGraph.apply(
         TensorGraph.load_tensor_graph(layernorm_path),
@@ -239,7 +239,7 @@ def transformer(num_layers, symbol_map_value, embedding_path=None, regenerate=Fa
         return TensorGraph.load_tensor_graph(cache_filename)
 
     if embedding_path is None:
-        embedding_path = "./sharding_spreadsheets/module3/tpsp/embedding.csv"
+        embedding_path = "./sharding_spreadsheets/module3/tpsp_moe/embedding.csv"
     in_emb = ReplicateGraph.apply(
         TensorGraph.load_tensor_graph(embedding_path),
         "in_emb.%s",
@@ -263,7 +263,7 @@ def transformer(num_layers, symbol_map_value, embedding_path=None, regenerate=Fa
     transformer = ConnectGraph.apply([decoders, in_emb, out_emb], links)
 
     loss = ReplicateGraph.apply(
-        TensorGraph.load_tensor_graph("./sharding_spreadsheets/module3/tpsp/loss.csv"),
+        TensorGraph.load_tensor_graph("./sharding_spreadsheets/module3/tpsp_moe/loss.csv"),
         "loss.%s",
         old_symbol_map_new_symbol={"tp": "tp*ep"},
     )

@@ -322,10 +322,60 @@ class HybridGraph(TensorGraph):
                             ready_nodes.append(dependent)
         return nodes
 
-    def readout(self, filename, backend=None):
-        nodes = self.get_nodes()
+    def merge_comms(cls, nodes):
+        from networkx import DiGraph
+        data_dep_graph = DiGraph()
+        node_id_map_nodes = dict()
+        for node in nodes:
+            if node.id == 8:
+                pass
+            data_dep_graph.add_node(node.id)
+        for node in nodes:
+            node_id_map_nodes[node.id] = node
+            for parent_id in node.data_deps:
+                data_dep_graph.add_edge(parent_id, node.id)
+        
+        to_be_removed = set()
+        for node in nodes:
+            if node.name == "transformer.0.mha.qkv@0_X1COMM":
+                pass
+            if not node.node_type == Node.NodeType.COLL_COMM_NODE:
+                continue
+            for parent_id in node.data_deps:
+                parent_node = node_id_map_nodes[parent_id]
+                if parent_node.node_type != Node.NodeType.COLL_COMM_NODE:
+                    continue
+                if parent_node.comm_type != node.comm_type:
+                    continue
+                print(f"merged {parent_node.name}->{node.name}")
+                # merge
+                for pred in data_dep_graph.predecessors(parent_id):
+                    data_dep_graph.add_edge(pred, node.id)
+                to_be_removed.add(parent_id)
+        for remove_id in to_be_removed:
+            if not remove_id in data_dep_graph:
+                continue
+            data_dep_graph.remove_node(remove_id)
+        
+        # rebuild data_deps
+        filtered_nodes = list()
+        for node in nodes:
+            if node.id in data_dep_graph:
+                filtered_nodes.append(node)
+        nodes = filtered_nodes
+        for node in nodes:
+            node.data_deps = list()
+            for parent_id in data_dep_graph.predecessors(node.id):
+                node.data_deps.append(parent_id)
+        return nodes
+        
+    def readout(self, filename, nodes=None, backend=None):
+        if nodes is None:
+            nodes = self.get_nodes()
+        nodes = self.merge_comms(nodes)
         # nodes = self.comm_add_ctrl_dep(nodes)
         Node.readout_nodes(nodes, filename, backend=backend)
+        
 
 
 class BundledTensorGraph:
@@ -366,8 +416,53 @@ class BundledHybridGraph(BundledTensorGraph):
             symbol_value_dict,
         )
         self.readable_rank_map_number_rank = readable_rank_map_number_rank
+    
+    def _standarize_comm_group_key_names(self, comm_groups):
+        group_name_template = tuple()
+        for key in comm_groups.keys():
+            key = comm_groups[key][1]
+            for dim, rank in key:
+                group_name_template += ((dim, 0),)
+            break
+        standarized_comm_groups = dict()
+        for key in comm_groups.keys():
+            group_name = list()
+            key_dict = {key: value for (key, value) in key}
+            for dim, _ in group_name_template:
+                if dim in key_dict:
+                    group_name.append((dim, key_dict[dim]))
+                else:
+                    pass
+            group_name = tuple(group_name)
+            standarized_comm_groups[group_name] = comm_groups[key]
+        return standarized_comm_groups, group_name_template
+        
+    def update_comm_group(self, nodes, comm_groups, group_name_template, readable_rank):
+        for node in nodes:
+            if node.node_type == Node.NodeType.COLL_COMM_NODE:
+                parallel_dim = node._comm_meta_data[3]
+                readable_rank_dict = {key: value for (key, value) in readable_rank}
+                
+                group_readable_name = tuple()
+                for dim, _ in group_name_template:
+                    if dim != parallel_dim:
+                        group_readable_name += ((dim, readable_rank_dict[dim]),)
+                    else:
+                        continue
+                
+                assert group_readable_name in comm_groups
+                group = comm_groups[group_readable_name][0]
+                node.comm_group = group
+            elif node.node_type == Node.NodeType.COMM_SEND_NODE:
+                pass
+            elif node.node_type == Node.NodeType.COMM_RECV_NODE:
+                pass
+        return nodes
 
     def readout(self, filename, backend=None):
+        comm_groups = self.comm_groups
+        comm_groups, group_name_template = self._standarize_comm_group_key_names(comm_groups)
+        
         for readable_rank in self.graphs.keys():
             number_rank = self.readable_rank_map_number_rank[readable_rank]
             if "%d" in filename:
@@ -375,4 +470,5 @@ class BundledHybridGraph(BundledTensorGraph):
             else:
                 filename_this_node = f"{filename}.{number_rank}"
             graph = self.graphs[readable_rank]
-            graph.readout(filename_this_node, backend)
+            nodes = self.update_comm_group(graph.get_nodes(), comm_groups, group_name_template, readable_rank)
+            graph.readout(filename_this_node, nodes=nodes, backend=backend)

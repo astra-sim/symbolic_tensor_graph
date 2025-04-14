@@ -106,6 +106,13 @@ def main():
         required=False,
         default=False,
     )
+    parser.add_argument(
+        "--tpsp",
+        type=str_to_bool,
+        help="use tp+sp or tp only",
+        required=False,
+        default=True,
+    )
     parser.add_argument("--dvocal", type=int, default=32000, required=False)
     parser.add_argument("--dmodel", type=int, default=8192, required=False)
     parser.add_argument("--dff", type=int, default=28672, required=False)
@@ -173,7 +180,7 @@ def main():
         from models.stage1.gpt_model import gpt as transformer_dense
 
         print("Assembling dense model")
-        transformer_dense = transformer_dense(num_stacks, regenerate=True)
+        transformer_dense = transformer_dense(num_stacks, regenerate=True, tpsp=args.tpsp)
         # transformer_dense = MicroBatchReplicator.apply(
         # transformer_dense, symbol_map_value
         # )
@@ -242,7 +249,7 @@ def main():
         from models.stage1.gpt_model import gpt as transformer_dense
 
         print("Assembling dense model")
-        transformer_dense = transformer_dense(num_stacks, regenerate=True)
+        transformer_dense = transformer_dense(num_stacks, regenerate=True, tpsp=args.tpsp)
         # transformer_dense = MicroBatchReplicator.apply(
         # transformer_dense, symbol_map_value
         # )
@@ -309,7 +316,7 @@ def main():
 
     elif args.model_type == "moe":
         from models.stage1.moe_model import transformer as transformer_moe
-
+        assert args.tpsp
         print("Assembling moe model")
         transformer_moe = transformer_moe(num_stacks, symbol_map_value, regenerate=True)
         # transformer_moe = MicroBatchReplicator.apply(transformer_moe, symbol_map_value)
@@ -370,6 +377,68 @@ def main():
         )
         distributed_chakra_graph_moe.readout(generated_filename, backend=ReadoutBackend)
 
+    elif args.model_type == "debug":
+        transformer_moe = TensorGraph.load_tensor_graph("./sharding_spreadsheets/module3/tpsp/embedding.csv")
+        transformer_moe = ReplicateGraph.apply(
+            transformer_moe,
+            inplace=True,
+            old_symbol_map_new_symbol={"Batch": "MicroBatch", "Din": "Dvocal", "Dout": "Dvocal"},
+        )
+
+        if args.weight_sharded:
+            transformer_moe = ReplicateGraph.apply(
+                transformer_moe,
+                inplace=True,
+                old_symbol_map_new_symbol={"fsdp": "dp"},
+            )
+        else:
+            transformer_moe = ReplicateGraph.apply(
+                transformer_moe, inplace=True, old_symbol_map_new_symbol={"fsdp": 1}
+            )
+
+        # transformer_moe.visualize("moe")
+        transformer_moe.save_tensor_graph("moe.csv")
+        transformer_moe = GradUpdater.apply(transformer_moe, inplace=True)
+        spatial_parallel_dims_moe = [dp, tp, spp, ep]
+
+        # moe model
+        assert args.pp == 1
+        pipeline_tensor_map = {
+            "x@0": {pp: 0},
+            "w@0": {pp: 0},
+            "y@0": {pp: 0},
+            "dy@0": {pp: 0},
+            "dw@0": {pp: 0},
+            "dx@0": {pp: 0},
+            "w@1": {pp: 0},
+        }
+
+        print("MoE model: Distributing")
+        distributed_tensor_graph_moe = GraphDistributer.apply(
+            transformer_moe,
+            symbol_map_value,
+            spatial_parallel_dims_moe,
+            temporal_parallel_dims,
+            pipeline_tensor_map,
+        )
+
+        print("MoE model: Converting Chakra")
+        comm_group_file = args.output_name.replace(".%d", "").replace(".et", ".json")
+        distributed_chakra_graph_moe = BundledConvertChakra.apply(
+            distributed_tensor_graph_moe,
+            symbol_map_value,
+            os.path.join(args.output_dir, comm_group_file),
+        )
+
+        from symbolic_tensor_graph.chakra.backends.chakra_00_4_backend import (
+            Chakra004Backend as ReadoutBackend,
+        )
+
+        print("MoE model: reading out")
+        distributed_chakra_graph_moe = MicroBatchReplicatorPostProcess.apply(
+            distributed_chakra_graph_moe, args.batch // args.micro_batch
+        )
+        distributed_chakra_graph_moe.readout(generated_filename, backend=ReadoutBackend)
 
 if __name__ == "__main__":
     main()

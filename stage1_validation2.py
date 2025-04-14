@@ -1,5 +1,4 @@
 import os
-import json
 import time
 import re
 import subprocess
@@ -51,7 +50,7 @@ gpt_5b_tpsp = {
 
 gpt_5b_fsdp = {
     "output_name": "gpt_5b_fsdp",
-    "micro_batch": 8,
+    "micro_batch": 1,
     "batch": 128,
     "dp": 8,
     "cp": 1,
@@ -107,7 +106,7 @@ gpt_175b_32tp = {
 
 gpt_175b_4tp2dp8pp = {
     "output_name": "gpt_175b_4tp2dp8pp",
-    "micro_batch": 2,
+    "micro_batch": 1,
     "batch": 128,
     "dp": 2,
     "cp": 1,
@@ -153,83 +152,39 @@ llama3_8tp = {
     "tp": 8,
     "pp": 1,
     "ep": 1,
-    "tpsp": False,
     "weight_sharded": False,
     "activation_recompute": False,
     **llama3,
 }
 
-llama3_4tp2dp2pp = {
-    "output_name": "llama3_4tp2dp2pp",
+llama3_8tp2dp = {
+    "output_name": "llama3_8tp2dp",
     "batch": 128,
-    "micro_batch": 2,
+    "micro_batch": 1,
     "dp": 2,
     "cp": 1,
     "tp": 8,
-    "pp": 2,
+    "pp": 1,
     "ep": 1,
-    "tpsp": False,
     "weight_sharded": False,
     "activation_recompute": False,
     **llama3,
 }
 
-m8x7 = {
-    "seq": 4096,
-    "num_stacks": 32,
-    "dmodel": 4096,
-    "dff": 14336,
-    "head": 32,
-    "kvhead": 32,
-    "model_type": "moe",
-    "dvocal": 32000,
-    "experts": 8,
-    "kexperts": 2
-}
-
-m8x7_4tp8ep4pp = {
-    "output_name": "m8x7_4tp8ep4pp",
-    "batch": 128,
-    "micro_batch": 8,
-    "dp": 1,
-    "cp": 1,
-    "tp": 4,
-    "pp": 4,
-    "ep": 8,
-    "weight_sharded": False,
-    "activation_recompute": False,
-    **m8x7,
-}
-
-m8x7_8ep4pp = {
-    "output_name": "m8x7_8ep4pp",
-    "batch": 128,
-    "micro_batch": 8,
-    "dp": 1,
-    "cp": 1,
-    "tp": 1,
-    "pp": 4,
-    "ep": 8,
-    "weight_sharded": False,
-    "activation_recompute": False,
-    **m8x7,
-}
-
-
-
 validation_workloads = "./validation"
+
+
+# complete following
 stg_map_real = {
     "./validation/gpt_5b_fsdp.0.et": "./real_traces/gpt3_5b_fsdp8_device_0.json",
     "./validation/gpt_5b_cp.0.et": "./real_traces/gpt3_5b_cp8_device_0.json",
     "./validation/gpt_5b_pp.0.et": "./real_traces/gpt3_5b_pp8_device_0.json",
     "./validation/gpt_5b_tpsp.0.et": "./real_traces/gpt3_5b_tpsp8_device_0.json",
-    "./validation/gpt_175b_32tp.0.et": "./real_traces/gpt3_175b_32tp.json",
-    "./validation/gpt_175b_4tp2dp8pp.0.et": "./real_traces/gpt3_175b_4tp2dp8pp.json",
+    "./validation/gpt_175b_32tp.0.et": "./real_traces/gpt3_175b_32tp_device_0.json",
+    "./validation/gpt_175b_4tp2dp8pp.0.et": "./real_traces/gpt3_175b_4tp2dp8pp_device_0.json",
     "./validation/llama3_4tp2pp.0.et": "./real_traces/llama3_4tp2pp_device_0.json",
     "./validation/llama3_8tp.0.et": "./real_traces/llama3_8tp_device0.json",
-    "./validation/llama3_4tp2dp2pp.0.et": "./real_traces/llama3_4tp2dp2pp_device_0.json",
-    "./validation/m8x7_4tp8ep4pp.0.et": "./real_traces/m8x7_4tp8ep4pp_device_0.json",
-    "./validation/m8x7_8ep4pp.0.et": "./real_traces/m8x7_8ep4pp_device_0.json",
+    "./validation/llama3_8tp2dp.0.et": "./real_traces/llama3_8tp2dp_device_0.json",
 }
 
 
@@ -273,33 +228,25 @@ def run_command(command):
 
 def generate_commands():
     configs = [
-        # gpt_5b_cp,
-        # gpt_5b_pp,
-        # gpt_5b_fsdp,
-        # gpt_5b_tpsp,
-        # gpt_175b_32tp,
-        # gpt_175b_4tp2dp8pp,
-        # llama3_4tp2pp,
-        # llama3_8tp,
-        # llama3_4tp2dp2pp,
-        m8x7_4tp8ep4pp,
-        m8x7_8ep4pp,
+        gpt_5b_cp,
+        gpt_5b_pp,
+        gpt_5b_fsdp,
+        gpt_5b_tpsp,
+        gpt_175b_32tp,
+        gpt_175b_4tp2dp8pp,
+        llama3_4tp2pp,
+        llama3_8tp,
+        llama3_8tp2dp,
     ]
     commands = list()
     for config in configs:
-        if not "tpsp" in config:
-            config["tpsp"] = True
-        if not "experts" in config:
-            config["experts"] = 8
-        if not "kexperts" in config:
-            config["kexperts"] = 2
         commands.append(
             f"python stage1.py --output_dir {validation_workloads} --output_name {config['output_name']} --num_stacks {config['num_stacks']} "
             f"--dp {config['dp']} --tp {config['tp']} --sp {config['cp']} --ep {config['ep']} --pp {config['pp']} "
             f"--weight_sharded {config['weight_sharded']} --activation_recompute {config['activation_recompute']} "
             f"--micro_batch {config['micro_batch']} --seq {config['seq']} --dmodel {config['dmodel']} --dff {config['dff']} "
             f"--head {config['head']} --kvhead {config['kvhead']} --dvocal {config['dvocal']} "
-            f"--model_type {config['model_type']} --batch {config['batch']} --tpsp {config['tpsp']} --experts {config['experts']} --kexperts {config['kexperts']}"
+            f"--model_type {config['model_type']} --batch {config['batch']}"
         )
     return commands
 
@@ -322,7 +269,7 @@ def generate_stage_validation_workloads():
             f.write("\n")
 
 
-def extract_nodes_from_stage(chakra_trace_filename):
+def extract_nodes_from_chakra(chakra_trace_filename):
     freq = {
         "gemm": 0,
         "attn": 0,
@@ -360,12 +307,9 @@ def extract_nodes_from_stage(chakra_trace_filename):
         elif node.type == NodeType.COMM_SEND_NODE:
             freq["p2p"] += 1
         elif node.type == NodeType.COMM_RECV_NODE:
-            pass
+            freq["p2p"] += 1
         elif node.type == NodeType.COMP_NODE:
-            if "mha.attn_kernel" in node.name and (
-                "qkv" in node.name or "dq" in node.name
-            ):
-                print(node.name)
+            if "mha.attn_kernel" in node.name:
                 freq["attn"] += 1
                 continue
             op_type = None
@@ -378,150 +322,27 @@ def extract_nodes_from_stage(chakra_trace_filename):
                 freq["elementWise"] += 1
             elif op_type == "E":
                 freq["elementWise"] += 1
-            elif op_type in {"SLICE", "B", "CUSTOM", "R"}:
-                freq["others"] += 1
+            elif op_type in {"SLICE", "B", "CUSTOM"}:
+                continue
             else:
                 print(op_type)
                 assert False
     return freq
 
 
-def extract_node_from_kinetos(kineto_json):
-    freq = {
-        "gemm": 0,
-        "attn": 0,
-        "elementWise": 0,
-        "others": 0,
-        "p2p": 0,
-        "AR": 0,
-        "A2A": 0,
-        "AG": 0,
-        "RS": 0,
-    }
-    print(kineto_json)
-    with open(kineto_json, "r") as f:
-        data = json.load(f)
-    events = data["traceEvents"]
-
-    def _filter_fn(event):
-        if not "cat" in event:
-            return False
-        if event["cat"] != "kernel":
-            return False
-        return True
-
-    events = filter(_filter_fn, events)
-    for event in events:
-        name = event["name"].lower()
-        
-        if "gemm" in name:
-            freq["gemm"] += 1
-        elif "fmha_knob" in name:
-            freq["attn"] += 1
-        elif "layer_norm" in name and ("finalize" not in name):
-            freq["elementWise"] += 1
-        elif "add" in name and "poi" in name:
-            freq["elementWise"] += 1
-        elif "reducescatter" in name:
-            freq["RS"] += 1
-        elif "allgather" in name:
-            freq["AG"] += 1
-        elif "allreduce" in name:
-            freq["AR"] += 1
-        elif "sendrecv" in name:
-            if not "Collective name" in event["args"]:
-                freq["p2p"] += 1
-            elif event["args"]["Collective name"] == "send":
-                freq["p2p"] += 1
-            elif event["args"]["Collective name"] == "all_to_all":
-                freq["A2A"] += 1
-            else:
-                pass
-                # print(event["args"]["Collective name"])
-                # assert False
-        else:
-            freq["others"] += 1
-        # if not name in freq:
-            # freq[name] = 0
-        # freq[name] += 1
-    return freq
-
-def extract_node_from_jsons2(kineto_json):
-    freq = dict()
-    print(kineto_json)
-    with open(kineto_json, "r") as f:
-        data = json.load(f)
-    events = data["traceEvents"]
-
-    def _filter_fn(event):
-        if not "cat" in event:
-            return False
-        if event["cat"] != "kernel":
-            return False
-        return True
-
-    events = filter(_filter_fn, events)
-    for event in events:
-        name = event["name"]
-        if not name in freq:
-            freq[name] = 0
-        freq[name] += 1
-    return freq
-
-
-def extract_kinetos_freqs():
+def extract_chakras_freqs():
     files = list(stg_map_real.values())
-    names = set()
-    freqs = dict()
-    for file in files:
-        freq = extract_node_from_kinetos(file)
-        with open(os.path.join(validation_workloads, f"freq_{file.split("/")[-1]}"), "w") as f:
-            json.dump(freq, f)
-        for name in freq.keys():
-            names.add(name)
-        freqs[file] = freq
-    print(names)
-    with open(os.path.join(validation_workloads, "cuda_names.json"), "w") as f:
-        names = list(names)
-        json.dump(names, f)
-    with open(os.path.join(validation_workloads, "kineto_freqs.json"), "w") as f:
-        json.dump(freqs, f, indent=4)
-    return freqs
-
-
-def extract_stage_freqs():
-    files = list(stg_map_real.keys())
 
     freqs = dict()
     for file in files:
-        freqs[file] = extract_nodes_from_stage(file)
+        freqs[file] = extract_nodes_from_chakra(file)
     print(freqs)
     import json
 
-    with open(os.path.join(validation_workloads, "stg_freqs.json"), "w") as f:
-        json.dump(freqs, f, indent=4)
-    return freqs
-
-def create_stage_kineto_freqs_mapping(stage_freqs, kinetos_freqs):
-    all_freqs = dict()
-    for stage_file, kineto_file in stg_map_real.items():
-        stage_freq = stage_freqs[stage_file]
-        kinetos_freq = kinetos_freqs[kineto_file]
-        for key in stage_freq.keys():
-            if not key in kinetos_freq:
-                print(key)
-                print(stage_file)
-                print(kineto_file)
-                assert False
-            else:
-                all_freqs[stage_file] = {"stage": stage_freq, "kineto": kinetos_freq}
-    with open(os.path.join(validation_workloads, "all_freqs.json"), "w") as f:
-        json.dump(all_freqs, f, indent=4)
-    return all_freqs
+    with open("stg_freqs.json", "w") as f:
+        json.dump(freqs, f)
 
 
 if __name__ == "__main__":
     generate_stage_validation_workloads()
-    stage_freqs = extract_stage_freqs()
-    kineto_freqs = extract_kinetos_freqs()
-    all_freqs = create_stage_kineto_freqs_mapping(stage_freqs, kineto_freqs)
+    # extract_chakras_freqs()
