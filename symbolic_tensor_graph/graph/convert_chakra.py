@@ -391,7 +391,7 @@ class BundledConvertChakra:
 
         @classmethod
         def _insert_send_node(
-            cls, tensor, nodes_this_tensor, dst_rank, tag, symbol_map_value
+            cls, tensor, nodes_this_tensor, dst_rank, tag, symbol_map_value, dst_readable_rank=None
         ):
             node = Node()
             node.node_type = Node.NodeType.COMM_SEND_NODE
@@ -402,12 +402,14 @@ class BundledConvertChakra:
             )
             node.comm_tag = tag
             node.comm_dst = dst_rank
+            if not dst_readable_rank is None:
+                node._comm_readable_dst = dst_readable_rank
             node.y_tensor_size = 0
             nodes_this_tensor[f"{HybridGraph.NodeType.Y_SEND}{tag}"] = node
 
         @classmethod
         def _insert_recv_node(
-            cls, tensor, nodes_this_tensor, src_rank, tag, symbol_map_value
+            cls, tensor, nodes_this_tensor, src_rank, tag, symbol_map_value, src_readable_rank=None
         ):
             assert tensor.op_type == Shadow.type_name
             node = Node()
@@ -418,6 +420,8 @@ class BundledConvertChakra:
             )
             node.comm_tag = tag
             node.comm_src = src_rank
+            if not src_readable_rank is None:
+                node._comm_readable_src = src_readable_rank
             node.y_tensor_size = node.comm_size
             nodes_this_tensor[HybridGraph.NodeType.Y_RECV] = node
 
@@ -595,6 +599,7 @@ class BundledConvertChakra:
             cls._ConvertChakra._insert_send_node(
                 remote_tensor,
                 remote_tensor_nodes,
+                shadow_num_rank,
                 shadow_readable_rank,
                 tag_cnt,
                 symbol_map_value,
@@ -602,6 +607,7 @@ class BundledConvertChakra:
             cls._ConvertChakra._insert_recv_node(
                 shadow_tensor,
                 shadow_tensor_nodes,
+                remote_num_rank,
                 remote_readable_rank,
                 tag_cnt,
                 symbol_map_value,

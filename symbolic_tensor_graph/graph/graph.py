@@ -454,9 +454,11 @@ class BundledHybridGraph(BundledTensorGraph):
                 group = comm_groups[group_readable_name][0]
                 node.comm_group = group
             elif node.node_type == Node.NodeType.COMM_SEND_NODE:
-                pass
+                assert hasattr(node, "_comm_readable_dst")
+                node.comm_dst = self.readable_rank_map_number_rank[node._comm_readable_dst]
             elif node.node_type == Node.NodeType.COMM_RECV_NODE:
-                pass
+                assert hasattr(node, "_comm_readable_src")
+                node.comm_src = self.readable_rank_map_number_rank[node._comm_readable_src]
         return nodes
 
     def readout(self, filename, backend=None):
