@@ -13,6 +13,7 @@ gpt_5b = {
     "kvhead": 32,
     "model_type": "gpt",
     "dvocal": 8192,
+    "mixed_precision": True
 }
 
 gpt_175b = {
@@ -29,7 +30,7 @@ gpt_175b = {
 gpt_5b_tpsp = {
     "output_name": "gpt_5b_tpsp",
     "micro_batch": 1,
-    "batch": 128,
+    "batch": 1,
     "dp": 1,
     "cp": 1,
     "pp": 1,
@@ -43,7 +44,7 @@ gpt_5b_tpsp = {
 gpt_5b_fsdp = {
     "output_name": "gpt_5b_fsdp",
     "micro_batch": 1,
-    "batch": 128,
+    "batch": 1,
     "dp": 8,
     "cp": 1,
     "pp": 1,
@@ -57,7 +58,7 @@ gpt_5b_fsdp = {
 gpt_5b_cp = {
     "output_name": "gpt_5b_cp",
     "micro_batch": 1,
-    "batch": 128,
+    "batch": 1,
     "dp": 1,
     "cp": 8,
     "pp": 1,
@@ -71,7 +72,7 @@ gpt_5b_cp = {
 gpt_5b_pp = {
     "output_name": "gpt_5b_pp",
     "micro_batch": 1,
-    "batch": 128,
+    "batch": 1,
     "dp": 1,
     "cp": 1,
     "pp": 8,
@@ -85,7 +86,7 @@ gpt_5b_pp = {
 gpt_175b_32tp = {
     "output_name": "gpt_175b_32tp",
     "micro_batch": 1,
-    "batch": 32,
+    "batch": 1,
     "dp": 1,
     "cp": 1,
     "pp": 1,
@@ -119,6 +120,21 @@ llama3 = {
     "kvhead": 8,
     "model_type": "llama",
     "dvocal": 32000,
+    "mixed_precision": True
+}
+
+llama3_16tp = {
+    "output_name": "llama3_16tp",
+    "tp": 16,
+    "pp": 1,
+    "micro_batch": 1,
+    "batch": 1,
+    "dp": 1,
+    "cp": 1,
+    "ep": 1,
+    "weight_sharded": False,
+    "activation_recompute": False,
+    **llama3,
 }
 
 llama3_4tp2pp = {
@@ -207,24 +223,26 @@ def run_command(command):
 def generate_commands():
     configs = [
         gpt_5b_cp,
-        gpt_5b_pp,
+        #gpt_5b_pp,
         gpt_5b_fsdp,
         gpt_5b_tpsp,
-        gpt_175b_32tp,
-        gpt_175b_4tp2dp8pp,
-        llama3_4tp2pp,
-        llama3_8tp2pp,
-        llama3_8tp2dp,
+        #gpt_175b_32tp,
+        #gpt_175b_4tp2dp8pp,
+        #llama3_4tp2pp,
+        #llama3_8tp2pp,
+        #llama3_8tp2dp,
+        llama3_16tp,
     ]
     commands = list()
     for config in configs:
         commands.append(
-            f"python stage1.py --output_dir {validation_workloads} --output_name {config['output_name']} --num_stacks {config['num_stacks']} "
+            f"python3 stage1.py --output_dir {validation_workloads} --output_name {config['output_name']} --num_stacks {config['num_stacks']} "
             f"--dp {config['dp']} --tp {config['tp']} --sp {config['cp']} --ep {config['ep']} --pp {config['pp']} "
             f"--weight_sharded {config['weight_sharded']} --activation_recompute {config['activation_recompute']} "
             f"--micro_batch {config['micro_batch']} --seq {config['seq']} --dmodel {config['dmodel']} --dff {config['dff']} "
             f"--head {config['head']} --kvhead {config['kvhead']} --dvocal {config['dvocal']} "
-            f"--model_type {config['model_type']} --batch {config['batch']}"
+            f"--model_type {config['model_type']} --batch {config['batch']} "
+            f"--mixed_precision {config['mixed_precision'] if 'mixed_precision' in config else False}"
         )
     return commands
 

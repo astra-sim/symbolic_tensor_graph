@@ -8,7 +8,7 @@ from ..ops import PlaceHolder
 from ..chakra.node import Node
 
 
-TMP_DIR_ROOT = "/home/changhai/code/symbolic_tensor_graph/generated/.tmp"
+TMP_DIR_ROOT = "/usr/scratch/huan/stage/generated/tmp"
 
 
 class TensorGraph:

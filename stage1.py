@@ -115,6 +115,7 @@ def main():
         "--chakra_schema_version", type=str, default="v0.0.4", required=False
     )
     parser.add_argument("--model_type", type=str, default="dense", required=False)
+    parser.add_argument("--mixed_precision", type=str_to_bool, default=False, required=False)
 
     args = parser.parse_args()
 
@@ -213,6 +214,7 @@ def main():
             distributed_tensor_graph_dense,
             symbol_map_value,
             os.path.join(args.output_dir, comm_group_file),
+            mixed_precision=args.mixed_precision,
         )
 
         from symbolic_tensor_graph.chakra.backends.chakra_00_4_backend import (
@@ -273,6 +275,7 @@ def main():
             distributed_tensor_graph_dense,
             symbol_map_value,
             os.path.join(args.output_dir, comm_group_file),
+            mixed_precision=args.mixed_precision,
         )
 
         from symbolic_tensor_graph.chakra.backends.chakra_00_4_backend import (
@@ -329,6 +332,7 @@ def main():
             distributed_tensor_graph_moe,
             symbol_map_value,
             os.path.join(args.output_dir, comm_group_file),
+            mixed_precision=args.mixed_precision,
         )
 
         from symbolic_tensor_graph.chakra.backends.chakra_00_4_backend import (
