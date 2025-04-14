@@ -138,8 +138,8 @@ class FSDPWeightGradManager:
             backward_weight.x1 = assembled_weight_backward
             backward_weight.x1_shape = assembled_weight_backward.x1_shape
             backward_weight.x1_hidden = assembled_weight_backward.x1_hidden
-            backward_weight.x2_shape = weight.x1_shape
-            backward_weight.x2_hidden = weight.x1_hidden
+            backward_weight.x2_shape = weight.y_shape
+            backward_weight.x2_hidden = weight.y_hidden
             backward_weights.append(backward_weight)
 
         weight_map_backward_weight = dict()
@@ -340,6 +340,8 @@ class MicroBatchReplicatorPostProcess:
             nodes_this_tensor = graph.tensor_map_nodes[tensor]
             old_keys = list(nodes_this_tensor.keys())
             for mb in range(num_micro_batches):
+                if mb == 0:
+                    continue
                 for key in old_keys:
                     old_node = nodes_this_tensor[key]
                     new_key = f"mb{mb}_{key}"

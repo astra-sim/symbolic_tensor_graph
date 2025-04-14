@@ -1,4 +1,5 @@
 import copy
+import sympy as sp
 
 
 class CommunicationMatcher:
@@ -150,6 +151,7 @@ class CommunicationMatcherV2:
     @classmethod
     def get_parallel_dims(cls, shape, hidden, parallel_symbols):
         remaining_parallel_symbols = copy.deepcopy(parallel_symbols)
+        parallel_symbols = sp.symbols("dp tp cp ep")
 
         parallel_dims = dict()
         for dim in shape:
@@ -162,6 +164,14 @@ class CommunicationMatcherV2:
                         matched = parallel_symbol
                         break
                 if not matched is None:
+                    dim = copy.deepcopy(dim)
+                    if dim == sp.parse_expr("Seq/(cp*tp)"):
+                        pass
+                    for symbol in parallel_symbols:
+                        if symbol == matched:
+                            continue
+                        if symbol in dim.free_symbols:
+                            dim = dim.replace(symbol, 1)
                     remaining_parallel_symbols.remove(matched)
                     parallel_dims[matched] = cls.EndType.PARTITIONED, dim
                 else:
@@ -177,7 +187,13 @@ class CommunicationMatcherV2:
                         matched = parallel_symbol
                         break
                 if not matched is None:
-                    remaining_parallel_symbols.remove(parallel_symbol)
+                    dim = copy.deepcopy(dim)
+                    for symbol in parallel_symbols:
+                        if symbol == matched:
+                            continue
+                        if symbol in dim.free_symbols:
+                            dim = dim.replace(symbol, 1)
+                    remaining_parallel_symbols.remove(matched)
                     parallel_dims[matched] = cls.EndType.PARTIALSUM, dim
                 else:
                     break

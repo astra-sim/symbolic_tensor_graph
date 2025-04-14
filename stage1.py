@@ -44,12 +44,14 @@ def _create_pipeline_tensor_map(
     # num_stacks_each_stage.append(num_stacks_each_stage[-1]+100000)
 
     for tensor in _tensors:
+        if tensor.id == "transformer.18._sharded_weight@1":
+            pass
         found = False
         for num_stack in range(num_stacks):
-            if f"transformer.{num_stack}" in tensor.id:
+            if f"transformer.{num_stack}." in tensor.id:
                 for stage, upper_bound in enumerate(num_stacks_each_stage):
                     if num_stack < upper_bound:
-                        _tensor_map[tensor.id] = {parallel_dim: (num_stack) % range_}
+                        _tensor_map[tensor.id] = {parallel_dim: stage}
                         found = True
                         break
                 if found:
@@ -168,7 +170,7 @@ def main():
     hook = 1
 
     if args.model_type == "llama" or args.model_type == "dense":
-        from models.stage1.llama_model import llama as transformer_dense
+        from models.stage1.gpt_model import gpt as transformer_dense
 
         print("Assembling dense model")
         transformer_dense = transformer_dense(num_stacks, regenerate=True)
@@ -311,8 +313,8 @@ def main():
         print("Assembling moe model")
         transformer_moe = transformer_moe(num_stacks, symbol_map_value, regenerate=True)
         # transformer_moe = MicroBatchReplicator.apply(transformer_moe, symbol_map_value)
-        transformer_dense = ReplicateGraph.apply(
-            transformer_dense,
+        transformer_moe = ReplicateGraph.apply(
+            transformer_moe,
             inplace=True,
             old_symbol_map_new_symbol={"Batch": "MicroBatch"},
         )

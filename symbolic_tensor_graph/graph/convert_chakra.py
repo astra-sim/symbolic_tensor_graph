@@ -62,8 +62,6 @@ class ConvertChakra:
         cls, tensor, symbol_map_value, parallel_syms, nodes_this_tensor
     ):
         if tensor.x1 is not None:
-            if tensor.name == "transformer.1.mha.dv":
-                pass
             matched_comms = CommunicationMatcherV2.match_comms(
                 tensor.x1.y_shape,
                 tensor.x1.y_hidden,
@@ -117,6 +115,8 @@ class ConvertChakra:
         cls, tensor, symbol_map_value, parallel_syms, nodes_this_tensor
     ):
         if tensor.x2 is not None:
+            if tensor.name == "transformer.0.mha.dattn":
+                pass
             matched_comms = CommunicationMatcherV2.match_comms(
                 tensor.x2.y_shape,
                 tensor.x2.y_hidden,
