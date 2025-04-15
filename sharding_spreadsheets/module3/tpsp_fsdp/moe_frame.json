@@ -1,0 +1,26 @@
+{
+    "symbols": [
+        "Batch",
+        "Seq",
+        "Dmodel",
+        "KExperts",
+        "dp",
+        "tp",
+        "cp",
+        "ep"
+    ],
+    "in_tensors": [
+        "x",
+        "wrouter",
+        "dxrouted",
+        "yrouted",
+        "dy"
+    ],
+    "out_tensors": [
+        "y",
+        "xrouted",
+        "dwrouter",
+        "dx",
+        "dyrouted"
+    ]
+}

@@ -97,7 +97,7 @@ def run_command(command):
 
 def main():
     # with multiprocessing.Pool(processes=int(os.cpu_count() * 0.8)) as pool:
-    with multiprocessing.Pool(processes=6) as pool:
+    with multiprocessing.Pool(processes=12) as pool:
         results = pool.map(run_command, commands)
         # results = map(run_command, commands)
 

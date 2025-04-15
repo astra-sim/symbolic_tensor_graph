@@ -140,21 +140,21 @@ def transformer_decoder_block(
     input_layernorm = ReplicateGraph.apply(
         TensorGraph.load_tensor_graph(layernorm_path),
         "input_norm.%s",
-        old_symbol_map_new_symbol={"tp": "tp*ep"},
+        old_symbol_map_new_symbol={"tp": "tp"},
     )
     mha = ReplicateGraph.apply(
-        group_query_attention(), "mha.%s", old_symbol_map_new_symbol={"tp": "tp*ep"}
+        group_query_attention(), "mha.%s", old_symbol_map_new_symbol={"tp": "tp"}
     )
     mha_res = ReplicateGraph.apply(
         TensorGraph.load_tensor_graph(residual_path),
         "mha_res.%s",
-        old_symbol_map_new_symbol={"tp": "tp*ep"},
+        old_symbol_map_new_symbol={"tp": "tp"},
     )
 
     post_layernorm = ReplicateGraph.apply(
         TensorGraph.load_tensor_graph(layernorm_path),
         "post_attn_norm.%s",
-        old_symbol_map_new_symbol={"tp": "tp*ep"},
+        old_symbol_map_new_symbol={"tp": "tp"},
     )
 
     ffn = feed_forward_network(symbol_map_value)
@@ -162,7 +162,7 @@ def transformer_decoder_block(
     ffn_res = ReplicateGraph.apply(
         TensorGraph.load_tensor_graph(residual_path),
         "ffn_res.%s",
-        old_symbol_map_new_symbol={"tp": "tp*ep"},
+        old_symbol_map_new_symbol={"tp": "tp"},
     )
 
     links = dict()
@@ -243,12 +243,12 @@ def transformer(num_layers, symbol_map_value, embedding_path=None, regenerate=Fa
     in_emb = ReplicateGraph.apply(
         TensorGraph.load_tensor_graph(embedding_path),
         "in_emb.%s",
-        old_symbol_map_new_symbol={"Din": "Dvocal", "Dout": "Dmodel", "tp": "tp*ep"},
+        old_symbol_map_new_symbol={"Din": "Dvocal", "Dout": "Dmodel", "tp": "tp"},
     )
     out_emb = ReplicateGraph.apply(
         TensorGraph.load_tensor_graph(embedding_path),
         "out_emb.%s",
-        old_symbol_map_new_symbol={"Din": "Dmodel", "Dout": "Dvocal", "tp": "tp*ep"},
+        old_symbol_map_new_symbol={"Din": "Dmodel", "Dout": "Dvocal", "tp": "tp"},
     )
 
     decoder_template = transformer_decoder_block(symbol_map_value)
@@ -265,7 +265,7 @@ def transformer(num_layers, symbol_map_value, embedding_path=None, regenerate=Fa
     loss = ReplicateGraph.apply(
         TensorGraph.load_tensor_graph("./sharding_spreadsheets/module3/tpsp_moe/loss.csv"),
         "loss.%s",
-        old_symbol_map_new_symbol={"tp": "tp*ep"},
+        old_symbol_map_new_symbol={"tp": "tp"},
     )
     links = dict()
     links["out_emb.y"] = "loss.y"

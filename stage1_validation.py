@@ -365,7 +365,7 @@ def extract_nodes_from_stage(chakra_trace_filename):
             if "mha.attn_kernel" in node.name and (
                 "qkv" in node.name or "dq" in node.name
             ):
-                print(node.name)
+                # print(node.name)
                 freq["attn"] += 1
                 continue
             op_type = None
@@ -376,7 +376,7 @@ def extract_nodes_from_stage(chakra_trace_filename):
                 freq["gemm"] += 1
             elif op_type == "A":
                 freq["elementWise"] += 1
-            elif op_type == "E":
+            elif op_type in {"E", "E2"}:
                 freq["elementWise"] += 1
             elif op_type in {"SLICE", "B", "CUSTOM", "R"}:
                 freq["others"] += 1

@@ -600,17 +600,17 @@ class BundledConvertChakra:
                 remote_tensor,
                 remote_tensor_nodes,
                 shadow_num_rank,
-                shadow_readable_rank,
                 tag_cnt,
                 symbol_map_value,
+                shadow_readable_rank,
             )
             cls._ConvertChakra._insert_recv_node(
                 shadow_tensor,
                 shadow_tensor_nodes,
                 remote_num_rank,
-                remote_readable_rank,
                 tag_cnt,
                 symbol_map_value,
+                remote_readable_rank,
             )
             tag_cnt += 1
             

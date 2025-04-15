@@ -6,6 +6,7 @@ import sympy as sp
 from ..tensor import Tensor
 from ..ops import PlaceHolder
 from ..chakra.node import Node
+import tqdm
 
 
 TMP_DIR_ROOT = "/home/changhai/code/symbolic_tensor_graph/generated/.tmp"
@@ -373,7 +374,7 @@ class HybridGraph(TensorGraph):
         if nodes is None:
             nodes = self.get_nodes()
         nodes = self.merge_comms(nodes)
-        # nodes = self.comm_add_ctrl_dep(nodes)
+        nodes = self.comm_add_ctrl_dep(nodes)
         Node.readout_nodes(nodes, filename, backend=backend)
         
 
@@ -465,7 +466,7 @@ class BundledHybridGraph(BundledTensorGraph):
         comm_groups = self.comm_groups
         comm_groups, group_name_template = self._standarize_comm_group_key_names(comm_groups)
         
-        for readable_rank in self.graphs.keys():
+        for readable_rank in tqdm.tqdm(self.graphs.keys(), desc="reading out"):
             number_rank = self.readable_rank_map_number_rank[readable_rank]
             if "%d" in filename:
                 filename_this_node = filename % (number_rank,)

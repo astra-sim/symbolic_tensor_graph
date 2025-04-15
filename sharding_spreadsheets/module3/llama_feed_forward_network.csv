@@ -3,17 +3,20 @@ x0,N,,,T,,"Batch/dp, Seq/sp, Dmodel/tp",1,,,
 wup,Y,,,T,,"Dmodel, Dff/tp",1,,,
 wgate,Y,,,T,,"Dmodel, Dff/tp",1,,,
 wdown,Y,,,T,,"Dff/tp, Dmodel",1,,,
-xup,N,x0,wup,M,"bsm,mn->bsn","Batch/dp, Seq/sp, Dmodel",1,"Dmodel, Dff/tp",1,
-xgate,N,x0,wgate,M,"bsm,mn->bsn","Batch/dp, Seq/sp, Dmodel",1,"Dmodel, Dff/tp",1,
+x00,N,x0,,I,,"Batch/dp, Seq/sp, Dmodel",1,,,
+xup,N,x00,wup,M,"bsm,mn->bsn","Batch/dp, Seq/sp, Dmodel",1,"Dmodel, Dff/tp",1,
+xgate,N,x00,wgate,M,"bsm,mn->bsn","Batch/dp, Seq/sp, Dmodel",1,"Dmodel, Dff/tp",1,
 xupgate,N,xup,xgate,M,"bsm,bsm->bsm","Batch/dp, Seq/sp, Dff/tp",1,"Batch/dp, Seq/sp, Dff/tp",1,
 xdown,N,xupgate,wdown,M,"bsm,mn->bsn","Batch/dp, Seq/sp, Dff/tp",1,"Dff/tp, Dmodel",1,
 dxdown,N,,,T,,"Batch/dp, Seq/sp, Dmodel/tp",1,,,xdown
-dwdown,N,dxdown,xupgate,M,"bsn,bsm->mn","Batch/dp, Seq/sp, Dmodel",1,"Batch/dp, Seq/sp, Dff/tp",1,wdown
-dxupgate,N,dxdown,wdown,M,"bsn,mn->bsm","Batch/dp, Seq/sp, Dmodel",1,"Dff/tp, Dmodel",1,xupgate
+dxdown2,N,dxdown,,I,,"Batch/dp, Seq/sp, Dmodel",1,,,
+dwdown,N,dxdown2,xupgate,M,"bsn,bsm->mn","Batch/dp, Seq/sp, Dmodel",1,"Batch/dp, Seq/sp, Dff/tp",1,wdown
+dxupgate,N,dxdown2,wdown,M,"bsn,mn->bsm","Batch/dp, Seq/sp, Dmodel",1,"Dff/tp, Dmodel",1,xupgate
 dxup,N,dxupgate,xgate,M,"bsm,bsm->bsm","Batch/dp, Seq/sp, Dff/tp",1,"Batch/dp, Seq/sp, Dff/tp",1,xup
 dxgate,N,dxupgate,xup,M,"bsm,bsm->bsm","Batch/dp, Seq/sp, Dff/tp",1,"Batch/dp, Seq/sp, Dff/tp",1,xgate
-dwup,N,dxup,x0,M,"bsn,bsm->mn","Batch/dp, Seq/sp, Dff/tp",1,"Batch/dp, Seq/sp, Dmodel",1,wup
-dwgate,N,dxgate,x0,M,"bsn,bsm->mn","Batch/dp, Seq/sp, Dff/tp",1,"Batch/dp, Seq/sp, Dmodel",1,wgate
+x01,N,x0,,I,,"Batch/dp, Seq/sp, Dmodel",1,,,
+dwup,N,dxup,x01,M,"bsn,bsm->mn","Batch/dp, Seq/sp, Dff/tp",1,"Batch/dp, Seq/sp, Dmodel",1,wup
+dwgate,N,dxgate,x01,M,"bsn,bsm->mn","Batch/dp, Seq/sp, Dff/tp",1,"Batch/dp, Seq/sp, Dmodel",1,wgate
 dx00,N,dxup,wup,M,"bsn,mn->bsm","Batch/dp, Seq/sp, Dff/tp",1,"Dmodel, Dff/tp",1,
 dx01,N,dxgate,wgate,M,"bsn,mn->bsm","Batch/dp, Seq/sp, Dff/tp",1,"Dmodel, Dff/tp",1,
 dx0,N,dx00,dx01,A,,"Batch/dp, Seq/sp, Dmodel/tp",1,"Batch/dp, Seq/sp, Dmodel/tp",1,x0
