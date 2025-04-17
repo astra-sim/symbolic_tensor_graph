@@ -215,6 +215,32 @@ m8x7_8ep4pp = {
     **m8x7,
 }
 
+deepseek = {
+    "seq": 2048,
+    "num_stacks": 28,
+    "dmodel": 2048,
+    "dff": 10944,
+    "head": 16,
+    "kvhead": 16,
+    "model_type": "moe",
+    "dvocal": 32000,
+    "experts": 64,
+    "kexperts": 6
+}
+
+deepseek_8ep = {
+    "output_name": "deepseek_8ep",
+    "batch": 128,
+    "micro_batch": 8,
+    "dp": 1,
+    "cp": 1,
+    "tp": 1,
+    "pp": 1,
+    "ep": 8,
+    "weight_sharded": False,
+    "activation_recompute": False,
+    **deepseek,
+}
 
 
 validation_workloads = "./validation"
@@ -230,6 +256,7 @@ stg_map_real = {
     "./validation/llama3_4tp2dp2pp.0.et": "./real_traces/llama3_4tp2dp2pp_device_0.json",
     "./validation/m8x7_4tp8ep4pp.0.et": "./real_traces/m8x7_4tp8ep4pp_device_0.json",
     "./validation/m8x7_8ep4pp.0.et": "./real_traces/m8x7_8ep4pp_device_0.json",
+    "./validation/deepseek_8ep.0.et": "./real_traces/deepseek_8ep.json",
 }
 
 
@@ -282,8 +309,9 @@ def generate_commands():
         # llama3_4tp2pp,
         # llama3_8tp,
         # llama3_4tp2dp2pp,
-        m8x7_4tp8ep4pp,
-        m8x7_8ep4pp,
+        # m8x7_4tp8ep4pp,
+        # m8x7_8ep4pp,
+        deepseek_8ep,
     ]
     commands = list()
     for config in configs:
@@ -418,6 +446,8 @@ def extract_node_from_kinetos(kineto_json):
             freq["gemm"] += 1
         elif "fmha_knob" in name:
             freq["attn"] += 1
+        elif "sdpa" in name:
+            freq["attn"] += 1
         elif "layer_norm" in name and ("finalize" not in name):
             freq["elementWise"] += 1
         elif "add" in name and "poi" in name:
@@ -521,7 +551,7 @@ def create_stage_kineto_freqs_mapping(stage_freqs, kinetos_freqs):
 
 
 if __name__ == "__main__":
-    generate_stage_validation_workloads()
+    # generate_stage_validation_workloads()
     stage_freqs = extract_stage_freqs()
     kineto_freqs = extract_kinetos_freqs()
     all_freqs = create_stage_kineto_freqs_mapping(stage_freqs, kineto_freqs)

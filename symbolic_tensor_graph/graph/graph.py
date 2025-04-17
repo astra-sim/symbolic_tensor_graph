@@ -373,8 +373,8 @@ class HybridGraph(TensorGraph):
     def readout(self, filename, nodes=None, backend=None):
         if nodes is None:
             nodes = self.get_nodes()
-        nodes = self.merge_comms(nodes)
-        nodes = self.comm_add_ctrl_dep(nodes)
+        # nodes = self.merge_comms(nodes)
+        # nodes = self.comm_add_ctrl_dep(nodes)
         Node.readout_nodes(nodes, filename, backend=backend)
         
 
