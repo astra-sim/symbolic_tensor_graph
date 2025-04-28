@@ -9,8 +9,10 @@ from ..chakra.node import Node
 import tqdm
 
 
-TMP_DIR_ROOT = "/home/changhai/code/symbolic_tensor_graph/generated/.tmp"
+TMP_DIR_ROOT = "/dev/shm"
 
+
+OPTIMIZED = os.environ.get("STAGE_OPTIMIZED", "1") == "1"
 
 class TensorGraph:
     def __init__(self, tensors, in_tensors=None, out_tensors=None):
@@ -373,7 +375,8 @@ class HybridGraph(TensorGraph):
     def readout(self, filename, nodes=None, backend=None):
         if nodes is None:
             nodes = self.get_nodes()
-        # nodes = self.merge_comms(nodes)
+        if int(os.environ.get("STAGE_MERGE_COMMS", 0)) > 0:
+            nodes = self.merge_comms(nodes)
         # nodes = self.comm_add_ctrl_dep(nodes)
         Node.readout_nodes(nodes, filename, backend=backend)
         
@@ -439,6 +442,17 @@ class BundledHybridGraph(BundledTensorGraph):
         return standarized_comm_groups, group_name_template
         
     def update_comm_group(self, nodes, comm_groups, group_name_template, readable_rank):
+        pp = sp.symbols("pp")
+        def _update_zero_rank_to_non_zero(zero_rank_pp, non_zero_rank):
+            non_zero_rank_dict = {key: value for (key, value) in non_zero_rank}
+            results = list()
+            for dim, rank in zero_rank_pp:
+                if dim == pp:   # temporal parallel
+                    results.append((dim, rank)) 
+                else:           # spatial parallel
+                    results.append((dim, non_zero_rank_dict[dim]))
+            results = tuple(results)
+            return results
         for node in nodes:
             if node.node_type == Node.NodeType.COLL_COMM_NODE:
                 parallel_dim = node._comm_meta_data[3]
@@ -456,13 +470,21 @@ class BundledHybridGraph(BundledTensorGraph):
                 node.comm_group = group
             elif node.node_type == Node.NodeType.COMM_SEND_NODE:
                 assert hasattr(node, "_comm_readable_dst")
+                node._comm_readable_dst = _update_zero_rank_to_non_zero(
+                    node._comm_readable_dst, readable_rank
+                )
                 node.comm_dst = self.readable_rank_map_number_rank[node._comm_readable_dst]
             elif node.node_type == Node.NodeType.COMM_RECV_NODE:
                 assert hasattr(node, "_comm_readable_src")
+                node._comm_readable_src = _update_zero_rank_to_non_zero(
+                    node._comm_readable_src, readable_rank
+                )
                 node.comm_src = self.readable_rank_map_number_rank[node._comm_readable_src]
         return nodes
 
     def readout(self, filename, backend=None):
+        if not OPTIMIZED:
+            return self.readout_no_optimize(filename, backend)
         comm_groups = self.comm_groups
         comm_groups, group_name_template = self._standarize_comm_group_key_names(comm_groups)
         
@@ -475,3 +497,13 @@ class BundledHybridGraph(BundledTensorGraph):
             graph = self.graphs[readable_rank]
             nodes = self.update_comm_group(graph.get_nodes(), comm_groups, group_name_template, readable_rank)
             graph.readout(filename_this_node, nodes=nodes, backend=backend)
+            
+    def readout_no_optimize(self, filename, backend=None):
+        for readable_rank in self.graphs.keys():
+            number_rank = self.readable_rank_map_number_rank[readable_rank]
+            if "%d" in filename:
+                filename_this_node = filename % (number_rank,)
+            else:
+                filename_this_node = f"{filename}.{number_rank}"
+            graph = self.graphs[readable_rank]
+            graph.readout(filename_this_node, backend)

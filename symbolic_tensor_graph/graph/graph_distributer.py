@@ -1,9 +1,12 @@
 import copy
 from functools import lru_cache
+import os
 from .graph import TensorGraph, BundledTensorGraph
 from ..tensor import Tensor
 from ..ops import Shadow
 
+
+OPTIMIZED = os.environ.get("STAGE_OPTIMIZED", "1") == "1"
 
 class GraphDistributer:
     @classmethod
@@ -88,6 +91,38 @@ class GraphDistributer:
         return buckets, remote_parent_shadow_pairs
 
     @classmethod
+    def _spatial_copy_graphs_no_optimize(
+        cls,
+        buckets,
+        remote_parent_shadow_pairs,
+        spatial_parallel_dims,
+        symbol_map_value,
+    ):
+        if len(spatial_parallel_dims) == 0:
+            return buckets, remote_parent_shadow_pairs
+        dim = spatial_parallel_dims[0]
+        spatial_parallel_dims = spatial_parallel_dims[1:]
+        buckets, remote_parent_shadow_pairs = cls._spatial_copy_graphs(
+            buckets, remote_parent_shadow_pairs, spatial_parallel_dims, symbol_map_value
+        )
+        new_buckets = dict()
+        for key in buckets.keys():
+            for rank in range(symbol_map_value[dim]):
+                new_key = key + ((dim, rank),)
+                stub_graph = TensorGraph(buckets[key])
+                stub_graph_copied = copy.deepcopy(stub_graph)
+                new_buckets[new_key] = stub_graph_copied.tensors
+        new_remote_parent_shadow_pairs = list()
+        for item in remote_parent_shadow_pairs:
+            for rank in range(symbol_map_value[dim]):
+                (remote_map, remote_id), (shadow_map, shadow_id) = item
+                remote_map = remote_map + ((dim, rank),)
+                shadow_map = shadow_map + ((dim, rank),)
+                new_item = (remote_map, remote_id), (shadow_map, shadow_id)
+                new_remote_parent_shadow_pairs.append(new_item)
+        return new_buckets, new_remote_parent_shadow_pairs
+
+    @classmethod
     def _spatial_copy_graphs(
         cls,
         buckets,
@@ -95,6 +130,13 @@ class GraphDistributer:
         spatial_parallel_dims,
         symbol_map_value,
     ):
+        if not OPTIMIZED:
+            return cls._spatial_copy_graphs_no_optimize(
+                buckets,
+                remote_parent_shadow_pairs,
+                spatial_parallel_dims,
+                symbol_map_value,
+            )
         if len(spatial_parallel_dims) == 0:
             return buckets, remote_parent_shadow_pairs
         dim = spatial_parallel_dims[0]

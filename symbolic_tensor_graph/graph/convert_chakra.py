@@ -1,6 +1,7 @@
 import random
 import copy
 import json
+import os
 import sympy as sp
 from functools import lru_cache
 from ..tensor import Tensor
@@ -9,6 +10,8 @@ from .coll_comm_matcher import CommunicationMatcherV2
 from ..chakra.node import Node
 from ..ops import Shadow, Identical, PlaceHolder, Customized
 
+
+OPTIMIZED = os.environ.get("STAGE_OPTIMIZED", "1") == "1"
 
 class ConvertChakra:
     with_comm_info = True
@@ -224,7 +227,33 @@ class ConvertChakra:
         return nodes_this_tensor
 
     @classmethod
+    def _connect_tensors_node_no_optimize(cls, tensor_map_nodes):
+        for tensor in tensor_map_nodes.keys():
+            if not tensor.x1 is None:
+                x1_to = cls._get_x1_input_node(tensor_map_nodes[tensor])
+                x1_from = cls._get_output_node(tensor_map_nodes[tensor.x1])
+                if not x1_from is None:
+                    x1_to.data_deps.append(x1_from.id)
+            if not tensor.x2 is None:
+                x2_to = cls._get_x2_input_node(tensor_map_nodes[tensor])
+                x2_from = cls._get_output_node(tensor_map_nodes[tensor.x2])
+                if not x2_from is None:
+                    x2_to.data_deps.append(x2_from.id)
+
+            data_deps = tensor.get_extra_data_dependancy()
+            comp_node = tensor_map_nodes[tensor][HybridGraph.NodeType.COMP]
+            for data_dep in data_deps:
+                assert tensor.op_type == Customized.type_name
+                output_node = cls._get_output_node(tensor_map_nodes[data_dep])
+                if output_node is None:
+                    continue
+                comp_node.data_deps.append(output_node.id)
+
+    @classmethod
     def _connect_tensors_node(cls, tensor_map_nodes):
+        if not OPTIMIZED:
+            return cls._connect_tensors_node_no_optimize(tensor_map_nodes)
+            
         # optimize
         tensor_id_map_nodes = dict()
         for tensor in tensor_map_nodes.keys():
@@ -452,7 +481,8 @@ class BundledConvertChakra:
                 tensor_map_nodes.keys(), tensor_map_nodes, symbol_map_value
             )
             cls._clean_empty_comp(graph)
-            cls.add_ctrl_deps(graph.tensor_map_nodes)
+            # if os.environ.get("STAGE_CTRL_DEPS", "1") == "1":
+                # cls.add_ctrl_deps(graph.tensor_map_nodes)
             return graph
 
         @classmethod
@@ -525,6 +555,8 @@ class BundledConvertChakra:
         comm_group_file,
         readable_rank_map_number_rank=None,
     ):
+        if not OPTIMIZED:
+            return cls.apply_no_optimize(bundled_graph, symbol_map_value, comm_group_file, readable_rank_map_number_rank)
         for symbol in bundled_graph.symbol_map_value:
             assert bundled_graph.symbol_map_value[symbol] == symbol_map_value[symbol]
         for sym in copy.copy(bundled_graph.spatial_parallel_dims):
@@ -653,3 +685,35 @@ class BundledConvertChakra:
         setattr(bundled_hybrid_graph, "comm_groups", bundled_graph.comm_groups)
         return bundled_hybrid_graph
         
+    @classmethod
+    def apply_no_optimize(
+        cls,
+        bundled_graph,
+        symbol_map_value,
+        comm_group_file,
+        readable_rank_map_number_rank=None,
+    ):
+        for symbol in bundled_graph.symbol_map_value:
+            assert bundled_graph.symbol_map_value[symbol] == symbol_map_value[symbol]
+        for sym in copy.copy(bundled_graph.spatial_parallel_dims):
+            if symbol_map_value[sym] == 1:
+                bundled_graph.spatial_parallel_dims.remove(sym)
+        if readable_rank_map_number_rank is None:
+            readable_rank_map_number_rank = dict()
+            for num_rank, asked_readable_rank in enumerate(bundled_graph.graphs.keys()):
+                readable_rank_map_number_rank[asked_readable_rank] = num_rank
+        assert hasattr(bundled_graph, "comm_groups")
+        comm_group = cls._get_comm_group_id_map_num_comm_group(
+            bundled_graph.comm_groups, readable_rank_map_number_rank
+        )
+        cls._readout_comm_group(comm_group_file, comm_group)
+
+        buckets = dict()
+        for asked_readable_rank in bundled_graph.graphs.keys():
+            tensor_graph = bundled_graph.graphs[asked_readable_rank]
+            tensor_map_nodes = cls._ConvertChakra.apply_before_cross_bucket_comms(
+                tensor_graph, symbol_map_value, bundled_graph.spatial_parallel_dims
+            )
+            tensor_id_map_tensor = tensor_graph.get_tensor_id_map_tensor()
+            buckets[asked_readable_rank] = [tensor_map_nodes, tensor_id_map_tensor]
+

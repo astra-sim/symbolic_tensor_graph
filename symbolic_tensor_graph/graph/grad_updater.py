@@ -1,12 +1,15 @@
 import copy
 import typing
 import sympy as sp
+import os
 from ..ops import Add, PlaceHolder, Customized, Identical
 from ..tensor import Tensor
 from ..graph.graph import TensorGraph, BundledHybridGraph, HybridGraph
 from ..graph.replicate_graph import ReplicateGraph
 from ..graph.connect_graph import ConnectGraph
 
+
+OPTIMIZED = os.environ.get("STAGE_OPTIMIZED", "1") == "1"
 
 class GradUpdater:
     @classmethod
@@ -361,6 +364,8 @@ class MicroBatchReplicatorPostProcess:
 
     @classmethod
     def apply(cls, bundled_graph: BundledHybridGraph, num_micro_batches, inplace=True):
+        if not OPTIMIZED:
+            return cls.apply_no_optimize(bundled_graph, num_micro_batches, inplace)
         assert inplace
         print("Replicating micro batches")
         for readable_rank in bundled_graph.graphs.keys():
@@ -377,3 +382,16 @@ class MicroBatchReplicatorPostProcess:
             cls.replicate_micro_batches(hybrid_graph, num_micro_batches)
         print("Replicate micro batches done")
         return bundled_graph
+
+
+    @classmethod
+    def apply_no_optimize(cls, bundled_graph: BundledHybridGraph, num_micro_batches, inplace=True):
+        assert inplace
+        print("Replicating micro batches")
+        for readable_rank in bundled_graph.graphs.keys():
+            # print(f"Rank {readable_rank}")
+            hybrid_graph = bundled_graph.graphs[readable_rank]
+            cls.replicate_micro_batches(hybrid_graph, num_micro_batches)
+        print("Replicate micro batches done")
+        return bundled_graph
+    

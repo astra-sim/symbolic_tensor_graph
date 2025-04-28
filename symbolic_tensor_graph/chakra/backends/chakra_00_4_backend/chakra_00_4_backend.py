@@ -115,8 +115,11 @@ class Chakra004Backend(NodeBackendBase):
         backend_node.attr.append(
             ChakraAttr(name="comm_type", int64_val=_get_backend_comm_type(comm_type))
         )
-        backend_node.attr.append(ChakraAttr(name="pg_name", string_val=str(comm_group)))
-        backend_node.attr.append(ChakraAttr(name="is_cpu_op", int32_val=int(0)))
+        if os.environ.get("STAGE_LEGACY_ATTR", "0") == "1":
+            backend_node.attr.append(ChakraAttr(name="comm_group", int32_val=int(comm_group)))
+        else:
+            backend_node.attr.append(ChakraAttr(name="pg_name", string_val=str(comm_group)))
+            backend_node.attr.append(ChakraAttr(name="is_cpu_op", int32_val=int(0)))
         if cls.DEFAULT_NETWORK_DIM != 0:
             involved_dim = ChakraAttr(name="involved_dim")
             for _ in range(cls.DEFAULT_NETWORK_DIM):
@@ -128,14 +131,20 @@ class Chakra004Backend(NodeBackendBase):
         backend_node.attr.append(ChakraAttr(name="comm_size", int64_val=int(comm_size)))
         backend_node.attr.append(ChakraAttr(name="comm_tag", int32_val=int(comm_tag)))
         backend_node.attr.append(ChakraAttr(name="comm_dst", int32_val=int(comm_dst)))
-        backend_node.attr.append(ChakraAttr(name="is_cpu_op", int32_val=int(0)))
+        if os.environ.get("STAGE_LEGACY_ATTR", "0") == "1":
+            pass
+        else:
+            backend_node.attr.append(ChakraAttr(name="is_cpu_op", int32_val=int(0)))
 
     @classmethod
     def set_comm_recv_attrs(cls, comm_size, comm_tag, comm_src, backend_node):
         backend_node.attr.append(ChakraAttr(name="comm_size", int64_val=int(comm_size)))
         backend_node.attr.append(ChakraAttr(name="comm_tag", int32_val=int(comm_tag)))
         backend_node.attr.append(ChakraAttr(name="comm_src", int32_val=int(comm_src)))
-        backend_node.attr.append(ChakraAttr(name="is_cpu_op", int32_val=int(0)))
+        if os.environ.get("STAGE_LEGACY_ATTR", "0") == "1":
+            pass
+        else:
+            backend_node.attr.append(ChakraAttr(name="is_cpu_op", int32_val=int(0)))
 
     @classmethod
     def set_mem_attrs(cls, tensor_size, backend_node):
