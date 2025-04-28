@@ -13,21 +13,49 @@ class ConvertChakra:
     with_comm_info = True
 
     @classmethod
-    def _create_IOInfo(cls, tensor, symbol_map_value, mixed_precision=False):
+    def _create_IOInfo(cls, tensor, symbol_map_value, mixed_precision=False, fsdp_enabled=False):
         if tensor.op_type == Identical.type_name:
             tensor = tensor.x1
         name = tensor.id
         shape = tensor.y_shape
         shape_str = Tensor.stringfy_shape(shape)
         name = name + shape_str
-        size = Tensor.eval_expr(Tensor.eval_size(shape), symbol_map_value)
-        # if mixed precision, weight size is 1.5x but activation size is 0.5x
-        # this is because weight needs to be stored in both fp16 and fp32, but activation only needs fp16
-        if mixed_precision:
+        # ------------------------------------------------------------------
+        # VRAM-accounting filter: ignore tensors that are metadata tensors,
+        # or tensors that are known to be transient so that every caller (stage1 as well as Chakra back-ends)
+        # sees the same numbers.
+        # ------------------------------------------------------------------
+        tmp_keywords = [
+            "_assembled_weight",  # FSDP full-weight buffer (transient)
+            "_assembled_weight_backward",  # its backward shadow
+            "_assembled_grad",  # full gradient before shard / RS
+        ]
+        lower_name = name.lower()
+        if fsdp_enabled and (
+            any(kw in name for kw in tmp_keywords)
+            or "_backward" in lower_name
+            or lower_name.split(".")[-1].startswith(("d", "dw", "dq", "dk", "dv"))
+        ):
+            size = 0
+        else:
+            size = Tensor.eval_expr(Tensor.eval_size(shape), symbol_map_value)
+
+            # if mixed precision, weight size is 1.5x but activation size is 0.5x
+            # this is because weight needs to be stored in both fp16 and fp32, but activation only needs fp16
+
             if tensor.require_grads:
-                size = int(size * 1.5)
+                optimizer_state_size = size * 4  # Adam m & v (fp32)
             else:
-                size = int(size * 0.5)
+                optimizer_state_size = 0
+
+            if mixed_precision and size != 0:
+                if tensor.require_grads:
+                    size = int(size * 1.5) * 4  # 6 bytes/elem total weight
+                else:
+                    size = int(size * 0.5) * 4  # 2 bytes/elem activation / grad
+
+            size += optimizer_state_size
+
         IOInfo = {"name": name, "size": size}
         return IOInfo
 
@@ -331,41 +359,42 @@ class ConvertChakra:
     def _comm_info_post_process(cls, tensor_map_nodes, symbol_map_value, mixed_precision=False):
         if not cls.with_comm_info:
             return
+        fsdp_enabled = symbol_map_value.get('fsdp', 0) > 1
         for tensor in tensor_map_nodes.keys():
             nodes_this_tensor = tensor_map_nodes[tensor]
             for node_type in nodes_this_tensor.keys():
                 if node_type == HybridGraph.NodeType.COMP:
                     inputs = list()
                     if tensor.x1 is not None:
-                        inputs.append(cls._create_IOInfo(tensor.x1, symbol_map_value, mixed_precision))
+                        inputs.append(cls._create_IOInfo(tensor.x1, symbol_map_value, mixed_precision, fsdp_enabled))
                     if tensor.x2 is not None:
-                        inputs.append(cls._create_IOInfo(tensor.x2, symbol_map_value, mixed_precision))
+                        inputs.append(cls._create_IOInfo(tensor.x2, symbol_map_value, mixed_precision, fsdp_enabled))
                     outputs = list()
-                    outputs.append(cls._create_IOInfo(tensor, symbol_map_value, mixed_precision))
+                    outputs.append(cls._create_IOInfo(tensor, symbol_map_value, mixed_precision, fsdp_enabled))
                     nodes_this_tensor[node_type].inputs = inputs
                     nodes_this_tensor[node_type].outputs = outputs
                 elif HybridGraph.NodeType.X1_COMM in node_type:
                     inputs = list()
-                    inputs.append(cls._create_IOInfo(tensor.x1, symbol_map_value, mixed_precision))
+                    inputs.append(cls._create_IOInfo(tensor.x1, symbol_map_value, mixed_precision, fsdp_enabled))
                     outputs = list()
                     nodes_this_tensor[node_type].inputs = inputs
                     nodes_this_tensor[node_type].outputs = outputs
                 elif HybridGraph.NodeType.X2_COMM in node_type:
                     inputs = list()
-                    inputs.append(cls._create_IOInfo(tensor.x2, symbol_map_value, mixed_precision))
+                    inputs.append(cls._create_IOInfo(tensor.x2, symbol_map_value, mixed_precision, fsdp_enabled))
                     outputs = list()
                     nodes_this_tensor[node_type].inputs = inputs
                     nodes_this_tensor[node_type].outputs = outputs
                 elif node_type == HybridGraph.NodeType.Y_RECV:
                     inputs = list()
                     outputs = list()
-                    outputs.append(cls._create_IOInfo(tensor, symbol_map_value, mixed_precision))
+                    outputs.append(cls._create_IOInfo(tensor, symbol_map_value, mixed_precision, fsdp_enabled))
                     nodes_this_tensor[node_type].inputs = inputs
                     nodes_this_tensor[node_type].outputs = outputs
                 elif HybridGraph.NodeType.Y_SEND in node_type:
                     inputs = list()
                     outputs = list()
-                    inputs.append(cls._create_IOInfo(tensor, symbol_map_value, mixed_precision))
+                    inputs.append(cls._create_IOInfo(tensor, symbol_map_value, mixed_precision, fsdp_enabled))
                     nodes_this_tensor[node_type].inputs = inputs
                     nodes_this_tensor[node_type].outputs = outputs
                 else:

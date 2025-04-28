@@ -36,6 +36,7 @@ def main():
     parser.add_argument("--head", type=int, default=1024, required=False)
     parser.add_argument("--num_stacks", type=int, default=32, required=False)
     parser.add_argument("--chakra_schema_version", type=str, default="v0.0.4", required=False)
+    parser.add_argument("--mixed_precision", type=str_to_bool, default=False, required=False)
     
     args = parser.parse_args()
 
@@ -140,7 +141,7 @@ def main():
     )
     
     # readout to chakra
-    distributed_chakra_graph = BundledConvertChakra.apply(distributed_tensor_graph, symbol_map_value, os.path.join(args.output_dir, args.comm_group_file))
+    distributed_chakra_graph = BundledConvertChakra.apply(distributed_tensor_graph, symbol_map_value, os.path.join(args.output_dir, args.comm_group_file), mixed_precision=args.mixed_precision)
     if args.chakra_schema_version == "v0.0.1":
         from symbolic_tensor_graph.chakra.backends.chakra_00_1_backend import Chakra001Backend as ReadoutBackend
     elif args.chakra_schema_version == "v0.0.4":

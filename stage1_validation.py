@@ -25,6 +25,7 @@ gpt_175b = {
     "kvhead": 96,
     "model_type": "gpt",
     "dvocal": 8192,
+    "mixed_precision": True
 }
 
 gpt_5b_tpsp = {
@@ -113,11 +114,11 @@ gpt_175b_4tp2dp8pp = {
 
 llama3 = {
     "seq": 8192,
-    "num_stacks": 32,
-    "dmodel": 4096,
-    "dff": 14336,
-    "head": 32,
-    "kvhead": 8,
+    "num_stacks": 80,
+    "dmodel": 8192,
+    "dff": 28672,
+    "head": 64,
+    "kvhead": 64,
     "model_type": "llama",
     "dvocal": 32000,
     "mixed_precision": True
@@ -126,6 +127,20 @@ llama3 = {
 llama3_16tp = {
     "output_name": "llama3_16tp",
     "tp": 16,
+    "pp": 1,
+    "micro_batch": 1,
+    "batch": 1,
+    "dp": 1,
+    "cp": 1,
+    "ep": 1,
+    "weight_sharded": False,
+    "activation_recompute": False,
+    **llama3,
+}
+
+llama3_32tp = {
+    "output_name": "llama3_32tp",
+    "tp": 32,
     "pp": 1,
     "micro_batch": 1,
     "batch": 1,
@@ -167,7 +182,7 @@ llama3_8tp2pp = {
 
 llama3_8tp2dp = {
     "output_name": "llama3_8tp2dp",
-    "batch": 128,
+    "batch": 1,
     "micro_batch": 1,
     "dp": 2,
     "cp": 1,
@@ -222,16 +237,17 @@ def run_command(command):
 
 def generate_commands():
     configs = [
-        gpt_5b_cp,
-        #gpt_5b_pp,
-        gpt_5b_fsdp,
-        gpt_5b_tpsp,
-        #gpt_175b_32tp,
+        #gpt_5b_cp,
+        # gpt_5b_pp,
+        #gpt_5b_fsdp,
+        # gpt_5b_tpsp,
+        gpt_175b_32tp,
         #gpt_175b_4tp2dp8pp,
         #llama3_4tp2pp,
         #llama3_8tp2pp,
         #llama3_8tp2dp,
-        llama3_16tp,
+        # llama3_16tp,
+        # llama3_32tp,
     ]
     commands = list()
     for config in configs:
@@ -244,6 +260,7 @@ def generate_commands():
             f"--model_type {config['model_type']} --batch {config['batch']} "
             f"--mixed_precision {config['mixed_precision'] if 'mixed_precision' in config else False}"
         )
+        print(commands[-1])
     return commands
 
 
