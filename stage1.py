@@ -20,14 +20,14 @@ from models.transformer import (
 )
 import re 
 
-use_new_pp = False
+mixprecision = False
 
 def str_to_bool(v):
     # Convert "true" to True and "false" to False
     return v.lower() in ("true", "t", "1", "yes", "y")
 
 
-def _create_pipeline_tensor_map(
+def _create_pipeline_tensor_map_mix_precision(
     _tensors, _temporal_parallel_dims, _symbol_map_value, num_stacks
 ):
     _tensor_map = dict()
@@ -47,56 +47,78 @@ def _create_pipeline_tensor_map(
         cumulative.append(acc)
 
     for tensor in _tensors:
-        if not use_new_pp:
-            if tensor.id == "transformer.18._sharded_weight@1":
-                pass
-            found = False
-            for num_stack in range(num_stacks):
-                if f"transformer.{num_stack}." in tensor.id:
-                    for stage, upper_bound in enumerate(num_stacks_each_stage):
-                        if num_stack < upper_bound:
-                            _tensor_map[tensor.id] = {parallel_dim: stage}
-                            found = True
-                            break
-                    if found:
-                        break
-            if found:
-                pass
-            elif "in_emb" in tensor.id:
-                _tensor_map[tensor.id] = {parallel_dim: 0}
-            elif "out_emb" in tensor.id:
-                _tensor_map[tensor.id] = {parallel_dim: (num_stacks - 1) % range_}
-            elif "loss" in tensor.id:
-                _tensor_map[tensor.id] = {parallel_dim: (num_stacks - 1) % range_}
-            else:
-                # Any tensor that doesn't match the above categories should be
-                # impossible – raise explicit error to catch new patterns early.
-                raise ValueError(f"Unrecognized tensor id for pipeline mapping: {tid}")
+        tid = tensor.id
+        # ------------------------------------------------------------------
+        # 1) Transformer block tensors
+        # ------------------------------------------------------------------
+        m = re.search(r"transformer\.(\d+)", tid)
+        if m:
+            block_idx = int(m.group(1))
+            # Find the first cumulative upper bound that exceeds block_idx
+            stage = next(i for i, up in enumerate(cumulative) if block_idx < up)
+            _tensor_map[tid] = {parallel_dim: stage}
+            continue
+
+        # ------------------------------------------------------------------
+        # 2) Special tensors (embeddings, loss etc.)
+        # ------------------------------------------------------------------
+        if "in_emb" in tid:
+            _tensor_map[tid] = {parallel_dim: 0}
+        elif "out_emb" in tid or "loss" in tid:
+            _tensor_map[tid] = {parallel_dim: (range_ - 1)}
         else:
-            tid = tensor.id
-            # ------------------------------------------------------------------
-            # 1) Transformer block tensors
-            # ------------------------------------------------------------------
-            m = re.search(r"transformer\.(\d+)", tid)
-            if m:
-                block_idx = int(m.group(1))
-                # Find the first cumulative upper bound that exceeds block_idx
-                stage = next(i for i, up in enumerate(cumulative) if block_idx < up)
-                _tensor_map[tid] = {parallel_dim: stage}
-                continue
+            # Any tensor that doesn't match the above categories should be
+            # impossible – raise explicit error to catch new patterns early.
+            raise ValueError(f"Unrecognized tensor id for pipeline mapping: {tid}")
 
-            # ------------------------------------------------------------------
-            # 2) Special tensors (embeddings, loss etc.)
-            # ------------------------------------------------------------------
-            if "in_emb" in tid:
-                _tensor_map[tid] = {parallel_dim: 0}
-            elif "out_emb" in tid or "loss" in tid:
-                _tensor_map[tid] = {parallel_dim: (range_ - 1)}
-            else:
-                # Any tensor that doesn't match the above categories should be
-                # impossible – raise explicit error to catch new patterns early.
-                raise ValueError(f"Unrecognized tensor id for pipeline mapping: {tid}")
+    return _tensor_map
 
+
+def _create_pipeline_tensor_map(
+    _tensors, _temporal_parallel_dims, _symbol_map_value, num_stacks
+):
+    if mixprecision:
+        return _create_pipeline_tensor_map_mix_precision(
+            _tensors, _temporal_parallel_dims, _symbol_map_value, num_stacks
+        )
+    _tensor_map = dict()
+    assert len(_temporal_parallel_dims) == 1
+    parallel_dim = _temporal_parallel_dims[0]
+    range_ = _symbol_map_value[parallel_dim]
+    num_stacks_each_stage = list()
+    for i in range(range_):
+        num_stacks_each_stage.append(num_stacks // range_)
+    for i in range(num_stacks - range_ * (num_stacks // range_)):
+        num_stacks_each_stage[i] += 1
+    for i in range(range_):
+        if i == 0:
+            continue
+        num_stacks_each_stage[i] += num_stacks_each_stage[i - 1]
+    # num_stacks_each_stage.append(num_stacks_each_stage[-1]+100000)
+
+    for tensor in _tensors:
+        if tensor.id == "transformer.18._sharded_weight@1":
+            pass
+        found = False
+        for num_stack in range(num_stacks):
+            if f"transformer.{num_stack}." in tensor.id:
+                for stage, upper_bound in enumerate(num_stacks_each_stage):
+                    if num_stack < upper_bound:
+                        _tensor_map[tensor.id] = {parallel_dim: stage}
+                        found = True
+                        break
+                if found:
+                    break
+        if found:
+            pass
+        elif "in_emb" in tensor.id:
+            _tensor_map[tensor.id] = {parallel_dim: 0}
+        elif "out_emb" in tensor.id:
+            _tensor_map[tensor.id] = {parallel_dim: (num_stacks - 1) % range_}
+        elif "loss" in tensor.id:
+            _tensor_map[tensor.id] = {parallel_dim: (num_stacks - 1) % range_}
+        else:
+            assert False, tensor.name
     return _tensor_map
 
 # ------------------------------------------------------------------
@@ -330,20 +352,29 @@ def main():
     }
     num_stacks = args.num_stacks
     temporal_parallel_dims = [pp]
+    if args.weight_sharded:
+        symbol_map_value[fsdp] = args.dp if args.dp != 0 else 1
+        symbol_map_value['fsdp'] = args.dp if args.dp != 0 else 1
+    else:
+        symbol_map_value[fsdp] = 1
+        symbol_map_value['fsdp'] = 1
 
     hook = 1
-    global use_new_pp
+    global mixprecision
     if args.mixed_precision:
-        use_new_pp = True
+        mixprecision = True
 
     if args.model_type == "llama" or args.model_type == "dense":
         from models.stage1.gpt_model import gpt as transformer_dense
 
         print("Assembling dense model")
         transformer_dense = transformer_dense(num_stacks, regenerate=True, tpsp=args.tpsp)
-        # transformer_dense = MicroBatchReplicator.apply(
-        # transformer_dense, symbol_map_value
-        # )
+        with open("no_mircobatch_optm.txt", "w") as f:
+            f.write(os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "1"))
+        if os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "1") == "0":
+            transformer_dense = MicroBatchReplicator.apply(
+                transformer_dense, symbol_map_value
+            )
         transformer_dense = ReplicateGraph.apply(
             transformer_dense,
             inplace=True,
@@ -406,9 +437,10 @@ def main():
             Chakra004Backend as ReadoutBackend,
         )
 
-        distributed_chakra_graph_dense = MicroBatchReplicatorPostProcess.apply(
-            distributed_chakra_graph_dense, args.batch // args.micro_batch
-        )
+        if os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "1") != "0":
+            distributed_chakra_graph_dense = MicroBatchReplicatorPostProcess.apply(
+                distributed_chakra_graph_dense, args.batch // args.micro_batch
+            )
 
         print("Dense model: reading out")
         distributed_chakra_graph_dense.readout(
@@ -419,9 +451,10 @@ def main():
 
         print("Assembling dense model")
         transformer_dense = transformer_dense(num_stacks, regenerate=True, tpsp=args.tpsp)
-        # transformer_dense = MicroBatchReplicator.apply(
-        # transformer_dense, symbol_map_value
-        # )
+        if os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "1") == "0":
+            transformer_dense = MicroBatchReplicator.apply(
+                transformer_dense, symbol_map_value
+            )
         transformer_dense = ReplicateGraph.apply(
             transformer_dense,
             inplace=True,
@@ -485,9 +518,10 @@ def main():
         )
 
         print("Dense model: reading out")
-        distributed_chakra_graph_dense = MicroBatchReplicatorPostProcess.apply(
-            distributed_chakra_graph_dense, args.batch // args.micro_batch
-        )
+        if os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "1") != "0":
+            distributed_chakra_graph_dense = MicroBatchReplicatorPostProcess.apply(
+                distributed_chakra_graph_dense, args.batch // args.micro_batch
+            )
         distributed_chakra_graph_dense.readout(
             generated_filename, backend=ReadoutBackend
         )
@@ -497,7 +531,8 @@ def main():
         assert args.tpsp
         print("Assembling moe model")
         transformer_moe = transformer_moe(num_stacks, symbol_map_value, regenerate=True)
-        # transformer_moe = MicroBatchReplicator.apply(transformer_moe, symbol_map_value)
+        if os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "1") == "0":
+            transformer_moe = MicroBatchReplicator.apply(transformer_moe, symbol_map_value)
         transformer_moe = ReplicateGraph.apply(
             transformer_moe,
             inplace=True,
@@ -559,9 +594,10 @@ def main():
         )
 
         print("MoE model: reading out")
-        distributed_chakra_graph_moe = MicroBatchReplicatorPostProcess.apply(
-            distributed_chakra_graph_moe, args.batch // args.micro_batch
-        )
+        if os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "1") != "0":
+            distributed_chakra_graph_moe = MicroBatchReplicatorPostProcess.apply(
+                distributed_chakra_graph_moe, args.batch // args.micro_batch
+            )
         distributed_chakra_graph_moe.readout(generated_filename, backend=ReadoutBackend)
 
     elif args.model_type == "debug":
@@ -622,9 +658,10 @@ def main():
         )
 
         print("MoE model: reading out")
-        distributed_chakra_graph_moe = MicroBatchReplicatorPostProcess.apply(
-            distributed_chakra_graph_moe, args.batch // args.micro_batch
-        )
+        if os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "1") != "0":
+            distributed_chakra_graph_moe = MicroBatchReplicatorPostProcess.apply(
+                distributed_chakra_graph_moe, args.batch // args.micro_batch
+            )
         distributed_chakra_graph_moe.readout(generated_filename, backend=ReadoutBackend)
 
 if __name__ == "__main__":
