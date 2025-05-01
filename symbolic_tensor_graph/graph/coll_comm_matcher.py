@@ -95,7 +95,7 @@ class CommunicationMatcher:
                     matched = parallel_symbol
                     break
             if not matched is None:
-                remaining_parallel_symbols.remove(parallel_symbol)
+                remaining_parallel_symbols.remove(matched)
                 parallel_dims[matched] = cls.EndType.REDUCED, dim
 
         assert len(parallel_dims) + len(remaining_parallel_symbols) == len(
