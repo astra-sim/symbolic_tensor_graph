@@ -5,7 +5,7 @@
         "Dmodel",
         "Dff",
         "dp",
-        "mp",
+        "tp",
         "sp"
     ],
     "in_tensors": [
