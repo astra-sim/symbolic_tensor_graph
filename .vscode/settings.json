@@ -86,5 +86,17 @@
     "python.analysis.typeCheckingMode": "off",
     "pylint.args": [
         "\"pylint.args\": [\"--errors-only\"]"
-    ]
+    ],
+    "files.exclude": {
+        "**/generated": true,
+        "**/generated_old": true
+    },
+    "search.exclude": {
+        "**/generated": true,
+        "**/generated_old": true
+    },
+    "files.watcherExclude": {
+        "**/generated/**": true,
+        "**/generated_old": true
+    }
 }

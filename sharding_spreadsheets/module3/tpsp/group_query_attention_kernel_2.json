@@ -1,0 +1,24 @@
+{
+    "symbols": [
+        "Batch",
+        "Seq",
+        "Dmodel",
+        "Head",
+        "KVHead",
+        "dp",
+        "tp",
+        "cp"
+    ],
+    "in_tensors": [
+        "q",
+        "k",
+        "v",
+        "dqkv"
+    ],
+    "out_tensors": [
+        "qkv",
+        "dq",
+        "dk",
+        "dv"
+    ]
+}

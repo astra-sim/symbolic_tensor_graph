@@ -1,0 +1,9 @@
+﻿id,require_grads,x1,x2,op_type,op_attr,x1_shape,x1_hidden,x2_shape,x2_hidden,grad_of
+x,N,,,T,,"Batch/dp, (Seq/cp)/tp, Din/1",1,,,
+w_shard,Y,,,T,,"Din/fsdp, Dout/1",1,,,
+w,N,w_shard,,I,,"Din, Dout/1",1,,,
+y,N,x,w,M,"bsm,mn->bsn","Batch/dp, (Seq/cp)/tp, Din",1,"Din, Dout/1",1,
+dy,N,,,T,,"Batch/dp, (Seq/cp)/tp, Dout/1",1,,,y
+dw,N,dy,x,M,"bsn,bsm->mn","Batch/dp, (Seq/cp)/tp, Dout/1",1,"Batch/dp, (Seq/cp)/tp, Din",1,w
+dw_shard,N,dw,,I,,"Din/fsdp, Dout/1",1,,,w_shard
+dx,N,dy,w,M,"bsn,mn->bsm","Batch/dp, (Seq/cp)/tp, Dout/1",1,"Din, Dout/1",1,x

@@ -59,24 +59,33 @@ comm_group.json  workload.0.et  workload.1.et  workload.2.et  workload.3.et
 
 ## Parameters
 
-| Parameter                 | Description                         | Example Values           |
-|---------------------------|-------------------------------------|--------------------------|
-| `--output_dir`             | Folder to place output files        | `./output`               |
-| `--output_name`            | Output file naming pattern          | `workload.%d.et`         |
-| `--comm_group_file`        | Communication group config file     | `comm_group.json`        |
-| `--chakra_schema_version`  | Chakra ET schema version            | `v0.0.4`, `v0.0.1`, `json`|
-| `--dp`                     | Data parallelism degree             | `32`                     |
-| `--tp`                     | Tensor parallelism degree           | `4`                      |
-| `--pp`                     | Pipeline parallelism degree         | `2`                      |
-| `--sp`                     | Sequence/Token parallelism degree   | `4`                      |
-| `--weight_sharded`         | Shard weights (FSDP enabled)        | `True/False`             |
-| `--din`                    | Input embedding size                | `51200`                  |
-| `--dout`                   | Output embedding size               | `25600`                  |
-| `--dmodel`                 | Model feature size                  | `25600`                  |
-| `--dff`                    | FFN feature size                    | `25600*4`                |
-| `--seq`                    | Sequence length                     | `1024`                   |
-| `--head`                   | Number of attention heads           | `128`                    |
-| `--num_stacks`             | Number of encoder stacks            | `32`                     |
+    | Argument               | Type    | Required | Default    | Description                                                                 |
+    |------------------------|---------|----------|------------|-----------------------------------------------------------------------------|
+    | --output_dir           | str     | Yes      | -          | Directory to store output traces.                                           |
+    | --output_name          | str     | Yes      | -          | Name of the output traces.                                                  |
+    | --dp                   | int     | No       | 1          | Data parallel degree.                                                       |
+    | --tp                   | int     | No       | 1          | Tensor parallel degree.                                                     |
+    | --sp                   | int     | No       | 1          | Sequence parallel degree.                                                   |
+    | --ep                   | int     | No       | 1          | Expert parallel degree.                                                     |
+    | --pp                   | int     | No       | 1          | Pipeline parallel degree.                                                   |
+    | --weight_sharded       | bool    | No       | False      | Whether weights are sharded.                                                |
+    | --activation_recompute | bool    | No       | False      | Whether to recompute activations.                                           |
+    | --tpsp                 | bool    | No       | True       | Use tensor parallel + sequence parallel or tensor parallel only.            |
+    | --dvocal               | int     | No       | 32000      | Vocabulary size.                                                            |
+    | --dmodel               | int     | No       | 8192       | Model dimension.                                                            |
+    | --dff                  | int     | No       | 28672      | Feed-forward dimension.                                                     |
+    | --batch                | int     | No       | 64         | Batch size.                                                                 |
+    | --micro_batch          | int     | No       | -1         | Micro-batch size. Default is -1 (same as batch size).                       |
+    | --seq                  | int     | No       | 1024       | Sequence length.                                                            |
+    | --head                 | int     | No       | 64         | Number of attention heads.                                                  |
+    | --kvhead               | int     | No       | 8          | Number of key-value heads.                                                  |
+    | --num_stacks           | int     | No       | 80         | Number of transformer layers.                                               |
+    | --experts              | int     | No       | 8          | Number of experts in MoE.                                                   |
+    | --kexperts             | int     | No       | 2          | Number of selected experts per token.                                       |
+    | --chakra_schema_version| str     | No       | "v0.0.4"   | Chakra schema version.                                                      |
+    | --model_type           | str     | No       | "llama"    | Type of model to assemble ("llama", "gpt", "moe", or "debug").              |
+    | --mixed_precision      | bool    | No       | False      | Whether to use mixed precision.                                             |
+    | --print_gpu_vram       | bool    | No       | False      | Whether to print per-GPU VRAM footprint.                                    |
 
 \*: We do not specify number of total NPUs, which will be infered from the parallel degree as: ```num_NPUs=DP*TP*PP*SP```
 ## Example Commands

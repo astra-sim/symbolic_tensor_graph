@@ -6,10 +6,27 @@ from .place_holder import PlaceHolder
 from .reshape import Reshape
 from .shadow import Shadow
 from .concat import Concat
+from .broadcast_reduce import BroadcastReduce
+from .slice import Slice
+from .element2 import Element2
+from .customized import Customized
 
 
 class OPHandler:
-    ops = [Add, Einsum, Element, Identical, PlaceHolder, Reshape, Shadow, Concat]
+    ops = [
+        Add,
+        Einsum,
+        Element,
+        Identical,
+        PlaceHolder,
+        Reshape,
+        Shadow,
+        Concat,
+        BroadcastReduce,
+        Slice,
+        Element2,
+        Customized,
+    ]
 
     @classmethod
     def eval(cls, tensor):

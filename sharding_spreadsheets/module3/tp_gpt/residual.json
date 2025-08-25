@@ -1,0 +1,19 @@
+{
+    "symbols": [
+        "Batch",
+        "Seq",
+        "Dmodel",
+        "dp",
+        "cp"
+    ],
+    "in_tensors": [
+        "x1",
+        "x2",
+        "dy"
+    ],
+    "out_tensors": [
+        "dx1",
+        "dx2",
+        "y"
+    ]
+}

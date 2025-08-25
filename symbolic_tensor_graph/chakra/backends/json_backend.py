@@ -18,7 +18,9 @@ class JsonBackend(NodeBackendBase):
         return {}
 
     @classmethod
-    def set_node_common_attrs(cls, id_, name, node_type, y_tensor_size, backend_node):
+    def set_node_common_attrs(
+        cls, id_, name, node_type, y_tensor_size, backend_node, inputs, outputs
+    ):
         def _get_backend_node_type(_frontend_node_type):
             frontend_node_type_map_string = {
                 FrontendNode.NodeType.COLL_COMM_NODE: "coll_comm_node",
@@ -35,6 +37,10 @@ class JsonBackend(NodeBackendBase):
         backend_node["name"] = name
         backend_node["node_type"] = _get_backend_node_type(node_type)
         backend_node["y_tensor_size"] = int(y_tensor_size)
+        if inputs is not None:
+            assert outputs is not None
+            backend_node["inputs"] = inputs
+            backend_node["outputs"] = outputs
 
     @classmethod
     def set_data_deps(cls, data_deps, backend_node):
@@ -49,9 +55,10 @@ class JsonBackend(NodeBackendBase):
             backend_node["ctrl_deps"].append(dep)
 
     @classmethod
-    def set_comp_attrs(cls, num_ops, tensor_size, backend_node):
+    def set_comp_attrs(cls, num_ops, tensor_size, op_type, backend_node):
         backend_node["num_ops"] = int(num_ops)
         backend_node["tensor_size"] = int(tensor_size)
+        backend_node["op_type"] = op_type
 
     @classmethod
     def set_coll_comm_attrs(cls, comm_size, comm_type, comm_group, backend_node):

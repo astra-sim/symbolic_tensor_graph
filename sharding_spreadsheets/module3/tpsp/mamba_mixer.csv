@@ -1,0 +1,21 @@
+id,require_grads,x1,x2,op_type,op_attr,x1_shape,x1_hidden,x2_shape,x2_hidden,grad_of,extra_attr
+
+# 1 Gated MLP's Linear projection
+input_states,N,,,T,,"Batch, Seq, Dmodel",1,,,,
+w_in_proj,Y,,,T,,"Dmodel, 2*Dff",1,,,,
+projected_states,N,input_states,w_in_proj,M,"bsm,mn->bsn","Batch, Seq, Dmodel",1,"Dmodel, 2*Dff",1,,"Batch, Seq, 2*Dff"
+hidden_states,N,projected_states,,SLICE,"2:Dff","Batch, Seq, 2*Dff",1,,,,"Batch, Seq, Dff"
+gate,N,projected_states,,SLICE,"2:Dff","Batch, Seq, 2*Dff",1,,,,"Batch, Seq, Dff"
+
+dgate,N,,,T,,"Batch, Seq, Dff",1,,,,"Batch, Seq, Dff"
+dhidden_states,N,,,T,,"Batch, Seq, Dff",1,,,,"Batch, Seq, Dff"
+dgate1,N,dgate,,B,"2:Dff*2","Batch, Seq, Dff",1,,,,"Batch, Seq, Dff*2"
+dhidden_states1,N,dhidden_states,,B,"2:Dff*2","Batch, Seq, Dff",1,,,,"Batch, Seq, Dff*2"
+dprojected_states,N,dgate1,dhidden_states1,E2,1,"Batch, Seq, Dff*2",1,"Batch, Seq, Dff*2",1,,"Batch, Seq, Dff*2"
+dw_in_proj,N,dprojected_states,input_states,M,"bsn,bsm->mn","Batch, Seq, Dff*2",1,"Batch, Seq, Dmodel",1,,"Dmodel, Dff*2"
+dinput_states,N,dprojected_states,w_in_proj,M,"bsn,mn->bsm","Batch, Seq, Dff*2",1,"Dmodel, Dff*2",1,,"Batch, Seq, Dmodel"
+
+
+# 2 
+
+

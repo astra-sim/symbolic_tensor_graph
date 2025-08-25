@@ -1,0 +1,13 @@
+﻿id,require_grads,x1,x2,op_type,op_attr,x1_shape,x1_hidden,x2_shape,x2_hidden,grad_of,extra_attr
+q,N,,,T,,"Batch/dp, Seq/cp, Dmodel/Head, Head/tp",1,,,,
+k,N,,,T,,"Batch/dp, Seq/cp, Dmodel/Head, Head/tp",1,,,,
+v,N,,,T,,"Batch/dp, Seq/cp, Dmodel/Head, Head/tp",1,,,,
+qk,N,q,k,M,"bsnh,bwnh->bswh","Batch/dp, Seq/cp, Dmodel/Head, Head/tp",1,"Batch/dp, Seq, Dmodel/Head, Head/tp",1,,
+qkv,N,qk,v,M,"bswh,bwnh->bsnh","Batch/dp, Seq/cp, Seq, Head/tp",1,"Batch/dp, Seq, Dmodel/Head, Head/tp",1,,
+dqkv,N,,,T,,"Batch/dp, Seq/cp, Dmodel/Head, Head/tp",1,,,qkv,
+dqk,N,dqkv,v,M,"bsnh,bwnh->bswh","Batch/dp, Seq/cp, Dmodel/Head, Head/tp",1,"Batch/dp, Seq, Dmodel/Head, Head/tp",1,qk,
+dv2,N,dqkv,qk,M,"bsnh,bswh->bwnh","Batch/dp, Seq/cp, Dmodel/Head, Head/tp",1,"Batch/dp, Seq/cp, Seq, Head/tp",1,v2,
+dq,N,dqk,k,M,"bswh,bwnh->bsnh","Batch/dp, Seq/cp, Seq, Head/tp",1,"Batch/dp, Seq, Dmodel/Head, Head/tp",1,q,
+dk2,N,dqk,q,M,"bswh,bsnh->bwnh","Batch/dp, Seq/cp, Seq, Head/tp",1,"Batch/dp, Seq/cp, Dmodel/Head, Head/tp",1,k2,
+dv,N,dv2,,I,,"Batch/dp, Seq/cp, Dmodel/Head, Head/tp",1,,,v,
+dk,N,dk2,,I,,"Batch/dp, Seq/cp, Dmodel/Head, Head/tp",1,,,k,

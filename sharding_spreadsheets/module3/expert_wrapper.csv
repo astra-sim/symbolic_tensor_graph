@@ -1,0 +1,9 @@
+id,require_grads,x1,x2,op_type,op_attr,x1_shape,x1_hidden,x2_shape,x2_hidden,grad_of,extra_attr
+x,N,,,T,,"Batch/dp, Seq*KExperts/(sp*ep), Dmodel/tp",1,,,,
+x_expert,N,x,,SLICE,"1:Seq*KExperts/(Experts*sp*ep)","Batch/dp, Seq*KExperts/(sp*ep), Dmodel/tp",1,,,,
+dx_expert,N,,,T,,"Batch/dp, Seq*KExperts/(Experts*sp*ep), Dmodel/tp",1,,,,
+dx,N,dx_expert,,SLICE,"1:Seq*KExperts/(sp*ep)","Batch/dp, Seq*KExperts/(Experts*sp*ep), Dmodel/tp",1,,,,
+y_expert,N,,,T,,"Batch/dp, Seq*KExperts/(Experts*sp*ep), Dmodel",1/tp,,,,
+y,N,y_expert,,SLICE,"1:Seq*KExperts/(sp*ep)","Batch/dp, Seq*KExperts/(Experts*sp*ep), Dmodel",1/tp,,,,
+dy,N,,,T,,"Batch/dp, Seq*KExperts/(sp*ep), Dmodel/tp",1,,,,
+dy_expert,N,dy,,SLICE,"1:Seq*KExperts/(sp*ep)","Batch/dp, Seq*KExperts/(Experts*sp*ep), Dmodel/tp",1,,,,

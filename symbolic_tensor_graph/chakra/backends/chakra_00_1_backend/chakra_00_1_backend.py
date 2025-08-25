@@ -56,9 +56,10 @@ class Chakra001Backend(NodeBackendBase):
                 backend_node.parent.append(dep)
 
     @classmethod
-    def set_comp_attrs(cls, num_ops, tensor_size, backend_node):
+    def set_comp_attrs(cls, num_ops, tensor_size, op_type, backend_node):
         backend_node.num_ops = int(num_ops)
         backend_node.tensor_size = int(tensor_size)
+        _ = op_type  # not used
 
     @classmethod
     def set_coll_comm_attrs(cls, comm_size, comm_type, comm_group, backend_node):
