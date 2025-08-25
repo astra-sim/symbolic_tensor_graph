@@ -1,0 +1,24 @@
+id,require_grads,x1,x2,op_type,op_attr,x1_shape,x1_hidden,x2_shape,x2_hidden,grad_of
+x0,N,,,T,,"Batch/dp, (Seq/cp)/tp, Dmodel/1",1,,,
+wup,Y,,,T,,"Dmodel, Dff/tp",1,,,
+wgate,Y,,,T,,"Dmodel, Dff/tp",1,,,
+wdown,Y,,,T,,"Dff/tp, Dmodel",1,,,
+x00,N,x0,,I,,"Batch/dp, Seq/cp, Dmodel",1,,,
+xup,N,x00,wup,M,"bsm,mn->bsn","Batch/dp, Seq/cp, Dmodel",1,"Dmodel, Dff/tp",1,
+xgate,N,x00,wgate,M,"bsm,mn->bsn","Batch/dp, Seq/cp, Dmodel",1,"Dmodel, Dff/tp",1,
+xupgate,N,xup,xgate,M,"bsm,bsm->bsm","Batch/dp, Seq/cp, Dff/tp",1,"Batch/dp, Seq/cp, Dff/tp",1,
+xdown1,N,xupgate,wdown,M,"bsm,mn->bsn","Batch/dp, Seq/cp, Dff/tp",1,"Dff/tp, Dmodel",1,
+xdown,N,xdown1,,I,,"Batch/dp, (Seq/cp)/tp, Dff",1,,,
+dxdown,N,,,T,,"Batch/dp, (Seq/cp)/tp, Dmodel/1",1,,,xdown
+dxdown2,N,dxdown,,I,,"Batch/dp, Seq/cp, Dmodel",1,,,
+dwdown,N,dxdown2,xupgate,M,"bsn,bsm->mn","Batch/dp, Seq/cp, Dmodel",1,"Batch/dp, Seq/cp, Dff/tp",1,wdown
+dxupgate,N,dxdown2,wdown,M,"bsn,mn->bsm","Batch/dp, Seq/cp, Dmodel",1,"Dff/tp, Dmodel",1,xupgate
+dxup,N,dxupgate,xgate,M,"bsm,bsm->bsm","Batch/dp, Seq/cp, Dff/tp",1,"Batch/dp, Seq/cp, Dff/tp",1,xup
+dxgate,N,dxupgate,xup,M,"bsm,bsm->bsm","Batch/dp, Seq/cp, Dff/tp",1,"Batch/dp, Seq/cp, Dff/tp",1,xgate
+x01,N,x0,,I,,"Batch/dp, Seq/cp, Dmodel",1,,,
+dwup,N,dxup,x01,M,"bsn,bsm->mn","Batch/dp, Seq/cp, Dff/tp",1,"Batch/dp, Seq/cp, Dmodel",1,wup
+dwgate,N,dxgate,x01,M,"bsn,bsm->mn","Batch/dp, Seq/cp, Dff/tp",1,"Batch/dp, Seq/cp, Dmodel",1,wgate
+dx00,N,dxup,wup,M,"bsn,mn->bsm","Batch/dp, Seq/cp, Dff/tp",1,"Dmodel, Dff/tp",1,
+dx01,N,dxgate,wgate,M,"bsn,mn->bsm","Batch/dp, Seq/cp, Dff/tp",1,"Dmodel, Dff/tp",1,
+dx000,N,dx00,dx01,A,,"Batch/dp, Seq/cp, Dmodel/1","1/tp","Batch/dp, Seq/cp, Dmodel/1","1/tp",x0
+dx0,N,dx000,,I,,"Batch/dp, (Seq/cp)/tp, Dmodel",1,,,

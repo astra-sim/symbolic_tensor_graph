@@ -1,0 +1,27 @@
+id,require_grads,x1,x2,op_type,op_attr,x1_shape,x1_hidden,x2_shape,x2_hidden,grad_of
+x0,N,,,T,,"Batch/dp, (Seq/cp)/tp, Dmodel/1",1,,,
+wup_shard,Y,,,T,,"Dmodel/fsdp, Dff/1",1,,,
+wgate_shard,Y,,,T,,"Dmodel/fsdp, Dff/1",1,,,
+wdown_shard,Y,,,T,,"Dff/1, Dmodel/fsdp",1,,,
+wup,N,wup_shard,,I,,"Dmodel, Dff/1",1,,,
+wgate,N,wgate_shard,,I,,"Dmodel, Dff/1",1,,,
+wdown,N,wdown_shard,,I,,"Dff/1, Dmodel",1,,,
+x00,N,x0,,I,,"Batch/dp, (Seq/cp)/tp, Dmodel",1,,,
+xup,N,x00,wup,M,"bsm,mn->bsn","Batch/dp, (Seq/cp)/tp, Dmodel",1,"Dmodel, Dff/1",1,
+xgate,N,x00,wgate,M,"bsm,mn->bsn","Batch/dp, (Seq/cp)/tp, Dmodel",1,"Dmodel, Dff/1",1,
+xupgate,N,xup,xgate,M,"bsm,bsm->bsm","Batch/dp, (Seq/cp)/tp, Dff/1",1,"Batch/dp, (Seq/cp)/tp, Dff/1",1,
+xdown,N,xupgate,wdown,M,"bsm,mn->bsn","Batch/dp, (Seq/cp)/tp, Dff/1",1,"Dff/1, Dmodel",1,
+dxdown,N,,,T,,"Batch/dp, (Seq/cp)/tp, Dmodel/1",1,,,xdown
+dxdown2,N,dxdown,,I,,"Batch/dp, (Seq/cp)/tp, Dmodel",1,,,
+dwdown,N,dxdown2,xupgate,M,"bsn,bsm->mn","Batch/dp, (Seq/cp)/tp, Dmodel",1,"Batch/dp, (Seq/cp)/tp, Dff/1",1,wdown
+dwdown_shard,N,dwdown,,I,,"Dff/1 Dmodel/fsdp",1,,,wdown_shard
+dxupgate,N,dxdown2,wdown,M,"bsn,mn->bsm","Batch/dp, (Seq/cp)/tp, Dmodel",1,"Dff/1, Dmodel",1,xupgate
+dxup,N,dxupgate,xgate,M,"bsm,bsm->bsm","Batch/dp, (Seq/cp)/tp, Dff/1",1,"Batch/dp, (Seq/cp)/tp, Dff/1",1,xup
+dxgate,N,dxupgate,xup,M,"bsm,bsm->bsm","Batch/dp, (Seq/cp)/tp, Dff/1",1,"Batch/dp, (Seq/cp)/tp, Dff/1",1,xgate
+dwup,N,dxup,x0,M,"bsn,bsm->mn","Batch/dp, (Seq/cp)/tp, Dff/1",1,"Batch/dp, (Seq/cp)/tp, Dmodel",1,wup
+dwgate,N,dxgate,x0,M,"bsn,bsm->mn","Batch/dp, (Seq/cp)/tp, Dff/1",1,"Batch/dp, (Seq/cp)/tp, Dmodel",1,wgate
+dwup_shard,N,dwup,,I,,"Dmodel/fsdp, Dff/1",1,,,wup_shard
+dwgate_shard,N,dwgate,,I,,"Dmodel/fsdp, Dff/1",1,,,wgate_shard
+dx00,N,dxup,wup,M,"bsn,mn->bsm","Batch/dp, (Seq/cp)/tp, Dff/1",1,"Dmodel, Dff/1",1,
+dx01,N,dxgate,wgate,M,"bsn,mn->bsm","Batch/dp, (Seq/cp)/tp, Dff/1",1,"Dmodel, Dff/1",1,
+dx0,N,dx00,dx01,A,,"Batch/dp, (Seq/cp)/tp, Dmodel/1",1,"Batch/dp, (Seq/cp)/tp, Dmodel/1",1,x0

@@ -1,0 +1,22 @@
+{
+    "symbols": [
+        "Batch",
+        "Seq",
+        "Din",
+        "Dout",
+        "dp",
+        "tp",
+        "cp",
+        "fsdp"
+    ],
+    "in_tensors": [
+        "x",
+        "w",
+        "dy"
+    ],
+    "out_tensors": [
+        "y",
+        "dw",
+        "dx"
+    ]
+}

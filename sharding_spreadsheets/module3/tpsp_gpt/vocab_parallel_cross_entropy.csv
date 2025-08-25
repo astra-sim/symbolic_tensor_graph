@@ -1,0 +1,6 @@
+id,require_grads,x1,x2,op_type,op_attr,x1_shape,x1_hidden,x2_shape,x2_hidden,grad_of,extra_attr
+x,N,,,T,,"Batch/dp, (Seq/cp)/tp, Dmodel/1",1,,,,
+x1,N,x,,I,,"Batch/dp, (Seq/cp), Dmodel/1",1,,,,
+w,N,,,T,,"Dmodel, Dvocab/tp",1,,,,
+y,N,x1,w,M,"bsm,mn->bsn","Batch/dp, (Seq/cp)/tp, Dmodel",1,"Dmodel, Dvocab/tp",1,,
+

@@ -10,8 +10,16 @@ class NodeBackendBase:
         frontend_node = node
         frontend_node.sanity_check()
         backend_node = cls.alloc_backend_node()
+        frontend_inputs = getattr(frontend_node, "inputs", None)
+        frontend_outputs = getattr(frontend_node, "outputs", None)
         cls.set_node_common_attrs(
-            frontend_node.id, frontend_node.name, frontend_node.node_type, frontend_node.y_tensor_size, backend_node
+            frontend_node.id,
+            frontend_node.name,
+            frontend_node.node_type,
+            frontend_node.y_tensor_size,
+            backend_node,
+            frontend_inputs,
+            frontend_outputs,
         )
         cls.set_data_deps(frontend_node.data_deps, backend_node)
         cls.set_ctrl_deps(frontend_node.ctrl_deps, backend_node)
@@ -19,7 +27,10 @@ class NodeBackendBase:
         if frontend_node.node_type == FrontendNode.NodeType.COLL_COMM_NODE:
             if hasattr(frontend_node, "comm_group"):
                 cls.set_coll_comm_attrs(
-                    frontend_node.comm_size, frontend_node.comm_type, node.comm_group, backend_node
+                    frontend_node.comm_size,
+                    frontend_node.comm_type,
+                    node.comm_group,
+                    backend_node,
                 )
             else:
                 cls.set_coll_comm_attrs(
@@ -41,7 +52,10 @@ class NodeBackendBase:
             )
         elif frontend_node.node_type == FrontendNode.NodeType.COMP_NODE:
             cls.set_comp_attrs(
-                frontend_node.num_ops, frontend_node.tensor_size, backend_node
+                frontend_node.num_ops,
+                frontend_node.tensor_size,
+                frontend_node.op_type,
+                backend_node,
             )
         elif frontend_node.node_type == FrontendNode.NodeType.MEM_LOAD_NODE:
             cls.set_mem_attrs(frontend_node.tensor_size, backend_node)
@@ -67,7 +81,9 @@ class NodeBackendBase:
         raise NotImplementedError()
 
     @classmethod
-    def set_node_common_attrs(cls, id, name, node_type, y_tensor_size, backend_node):
+    def set_node_common_attrs(
+        cls, id, name, node_type, y_tensor_size, backend_node, inputs, outputs
+    ):
         raise NotImplementedError()
 
     @classmethod
@@ -79,7 +95,7 @@ class NodeBackendBase:
         raise NotImplementedError()
 
     @classmethod
-    def set_comp_attrs(cls, num_ops, tensor_size, backend_node):
+    def set_comp_attrs(cls, num_ops, tensor_size, op_type, backend_node):
         raise NotImplementedError()
 
     @classmethod

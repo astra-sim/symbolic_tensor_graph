@@ -33,6 +33,7 @@ class Node:
         if self.node_type == Node.NodeType.COMP_NODE:
             assert hasattr(self, "num_ops")
             assert hasattr(self, "tensor_size")
+            assert hasattr(self, "op_type")
         elif self.node_type == Node.NodeType.COLL_COMM_NODE:
             assert hasattr(self, "comm_size")
             assert hasattr(self, "comm_type")
@@ -54,7 +55,9 @@ class Node:
 
     def readout(node, backend=None):
         if backend is None:
-            from .backends.chakra_00_4_backend.chakra_00_4_backend import Chakra004Backend
+            from .backends.chakra_00_4_backend.chakra_00_4_backend import (
+                Chakra004Backend,
+            )
 
             backend = Chakra004Backend
         return backend.readout(node)
@@ -62,7 +65,9 @@ class Node:
     @classmethod
     def readout_nodes(cls, nodes, filename, backend=None):
         if backend is None:
-            from .backends.chakra_00_4_backend.chakra_00_4_backend import Chakra004Backend
+            from .backends.chakra_00_4_backend.chakra_00_4_backend import (
+                Chakra004Backend,
+            )
 
             backend = Chakra004Backend
         frontend_nodes = nodes
@@ -70,7 +75,7 @@ class Node:
 
     @property
     def parent(self):
-        parent = list()
-        parent.extend(self.ctrl_deps)
-        parent.extend(self.data_deps)
-        return parent
+        parent_ = list()
+        parent_.extend(self.ctrl_deps)
+        parent_.extend(self.data_deps)
+        return parent_
