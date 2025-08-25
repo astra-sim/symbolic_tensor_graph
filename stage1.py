@@ -13,14 +13,18 @@ from symbolic_tensor_graph.graph.grad_updater import (
 from symbolic_tensor_graph.graph.replicate_graph import ReplicateGraph
 from symbolic_tensor_graph.graph.connect_graph import ConnectGraph
 from symbolic_tensor_graph.graph.graph_distributer import GraphDistributer
-from symbolic_tensor_graph.graph.convert_chakra import BundledConvertChakra, ConvertChakra
+from symbolic_tensor_graph.graph.convert_chakra import (
+    BundledConvertChakra,
+    ConvertChakra,
+)
 from models.transformer import (
     transformer_stack as transformer_stack_fn,
     transformer as transformer_fn,
 )
-import re 
+import re
 
 mixprecision = False
+
 
 def str_to_bool(v):
     # Convert "true" to True and "false" to False
@@ -121,6 +125,7 @@ def _create_pipeline_tensor_map(
             assert False, tensor.name
     return _tensor_map
 
+
 # ------------------------------------------------------------------
 # Helper utilities for VRAM accounting
 # ------------------------------------------------------------------
@@ -166,14 +171,14 @@ def _tensor_mem_class(tensor):
 
     # Heuristics to exclude large backward / other temporaries
     lower_name = name.lower()
-    if (
-        "_backward" in lower_name
-        or lower_name.split(".")[-1].startswith(("d", "dw", "dq", "dk", "dv"))
+    if "_backward" in lower_name or lower_name.split(".")[-1].startswith(
+        ("d", "dw", "dq", "dk", "dv")
     ):
         return None  # skip temp
 
     # Everything else => activation
     return "act"
+
 
 def _weight_and_opt_sizes(tensor, symbol_map, mixed_precision=False):
     """Return (weight_bytes, optimizer_state_bytes) for a parameter tensor.
@@ -194,35 +199,46 @@ def _weight_and_opt_sizes(tensor, symbol_map, mixed_precision=False):
         weight_bytes = elem_cnt * 4
 
     # Optimizer state bytes (Adam: m & v, fp32): 2 * 4 bytes
-    opt_bytes = elem_cnt * 4 * 2  # multiplier 2 already folded as 4 in original? wait orig used *4 only.
+    opt_bytes = (
+        elem_cnt * 4 * 2
+    )  # multiplier 2 already folded as 4 in original? wait orig used *4 only.
     # Note: ConvertChakra used *4 ( not *8 ) – but that code path is inconsistent wrt bytes.
     # For consistency with their total we keep the same (single replica) so /2.
     opt_bytes = elem_cnt * 4  # to match _create_IOInfo logic
 
     return weight_bytes, opt_bytes
 
+
 def _tensor_size_bytes(tensor, symbol_map, mixed_precision=False):
     """Total size as computed by ConvertChakra (weight+opt if param)."""
-    info = ConvertChakra._create_IOInfo(tensor, symbol_map, mixed_precision, fsdp_enabled=symbol_map.get('fsdp', 0) > 1)
+    info = ConvertChakra._create_IOInfo(
+        tensor, symbol_map, mixed_precision, fsdp_enabled=symbol_map.get("fsdp", 0) > 1
+    )
     return info["size"]
 
+
 def _print_gpu_vram(bundle_graph, symbol_map, mixed_precision=False, header=""):
-    GiB = 1024 ** 3
+    GiB = 1024**3
     for rank_key, tg in bundle_graph.graphs.items():
         stats = {"weight": 0, "opt": 0, "act": 0, "grad": 0}
         tensor_details = []  # Store details for sorting
         for tensor in tg.tensors:
             cls = _tensor_mem_class(tensor)
-            if cls is None: continue
+            if cls is None:
+                continue
             if cls == "weight":
                 w_b, opt_b = _weight_and_opt_sizes(tensor, symbol_map, mixed_precision)
                 stats["weight"] += w_b
                 stats["opt"] += opt_b
-                tensor_details.append((cls, w_b + opt_b, tensor.id, Tensor.stringfy_shape(tensor.y_shape)))
+                tensor_details.append(
+                    (cls, w_b + opt_b, tensor.id, Tensor.stringfy_shape(tensor.y_shape))
+                )
             else:
                 size_b = _tensor_size_bytes(tensor, symbol_map, mixed_precision)
                 stats[cls] += size_b
-                tensor_details.append((cls, size_b, tensor.id, Tensor.stringfy_shape(tensor.y_shape)))
+                tensor_details.append(
+                    (cls, size_b, tensor.id, Tensor.stringfy_shape(tensor.y_shape))
+                )
         total = sum(stats.values())
         rk_str = ",".join([f"{d[0]}={d[1]}" for d in rank_key])
         print(
@@ -299,7 +315,9 @@ def main():
         "--chakra_schema_version", type=str, default="v0.0.4", required=False
     )
     parser.add_argument("--model_type", type=str, default="dense", required=False)
-    parser.add_argument("--mixed_precision", type=str_to_bool, default=False, required=False)
+    parser.add_argument(
+        "--mixed_precision", type=str_to_bool, default=False, required=False
+    )
     parser.add_argument(
         "--print_gpu_vram",
         type=str_to_bool,
@@ -354,10 +372,10 @@ def main():
     temporal_parallel_dims = [pp]
     if args.weight_sharded:
         symbol_map_value[fsdp] = args.dp if args.dp != 0 else 1
-        symbol_map_value['fsdp'] = args.dp if args.dp != 0 else 1
+        symbol_map_value["fsdp"] = args.dp if args.dp != 0 else 1
     else:
         symbol_map_value[fsdp] = 1
-        symbol_map_value['fsdp'] = 1
+        symbol_map_value["fsdp"] = 1
 
     hook = 1
     global mixprecision
@@ -365,21 +383,26 @@ def main():
         mixprecision = True
 
     if args.model_type == "llama" or args.model_type == "dense":
-        from models.stage1.gpt_model import gpt as transformer_dense
+        if mixprecision:
+            from models.stage1.llama_model import llama as transformer_dense
+        else:
+            from models.stage1.gpt_model import gpt as transformer_dense
 
         print("Assembling dense model")
-        transformer_dense = transformer_dense(num_stacks, regenerate=True, tpsp=args.tpsp)
-        with open("no_mircobatch_optm.txt", "w") as f:
-            f.write(os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "1"))
-        if os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "1") == "0":
+        transformer_dense = transformer_dense(
+            num_stacks, regenerate=True, tpsp=args.tpsp
+        )
+        if os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "0") == "0":
             transformer_dense = MicroBatchReplicator.apply(
                 transformer_dense, symbol_map_value
             )
-        transformer_dense = ReplicateGraph.apply(
-            transformer_dense,
-            inplace=True,
-            old_symbol_map_new_symbol={"Batch": "MicroBatch"},
-        )
+        else:
+            print("[Warning] MICROBATCH OPTIMIZE sometimes generate incorrect graphs, use with caution!")
+            transformer_dense = ReplicateGraph.apply(
+                transformer_dense,
+                inplace=True,
+                old_symbol_map_new_symbol={"Batch": "MicroBatch"},
+            )
 
         if args.weight_sharded:
             transformer_dense = ReplicateGraph.apply(
@@ -393,7 +416,7 @@ def main():
             )
 
         # transformer_dense.visualize("dense")
-        transformer_dense.save_tensor_graph("llama.csv")
+        # transformer_dense.save_tensor_graph("llama.csv")
 
         transformer_dense = GradUpdater.apply(transformer_dense, inplace=True)
         spatial_parallel_dims_dense = [dp, tp, spp]
@@ -437,7 +460,7 @@ def main():
             Chakra004Backend as ReadoutBackend,
         )
 
-        if os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "1") != "0":
+        if os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "0") != "0":
             distributed_chakra_graph_dense = MicroBatchReplicatorPostProcess.apply(
                 distributed_chakra_graph_dense, args.batch // args.micro_batch
             )
@@ -450,16 +473,20 @@ def main():
         from models.stage1.gpt_model import gpt as transformer_dense
 
         print("Assembling dense model")
-        transformer_dense = transformer_dense(num_stacks, regenerate=True, tpsp=args.tpsp)
-        if os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "1") == "0":
+        transformer_dense = transformer_dense(
+            num_stacks, regenerate=True, tpsp=args.tpsp
+        )
+        if os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "0") == "0":
             transformer_dense = MicroBatchReplicator.apply(
                 transformer_dense, symbol_map_value
             )
-        transformer_dense = ReplicateGraph.apply(
-            transformer_dense,
-            inplace=True,
-            old_symbol_map_new_symbol={"Batch": "MicroBatch"},
-        )
+        else:
+            print("[Warning] MICROBATCH OPTIMIZE sometimes generate incorrect graphs, use with caution!")
+            transformer_dense = ReplicateGraph.apply(
+                transformer_dense,
+                inplace=True,
+                old_symbol_map_new_symbol={"Batch": "MicroBatch"},
+            )
 
         if args.weight_sharded:
             transformer_dense = ReplicateGraph.apply(
@@ -473,7 +500,7 @@ def main():
             )
 
         # transformer_dense.visualize("dense")
-        transformer_dense.save_tensor_graph("gpt.csv")
+        # transformer_dense.save_tensor_graph("gpt.csv")
 
         transformer_dense = GradUpdater.apply(transformer_dense, inplace=True)
         spatial_parallel_dims_dense = [dp, tp, spp]
@@ -518,7 +545,7 @@ def main():
         )
 
         print("Dense model: reading out")
-        if os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "1") != "0":
+        if os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "0") != "0":
             distributed_chakra_graph_dense = MicroBatchReplicatorPostProcess.apply(
                 distributed_chakra_graph_dense, args.batch // args.micro_batch
             )
@@ -528,11 +555,17 @@ def main():
 
     elif args.model_type == "moe":
         from models.stage1.moe_model import transformer as transformer_moe
+
         assert args.tpsp
         print("Assembling moe model")
         transformer_moe = transformer_moe(num_stacks, symbol_map_value, regenerate=True)
-        if os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "1") == "0":
-            transformer_moe = MicroBatchReplicator.apply(transformer_moe, symbol_map_value)
+        if os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "0") == "0":
+            transformer_moe = MicroBatchReplicator.apply(
+                transformer_moe, symbol_map_value
+            )
+        else:
+            print("[Warning] MICROBATCH OPTIMIZE sometimes generate incorrect graphs, use with caution!")
+            assert False, "disable for now"
         transformer_moe = ReplicateGraph.apply(
             transformer_moe,
             inplace=True,
@@ -551,7 +584,7 @@ def main():
             )
 
         # transformer_moe.visualize("moe")
-        transformer_moe.save_tensor_graph("moe.csv")
+        # transformer_moe.save_tensor_graph("moe.csv")
         transformer_moe = GradUpdater.apply(transformer_moe, inplace=True)
         spatial_parallel_dims_moe = [dp, tp, spp, ep]
 
@@ -594,18 +627,24 @@ def main():
         )
 
         print("MoE model: reading out")
-        if os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "1") != "0":
+        if os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "0") != "0":
             distributed_chakra_graph_moe = MicroBatchReplicatorPostProcess.apply(
                 distributed_chakra_graph_moe, args.batch // args.micro_batch
             )
         distributed_chakra_graph_moe.readout(generated_filename, backend=ReadoutBackend)
 
     elif args.model_type == "debug":
-        transformer_moe = TensorGraph.load_tensor_graph("./sharding_spreadsheets/module3/tpsp/embedding.csv")
+        transformer_moe = TensorGraph.load_tensor_graph(
+            "./sharding_spreadsheets/module3/tpsp/embedding.csv"
+        )
         transformer_moe = ReplicateGraph.apply(
             transformer_moe,
             inplace=True,
-            old_symbol_map_new_symbol={"Batch": "MicroBatch", "Din": "Dvocal", "Dout": "Dvocal"},
+            old_symbol_map_new_symbol={
+                "Batch": "MicroBatch",
+                "Din": "Dvocal",
+                "Dout": "Dvocal",
+            },
         )
 
         if args.weight_sharded:
@@ -620,7 +659,7 @@ def main():
             )
 
         # transformer_moe.visualize("moe")
-        transformer_moe.save_tensor_graph("moe.csv")
+        # transformer_moe.save_tensor_graph("moe.csv")
         transformer_moe = GradUpdater.apply(transformer_moe, inplace=True)
         spatial_parallel_dims_moe = [dp, tp, spp, ep]
 
@@ -658,11 +697,12 @@ def main():
         )
 
         print("MoE model: reading out")
-        if os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "1") != "0":
+        if os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "0") != "0":
             distributed_chakra_graph_moe = MicroBatchReplicatorPostProcess.apply(
                 distributed_chakra_graph_moe, args.batch // args.micro_batch
             )
         distributed_chakra_graph_moe.readout(generated_filename, backend=ReadoutBackend)
+
 
 if __name__ == "__main__":
     main()

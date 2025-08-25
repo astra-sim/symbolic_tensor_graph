@@ -11,6 +11,7 @@ from ..graph.connect_graph import ConnectGraph
 
 OPTIMIZED = os.environ.get("STAGE_OPTIMIZED", "1") == "1"
 
+
 class GradUpdater:
     @classmethod
     def _default_revision_fn(cls, old_replicate):
@@ -141,8 +142,12 @@ class FSDPWeightGradManager:
             backward_weight.x1 = assembled_weight_backward
             backward_weight.x1_shape = assembled_weight_backward.x1_shape
             backward_weight.x1_hidden = assembled_weight_backward.x1_hidden
-            backward_weight.x2_shape = weight.y_shape
-            backward_weight.x2_hidden = weight.y_hidden
+            if os.environ.get("STAGE_MICROBATCH_OPTIMIZE", "1") == "1":
+                backward_weight.x2_shape = weight.y_shape
+                backward_weight.x2_hidden = weight.y_hidden
+            else:
+                backward_weight.x2_shape = weight.x1_shape
+                backward_weight.x2_hidden = weight.x1_hidden
             backward_weights.append(backward_weight)
 
         weight_map_backward_weight = dict()
@@ -241,7 +246,7 @@ class MicroBatchReplicator:
 
     @classmethod
     def apply(cls, graph, symbol_map_value, inplace=False):
-        raise NotImplementedError("Too slow, use the postprocess instead")
+        # raise NotImplementedError("Too slow, use the postprocess instead")
         batch, microbatch = sp.symbols("Batch MicroBatch")
         assert microbatch in symbol_map_value
         assert batch in symbol_map_value
@@ -383,9 +388,10 @@ class MicroBatchReplicatorPostProcess:
         print("Replicate micro batches done")
         return bundled_graph
 
-
     @classmethod
-    def apply_no_optimize(cls, bundled_graph: BundledHybridGraph, num_micro_batches, inplace=True):
+    def apply_no_optimize(
+        cls, bundled_graph: BundledHybridGraph, num_micro_batches, inplace=True
+    ):
         assert inplace
         print("Replicating micro batches")
         for readable_rank in bundled_graph.graphs.keys():
@@ -394,4 +400,3 @@ class MicroBatchReplicatorPostProcess:
             cls.replicate_micro_batches(hybrid_graph, num_micro_batches)
         print("Replicate micro batches done")
         return bundled_graph
-    

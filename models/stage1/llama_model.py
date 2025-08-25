@@ -138,7 +138,7 @@ def transformer_decoders(num_layers, decoder_template):
     return decoders
 
 
-def llama(num_layers, embedding_path=None, regenerate=False):
+def llama(num_layers, embedding_path=None, regenerate=False, tpsp=False):
     from . import CACHE_DIR
     import os
 
